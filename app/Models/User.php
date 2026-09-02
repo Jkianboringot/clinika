@@ -67,4 +67,8 @@ class User extends Authenticatable
         return $this->hasMany(Sale::class,'encoder_id');
 
     }
+
+    public function  roles(){
+        return $this->hasOne(Roles::class);
+    }
 }
