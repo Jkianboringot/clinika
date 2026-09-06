@@ -24,7 +24,6 @@ return new class extends Migration
             //INSIGHT
             // i think we can just derive this shift from payout/
             // SOLUTION no keep shift here it is correct hte point is to track sale for each shiftf
-            $table->string('shift',40)->default(Shift::Opening->value);
             $table->decimal('cash_amount',8,2)->unsigned();
             $table->decimal('cash_advance',8,2)->unsigned()->nullable();
 

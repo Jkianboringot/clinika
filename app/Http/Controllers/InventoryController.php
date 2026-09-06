@@ -52,8 +52,8 @@ class InventoryController extends Controller
     }
 
     /**
-     * Show the "Stock In" form. Product list is open to every product —
-     * a delivery can introduce a new product to a branch.
+     * Show the "Stock In" form. Product list is open to every item —
+     * a delivery can introduce a new item to a branch.
      */
     public function createIn(): Response
     {
@@ -97,10 +97,10 @@ class InventoryController extends Controller
         $branches = Branch::with('products')->get()->map(fn(Branch $branch) => [
             'id' => $branch->id,
             'location' => $branch->location,
-            'products' => $branch->products->map(fn(Product $product) => [
-                'id' => $product->id,
-                'name' => $product->name,
-                'quantity' => $product->pivot->quantity,
+            'products' => $branch->products->map(fn(Product $item) => [
+                'id' => $item->id,
+                'name' => $item->name,
+                'quantity' => $item->pivot->quantity,
             ]),
         ]);
 

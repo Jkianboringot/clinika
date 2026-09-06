@@ -1,5 +1,5 @@
-import { Link } from '@inertiajs/react';
-import { BookOpen, FolderGit2, LayoutGrid,House } from 'lucide-react';
+import { Link, usePage } from '@inertiajs/react';
+import { BookOpen, FolderGit2, LayoutGrid, House } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -16,34 +16,6 @@ import {
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
 
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
-     {
-        title: 'Product',
-        href: '/products',
-        icon: House,
-    },
-    {
-        title: 'Inventory',
-        href: '/inventories',
-        icon: House,
-    },
-     {
-        title: 'Branch',
-        href: '/branches',
-        icon: House,
-    },
-     {
-        title: 'Sale',
-        href: '/sales',
-        icon: House,
-    },
-];
-
 // const footerNavItems: NavItem[] = [
 //     {
 //         title: 'Repository',
@@ -58,6 +30,26 @@ const mainNavItems: NavItem[] = [
 // ];
 
 export function AppSidebar() {
+    const { permission } = usePage<{ permission?: { canManageUsers?: boolean } }>().props;
+    const canManageUsers = permission?.canManageUsers ?? false;
+
+    const mainNavItems: NavItem[] = [
+        {
+            title: 'Dashboard',
+            href: dashboard(),
+            icon: LayoutGrid,
+        },
+        ...(canManageUsers
+            ? [
+                  {
+                      title: 'User',
+                      href: '/users',
+                      icon: House,
+                  },
+              ]
+            : []),
+    ];
+
     return (
         <Sidebar collapsible="icon" variant="sidebar">
             <SidebarHeader>

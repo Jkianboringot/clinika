@@ -21,7 +21,7 @@ class ProductReturn extends Model
         'price' => 'decimal:2',
     ];
 
-       public function product()
+       public function item()
     {
         return $this->belongsTo(Product::class);
     }

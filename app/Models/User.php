@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Spatie\Permission\Traits\HasRoles;
 
 /**
  * @property int $id
@@ -31,7 +32,7 @@ class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
-
+  use HasRoles;
     /**
      * Get the attributes that should be cast.
      *
@@ -52,23 +53,5 @@ class User extends Authenticatable
         'branch_id'
     ];
 
-    public function branch(): BelongsTo
-    {
-        return $this->belongsTo(Branch::class);
-    }
-
-    public function inventory()
-    {
-        return $this->hasOne(Inventory::class);
-
-    }
-     public function sales()
-    {
-        return $this->hasMany(Sale::class,'encoder_id');
-
-    }
-
-    public function  roles(){
-        return $this->hasOne(Roles::class);
-    }
+   
 }

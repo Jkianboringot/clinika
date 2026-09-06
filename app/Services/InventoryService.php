@@ -61,7 +61,7 @@ class InventoryService
     
                     $inv->save();
 
-                    // we need for each because we will have collection of product
+                    // we need for each because we will have collection of item
                     // and we just update the quantity, but we still need to do the check
                     // -also we need to re think the storing of pivot table id to inventory, like 
                     // is that really possible, think do we cerate the so called pivot first or later, 
@@ -101,7 +101,7 @@ class InventoryService
     
                         } else {
                             // check if this has performance issues
-                            $branch->product()->attach($productID, ['quantity' => $qty, 'branch_id' => $branch->id]);
+                            $branch->item()->attach($productID, ['quantity' => $qty, 'branch_id' => $branch->id]);
                             // dd($existting,'badd');
     
                         }
@@ -199,7 +199,7 @@ class InventoryService
                         $qty = $listItem['quantity'];
 
                         // FAULT-TOLERANCE - this just for safe check, can be remove, ask 
-                        // ASK-YOURSELF later, because i suspect we dont need this , because we expect product to be already thier
+                        // ASK-YOURSELF later, because i suspect we dont need this , because we expect item to be already thier
                         //OPTIMIZE - seem redundant to get the whole model 
                         $existting = $branch->products()->where('product_id', $productID)->first();
                         if ($existting) {
@@ -214,7 +214,7 @@ class InventoryService
                         } else {
                             dd($existting, 'bad');
 
-                            //we need to throw error here since , in here we expect that an product already exist in this branch
+                            //we need to throw error here since , in here we expect that an item already exist in this branch
                             //if not then something is wrong, we should'nt even be able to make this request
                             throw new Error('development: this error is bad, INVENTORYOUT, unexpected error');
                         }

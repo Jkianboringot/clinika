@@ -65,7 +65,7 @@ class ProductController extends Controller
     }
 
     // ASK-YOURSELF - ask about which of this two is better the top update or this below one
-    //   public function update(Request $request,Product $product)
+    //   public function update(Request $request,Product $item)
     // {
 
 
@@ -74,9 +74,9 @@ class ProductController extends Controller
     //         'price' => 'required',
     //     ]);
 
-    //     $product->update([
-    //         'name'=>$product->input('name'),
-    //         'price'=>$product->input('price'),
+    //     $item->update([
+    //         'name'=>$item->input('name'),
+    //         'price'=>$item->input('price'),
     //     ]);
 
     //     return redirect()->route('products.index')->with('message', 'PRoduct Delete Successfully');

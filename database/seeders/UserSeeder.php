@@ -23,5 +23,6 @@ class UserSeeder extends Seeder
             // 'branch_id'=>1
             
         ]);
+        
     }   
 }

@@ -16,7 +16,7 @@ class ProductIngredient extends Model
     ];
     
    
-       public function product()
+       public function item()
     {
         return $this->belongsTo(Product::class);
     }

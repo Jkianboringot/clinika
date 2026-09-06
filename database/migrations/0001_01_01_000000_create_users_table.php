@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\IsActiveEnum;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -18,6 +19,8 @@ return new class extends Migration
             // $table->foreignId('branch_id')->constrained()->nullable();
             // its fine to be nullable as not all user create need to have an assign branch
             //straight away, their is still processing
+            $table->string('is_active')->default(IsActiveEnum::ACTIVE->value);
+
             $table->string('password');
             // $table->index('name','user_name_index'); contemplating this one
             // $table->index('branch_id','user_branch_id_index');
