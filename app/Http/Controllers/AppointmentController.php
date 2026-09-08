@@ -7,9 +7,83 @@ use App\Http\Requests\SearchRequest;
 use App\Models\Appointment;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+/**
+ * =====================================================================
+ * APPOINTMENT MODULE — Controller Notes
+ * =====================================================================
+ * Type   : Appiontment — Backend Logic
+ * Purpose: Handles creation, update, and deletion of patient appointments
+ *          by clinic staff. Patients cannot manage appointments directly.
+ * =====================================================================
+ *
+ * ACCESS
+ * ------
+ * - Only STAFF can create/manage appointments.
+ * - Used to schedule a patient's visit (e.g. extraction, cleaning).
+ *
+ * DATA FIELDS
+ * -----------
+ * - patient_id
+ * - user_id          (staff who created it)
+ * - appointment_time
+ * - status           : cancelled | rescheduled | completed | follow_up
+ *
+ * ARCHITECTURE FLOW
+ * ------------------
+ *   UI (sends validated input)
+ *     -> Route
+ *       -> Controller (this file)
+ *         -> Custom Request (validation)
+ *           -> Appointment Service
+ *             -> returns result + error handling
+ *
+ *   NOTE: Controller stays thin. Business logic lives in the Service layer.
+ *
+ * VALIDATION RULES
+ * -----------------
+ * - Appointment date cannot be before today.
+ * - Appointment time should fall within reasonable clinic hours
+ *   (not strictly enforced yet — flexible for now).
+ * - Status must match the defined enum above.
+ *
+ * BUSINESS LOGIC
+ * ---------------
+ * 1. No duplicate same-day appointments
+ *    - A patient cannot book twice in one day.
+ *    - Additional visits must be booked on a different day.
+ *
+ * 2. [REMINDER] Daily booking limit
+ *    - Idea: cap appointments per day based on available time slots.
+ *    - NOT required yet — not specified, decision deferred.
+ *
+ * 3. Reschedule approval rule
+ *    - [REMINDER] Check phone notes for more detail.
+ *    - Current approach: patient contacts staff -> staff manually updates
+ *      the appointment -> staff's action itself serves as approval.
+ *      (No separate approval flag needed.)
+ *
+ * DELETE RULES
+ * -------------
+ * - Allowed only if:
+ *     - status is "cancelled", OR
+ *     - it's the same day and still pending/unchanged.
+ * - NOT allowed if status is "completed" or "follow_up"
+ *   (preserve historical data).
+ * - Must warn user: "This will delete the data permanently —
+ *   you are responsible."
+ *
+ * UPDATE RULES
+ * -------------
+ * - Same flow as Create.
+ * - Must check if appointment exists first -> return 404 if not.
+ *
+ * =====================================================================
+ */
 
 class AppointmentController extends Controller
 {
+
+    
     public function create()
     {
         $this->authorize('create', Appointment::class);

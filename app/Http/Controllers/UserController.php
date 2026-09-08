@@ -8,6 +8,79 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
+
+/**
+ * =====================================================================
+ * USER MANAGEMENT MODULE — Controller Notes
+ * =====================================================================
+ * Type   : Product — Backend Logic
+ * Purpose: Manages system users — Admin, Staff, and Dentist accounts.
+ *          Patient accounts are technically a "user" type too, but
+ *          will live in a SEPARATE controller/file (noted here only
+ *          for reference — see Patient module).
+ * =====================================================================
+ *
+ * ACCESS / ROLES
+ * ---------------
+ * - Accessible by ADMIN and STAFF, but permissions differ by role:
+ *   - ADMIN  : can create/edit/delete Dentist & Staff accounts.
+ *   - STAFF  : cannot create Dentist or Staff — staff can only
+ *              manage (create/edit/delete) PATIENT accounts.
+ *
+ * NATURE OF THIS MODULE
+ * ----------------------
+ * - Could be a simple Controller or a Service — not heavily decided yet.
+ * - Requires HEAVY authorization checks on Create, given role sensitivity.
+ *
+ * DATA FIELDS
+ * -----------
+ * - name       : string, min 3 / max 75 chars
+ * - email      : string, min 3 / max 75–150 chars (TBD)
+ *                - must be UNIQUE (used for login — patients log in via email)
+ *                - uniqueness check must be IGNORED on update (self-email)
+ * - is_active  : enum -> active | deactivated
+ * - password   : must be hashed before storage
+ * - role       : assigned role (admin | dentist | staff | patient)
+ *
+ * ARCHITECTURE FLOW
+ * ------------------
+ *   UI -> Route -> Controller -> Custom Request Form (validation) -> (Service?)
+ *
+ * BUSINESS LOGIC
+ * ---------------
+ * 1. Creation restriction by role
+ *    - STAFF cannot create Dentist or Staff accounts.
+ *    - STAFF can only create/manage Patient accounts.
+ *    - ADMIN can create/edit/delete, but only within their responsibility scope.
+ *
+ * 2. Role assignment safeguard
+ *    - When assigning a role, system must NOT allow:
+ *        - Staff being assigned "Admin" permission.
+ *        - Dentist being assigned "Admin" or "Staff" permission.
+ *    - [REMINDER] This is meant to guard against human error during
+ *      role assignment (e.g. accidentally setting wrong role).
+ *      Permissions themselves are already tied to role — this is
+ *      more of a safety net than a core system responsibility.
+ *
+ * 3. Delete restrictions
+ *    - ADMIN accounts can NEVER be deleted (not even by another admin).
+ *    - No user can delete THEMSELVES — self-deletion is blocked for
+ *      Admin, Dentist, Staff, and Patient alike.
+ *    - Only ADMIN can delete other users (Dentist/Staff/Patient).
+ *    - Must check existence/validity before delete.
+ *
+ * 4. Self-editing allowance
+ *    - Dentist, Staff, and Patient CANNOT delete themselves,
+ *      but CAN edit their own information via their profile.
+ *
+ * 5. Update safeguard
+ *    - All edits go through Custom Request Form validation.
+ *    - Email uniqueness check excludes the current user's own record.
+ *
+ * =====================================================================
+ */
+
+
 class UserController extends Controller
 {
     public function create()

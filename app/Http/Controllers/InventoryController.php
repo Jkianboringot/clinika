@@ -19,6 +19,94 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Str;
 
+
+/**
+ * =====================================================================
+ * INVENTORY MODULE — Controller / Service Notes
+ * =====================================================================
+ * Type   : Product — Backend Logic
+ * Purpose: Responsible ONLY for increasing product stock.
+ *          Stock REDUCTION is handled elsewhere (e.g. treatment
+ *          equipment usage) — not this module's responsibility.
+ * =====================================================================
+ *
+ * ACCESS / ROLES
+ * ---------------
+ * - Only STAFF and ADMIN can Create, Edit, and Delete.
+ * - Staff and Admin responsibilities are the same here, but kept
+ *   as separate implementations/paths.
+ *
+ * NATURE OF THIS MODULE
+ * ----------------------
+ * - Likely needs to be a SERVICE (not a plain controller) due to
+ *   the stock-calculation business rules below.
+ *
+ * UI / DATA SHAPE
+ * -----------------
+ * - UI shows a "product list" — each product has a quantity input.
+ * - Submitted as an ARRAY of { product_id, quantity } to the controller.
+ *
+ * VALIDATION RULES
+ * -----------------
+ * - product_id must exist in DB (protects against tampered/fake IDs).
+ * - quantity:
+ *     - must be an INTEGER (no decimals/floats).
+ *     - min: 1
+ *     - max: 999
+ *
+ * BUSINESS LOGIC
+ * ---------------
+ *
+ * 1. CREATE (Adding stock) — "Pattern 2" (aggregate, not overwrite)
+ *    - Check if the product already has an existing quantity in stock.
+ *      - If YES  -> new_stock = current_quantity + incoming_quantity
+ *      - If NO   -> new_stock = incoming_quantity (set directly)
+ *    - MUST still lock the DB transaction here.
+ *      Reason: even though Create is purely additive (no subtraction
+ *      logic), two staff members could submit stock additions for the
+ *      same product at nearly the same time. Without a lock, both
+ *      requests could read the same "current stock" value before
+ *      either write happens, causing one addition to silently
+ *      overwrite/be lost instead of both being summed correctly.
+ *    -note not purely additive since if YES sum add current and incomming, if no setdirectly so we are updating which can be reduce if we are not carefull
+ *
+ * 2. UPDATE (Editing a previous stock entry) — requires extra care
+ *    - MUST lock the DB transaction here — this operation carries
+ *      more risk than Create.
+ *    - Race condition concern: if two people edit the same product
+ *      at the same time (e.g. one adding stock, one reducing it),
+ *      whoever's request finishes first "wins," and the second
+ *      overwrite may be based on stale data. This can produce
+ *      wrong stock counts — e.g. a late/backdated correction from
+ *      one staff member conflicting with a real-time update from
+ *      another. Locking ensures updates are applied sequentially
+ *      against the true current value, not a stale read.
+ *    - Logic: reverse the OLD value's effect, then apply the NEW value.
+ *
+ *      Example:
+ *        - Original entry added: 10
+ *        - Current total stock:  20  (includes other additions too)
+ *        - Original entry edited from 10 -> 5
+ *
+ *        Step 1: base_stock = current_stock - original_quantity
+ *                           = 20 - 10 = 10
+ *        Step 2: new_stock  = base_stock + updated_quantity
+ *                           = 10 + 5 = 15
+ *
+ *    - This ensures the update reflects only the DIFFERENCE of that
+ *      specific entry, not a blind overwrite of total stock.
+ *
+ * 3. DELETE restrictions
+ *    - Cannot delete an entry if quantity >= 1.
+ *    - Cannot delete an entry if it has EVER been used — even if
+ *      current quantity is 0 (0 could just mean "out of stock",
+ *      not "safe to remove").
+ *    - If product record is not found -> STOP the operation immediately.
+ *      (No soft-fail handling for now — hard stop only.)
+ *
+ * =====================================================================
+ */
+
 class InventoryController extends Controller
 {
     public function __construct(protected InventoryService $inventoryService)
