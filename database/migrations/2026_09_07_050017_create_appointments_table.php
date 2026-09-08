@@ -13,6 +13,11 @@ return new class extends Migration
     {
         Schema::create('appointments', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('staff_id')->constrained('users');
+            $table->foreignId('patient_id')->constrained();
+            $table->date('appointment_date');
+            $table->time('appointment_time');
+            $table->string('status')->default(AppointmentStatusEnum::InProgress->value);
             $table->timestamps();
         });
     }

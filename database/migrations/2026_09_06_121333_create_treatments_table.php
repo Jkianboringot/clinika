@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
@@ -13,6 +12,23 @@ return new class extends Migration
     {
         Schema::create('treatments', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('patient_id')->constrained();
+            $table->foreignId('user_id')->constrained();
+            $table->foreignId('treatment_prescription_detail_id')->constrained();
+            $table->string('follow_up_schedule');
+            $table->foreignId('appointment_id')
+                ->constrained()
+                ->cascadeOnDelete();
+
+            $table->foreignId('procedure_id')
+                ->constrained()
+                ->restrictOnDelete();
+            
+            $table->string('tooth_numbers')->nullable();
+            $table->unsignedInteger('duration_minutes')->nullable();
+            $table->text('summary');
+            $table->text('dentist_notes')->nullable();
+
             $table->timestamps();
         });
     }

@@ -14,11 +14,9 @@ return new class extends Migration {
     {
         Schema::create('inventories', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('staff_id')->constrained('users');
             //TODO - ondelete
             //will put this on null for now , to show client shit
-            $table->foreignId('encoder_id')->nullable()->constrained('users');
-            $table->foreignId('branch_id')->nullable()->constrained();
-
             $table->timestamps();
         });
     }
