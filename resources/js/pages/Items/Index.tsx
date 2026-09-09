@@ -12,28 +12,25 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { create, destroy, edit, index as medicationsIndex } from '@/routes/medications';
+import { create, destroy, edit, index as inventoryitemsIndex } from '@/routes/inventory_items';
 
-interface Medication {
+interface InventoryItem {
     id: number;
-    name: string;
-    generic_name: string | null;
-    dosage_form: string | null;
-    strength: string | null;
-    created_at: string;
+    item_name: string;
+    minimun_stock: number|null;
 }
 
-interface PaginatedMedications {
-    data: Medication[];
+interface PaginatedInventoryItems {
+    data: InventoryItem[];
     links: { url: string | null; label: string; active: boolean }[];
 }
 
-interface MedicationsPageProps {
+interface InventoryItemsPageProps {
     flash: {
         message?: string;
         error?: string;
     };
-    medications: PaginatedMedications;
+    inventoryitems: PaginatedInventoryItems;
     filters: { search?: string };
 }
 
@@ -44,15 +41,15 @@ function paginationLabel(label: string) {
 }
 
 export default function Index() {
-    const { flash, medications, filters } = usePage<
-        MedicationsPageProps & Record<string, unknown>
-    >().props as unknown as MedicationsPageProps;
+    const { flash, inventoryitems, filters } = usePage<
+        InventoryItemsPageProps & Record<string, unknown>
+    >().props as unknown as InventoryItemsPageProps;
     
     const { processing, delete: destroyForm } = useForm();
     const [search, setSearch] = useState(filters?.search ?? '');
     const isFirstRender = useRef(true);
 
-    const medicationRows = medications?.data ?? [];
+    const inventoryitemRows = inventoryitems?.data ?? [];
 
     useEffect(() => {
         if (isFirstRender.current) {
@@ -62,7 +59,7 @@ export default function Index() {
 
         const timeout = setTimeout(() => {
             router.get(
-                medicationsIndex().url,
+                inventoryitemsIndex().url,
                 { search },
                 { preserveState: true, replace: true },
             );
@@ -79,7 +76,7 @@ export default function Index() {
 
     return (
         <>
-            <Head title="Medications" />
+            <Head title="InventoryItems" />
 
             <div className="p-6">
                 {flash?.message && (
@@ -95,28 +92,28 @@ export default function Index() {
                 <div className="mb-6 flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-extrabold tracking-tight text-ink">
-                            Medications
+                            InventoryItems
                         </h1>
                         <p className="text-sm text-subtle">
-                            Manage medications used in prescriptions
+                            Manage inventoryitems used in prescriptions
                         </p>
                     </div>
                     <Link href={create().url}>
                         <Button className="bg-brand-orange font-bold text-white hover:bg-brand-orange-hover">
-                            New medication
+                            New item
                         </Button>
                     </Link>
                 </div>
 
                 <div className="overflow-hidden rounded-xl border border-[#c9c0b7]">
                     <div className="flex items-center justify-between border-b border-[#c9c0b7] px-5 py-3">
-                        <h2 className="font-bold text-ink">All Medications</h2>
+                        <h2 className="font-bold text-ink">All InventoryItems</h2>
                         <div className="relative">
                             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-orange" />
                             <Input
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Search medications..."
+                                placeholder="Search inventoryitems..."
                                 maxLength={100}
                                 className="w-56 border-brand-orange/40 bg-white pl-9 text-sm"
                             />
@@ -128,34 +125,30 @@ export default function Index() {
                             <TableRow className="border-b border-[#c9c0b7]">
                                 <TableHead className="font-bold text-brand-orange-hover">ID</TableHead>
                                 <TableHead className="font-bold text-brand-orange-hover">Name</TableHead>
-                                <TableHead className="font-bold text-brand-orange-hover">Generic name</TableHead>
-                                <TableHead className="font-bold text-brand-orange-hover">Form</TableHead>
-                                <TableHead className="font-bold text-brand-orange-hover">Strength</TableHead>
+                                <TableHead className="font-bold text-brand-orange-hover">Mininum Stock</TableHead>
                                 <TableHead className="text-right font-bold text-brand-orange-hover">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {medicationRows.length === 0 && (
+                            {inventoryitemRows.length === 0 && (
                                 <TableRow>
                                     <TableCell colSpan={6} className="py-10 text-center text-sm text-subtle">
-                                        No medications found.
+                                        No inventoryitems found.
                                     </TableCell>
                                 </TableRow>
                             )}
-                            {medicationRows.map((medication) => (
+                            {inventoryitemRows.map((item) => (
                                 <TableRow
-                                    key={medication.id}
+                                    key={item.id}
                                     className="border-b border-[#c9c0b7] last:border-0"
                                 >
-                                    <TableCell className="font-medium">{medication.id}</TableCell>
-                                    <TableCell>{medication.name}</TableCell>
-                                    <TableCell>{medication.generic_name ?? '—'}</TableCell>
-                                    <TableCell>{medication.dosage_form ?? '—'}</TableCell>
-                                    <TableCell>{medication.strength ?? '—'}</TableCell>
+                                    <TableCell className="font-medium">{item.id}</TableCell>
+                                    <TableCell>{item.item_name}</TableCell>
+                                    <TableCell>{item.minimun_stock ?? '—'}</TableCell>
                                     <TableCell>
                                         <div className="flex items-center justify-end gap-4">
                                             <Link
-                                                href={edit(medication.id).url}
+                                                href={edit(item.id).url}
                                                 className="flex items-center gap-1 text-sm font-medium text-ink hover:text-brand-orange"
                                             >
                                                 <Pencil className="h-4 w-4" />
@@ -164,7 +157,7 @@ export default function Index() {
                                             <button
                                                 type="button"
                                                 disabled={processing}
-                                                onClick={() => handleDelete(medication.id, medication.name)}
+                                                onClick={() => handleDelete(item.id, item.item_name)}
                                                 className="flex items-center gap-1 text-sm font-medium text-ink hover:text-danger disabled:opacity-50"
                                             >
                                                 <Trash2 className="h-4 w-4" />
@@ -177,9 +170,9 @@ export default function Index() {
                         </TableBody>
                     </Table>
 
-                    {medications?.links?.length > 3 && (
+                    {inventoryitems?.links?.length > 3 && (
                         <div className="flex gap-1 border-t border-[#c9c0b7] px-5 py-3">
-                            {medications.links.map((link, i) => (
+                            {inventoryitems.links.map((link, i) => (
                                 <Link
                                     key={i}
                                     href={link.url ?? '#'}
@@ -201,6 +194,6 @@ export default function Index() {
 
 Index.layout = {
     breadcrumbs: [
-        { title: 'Medications', href: '/medications' },
+        { title: 'Item', href: '/inventory_items' },
     ],
 };

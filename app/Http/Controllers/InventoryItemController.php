@@ -88,7 +88,6 @@ class InventoryItemController extends Controller
                 $validated['search'] ?? null,
                 fn ($query, $search) =>
                     $query->where('name', 'like', "%{$search}%")
-                        ->orWhere('generic_name', 'like', "%{$search}%")
             )
             ->orderBy('name')
             ->paginate(15)

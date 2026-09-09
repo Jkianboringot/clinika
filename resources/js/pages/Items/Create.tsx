@@ -21,7 +21,7 @@ export default function Create() {
 
             <div className="mx-auto max-w-lg p-6">
                 <h1 className="mb-6 text-3xl font-extrabold tracking-tight text-ink">
-                    New medication
+                    New item
                 </h1>
 
                 <form onSubmit={handleSubmit} className="space-y-5">
@@ -59,7 +59,7 @@ export default function Create() {
                             disabled={processing}
                             className="bg-brand-orange font-bold text-white hover:bg-brand-orange-hover"
                         >
-                            Create medication
+                            Create item
                         </Button>
                         <Link
                             href={medicationsIndex().url}
