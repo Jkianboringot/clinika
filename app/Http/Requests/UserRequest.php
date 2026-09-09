@@ -2,30 +2,32 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Contracts\Validation\ValidationRule;
+use App\Enums\IsActiveEnum;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UserRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
+        // Real authorization (permissions + role-assignment safeguards) lives
+        // in the controller — it depends on business rules, not just "is this
+        // user logged in and submitting a form".
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
-        return [
-            'name' => ['required', 'string', 'min:3', 'max:75','unique:users,name'],
-            // 'category' => ['nullable', 'string', 'min:3', 'max:75'],
 
+        return [
+            'name' => ['required', 'string', 'min:3', 'max:75'],
+            'email' => [
+                'required', 'string', 'min:3', 'max:150',
+                Rule::unique('users', 'email')->ignore($this->route('user')),
+            ],
+            'role' => ['required', 'string', Rule::in(['admin', 'dentist', 'staff'])],
+            'is_active' => ['sometimes', Rule::enum(IsActiveEnum::class)],
+            'password' => [$this->isMethod('post') ? 'required' : 'nullable', 'string', 'min:3', 'confirmed'],
         ];
     }
 }

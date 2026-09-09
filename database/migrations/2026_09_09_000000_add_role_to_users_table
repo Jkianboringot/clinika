@@ -1,0 +1,31 @@
+<?php
+
+use App\Enums\RoleEnum;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+// REVIEW: UserController's docblock lists `role` as a DATA FIELD (admin |
+// dentist | staff | patient) but the original create_users_table migration
+// never added the column — only `is_active` made it in. Filed as a
+// separate migration rather than editing the original, since I don't know
+// if that one has already run against your db.
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->string('role')->default(RoleEnum::PATIENT->value)->after('is_active');
+            // REVIEW: default of "patient" is a guess — no default was specified
+            // in the docblock. Change this if admin/staff/dentist should never
+            // silently fall back to patient.
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropColumn('role');
+        });
+    }
+};

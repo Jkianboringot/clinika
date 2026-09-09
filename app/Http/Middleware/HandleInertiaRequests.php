@@ -25,7 +25,7 @@ class HandleInertiaRequests extends Middleware
                 'user' => $user,
             ],
             'permission' => [
-                'canManageUsers' => $user?->hasPermissionTo('manage users') ?? false,
+                'canManageUsers' => $user?->hasPermissionTo('users.view') ?? false,
             ],
             'flash' => [
                 'message' => fn () => $request->session()->get('message'),

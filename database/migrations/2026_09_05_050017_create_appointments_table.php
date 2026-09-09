@@ -3,6 +3,8 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use App\Enums\AppointmentStatusEnum;
+use AppointmentStatusEnum as GlobalAppointmentStatusEnum;
 
 return new class extends Migration
 {
@@ -17,7 +19,9 @@ return new class extends Migration
             $table->foreignId('patient_id')->constrained();
             $table->date('appointment_date');
             $table->time('appointment_time');
-            $table->string('status')->default(AppointmentStatusEnum::InProgress->value);
+
+        // TODO(later) bring back later after am done with user
+            // $table->string('status')->default(GlobalAppointmentStatusEnum::InProgress->value);
             $table->timestamps();
         });
     }

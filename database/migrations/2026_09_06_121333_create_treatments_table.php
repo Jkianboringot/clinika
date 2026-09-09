@@ -12,10 +12,10 @@ return new class extends Migration {
     {
         Schema::create('treatments', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('patient_id')->constrained();
             $table->foreignId('user_id')->constrained();
-            $table->foreignId('treatment_prescription_detail_id')->constrained();
+            $table->foreignId('treatment_prescription_id')->constrained('treatment_prescription_details');
             $table->string('follow_up_schedule');
+            
             $table->foreignId('appointment_id')
                 ->constrained()
                 ->cascadeOnDelete();

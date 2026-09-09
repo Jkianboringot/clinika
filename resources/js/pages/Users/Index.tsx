@@ -25,6 +25,8 @@ interface User {
     id: number;
     name: string;
     email: string;
+    is_active: string;
+    created_at: string;
 }
 
 interface PaginatedUsers {
@@ -32,17 +34,34 @@ interface PaginatedUsers {
     links: { url: string | null; label: string; active: boolean }[];
 }
 
+// Keys must match the role slugs used by self::MANAGEABLE_ROLES on the backend.
+type Role = 'dentist' | 'staff' | 'patient';
+
 interface PageProps {
     flash: {
         message?: string;
         error?: string;
     };
     users: PaginatedUsers;
-    filters: { search?: string };
+    filters: { search?: string; role?: Role };
+    roleCounts: Record<Role, number>;
+    activeRole: Role;
 }
 
-function formatCurrency(value: number) {
-    return Number(value).toFixed(2);
+const TABS: { key: Role; label: string }[] = [
+    { key: 'dentist', label: 'Dentists' },
+    { key: 'staff', label: 'Staff' },
+    { key: 'patient', label: 'Patients' },
+];
+
+const TAB_TITLES: Record<Role, string> = {
+    dentist: 'Dentist Accounts',
+    staff: 'Staff Accounts',
+    patient: 'Patient Accounts',
+};
+
+function formatId(id: number) {
+    return `D${String(id).padStart(3, '0')}`;
 }
 
 // Laravel's paginator labels are always one of these three shapes —
@@ -54,14 +73,28 @@ function paginationLabel(label: string) {
 }
 
 export default function Index() {
-    const { flash, users, filters } = usePage<PageProps & Record<string, unknown>>().props as unknown as PageProps;
+    const { flash, users, filters, roleCounts, activeRole } = usePage<
+        PageProps & Record<string, unknown>
+    >().props as unknown as PageProps;
+
     const { processing, delete: destroyForm } = useForm();
     const [search, setSearch] = useState(filters?.search ?? '');
     const isFirstRender = useRef(true);
 
+    const userRows = users?.data ?? [];
+
     // Debounced: typing only updates local state immediately. The actual
     // request to the server waits until 400ms after the user stops typing,
     // so it doesn't fire on every keystroke — only once they pause.
+    const activeRoleRef = useRef(activeRole);
+
+    // Keep the ref in sync so the debounce effect can read the *latest*
+    // role without needing it as a dependency (which would re-trigger
+    // the debounce on every tab click).
+    useEffect(() => {
+        activeRoleRef.current = activeRole;
+    }, [activeRole]);
+
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false;
@@ -71,13 +104,24 @@ export default function Index() {
         const timeout = setTimeout(() => {
             router.get(
                 usersIndex().url,
-                { search },
+                { search, role: activeRoleRef.current },
                 { preserveState: true, replace: true },
             );
         }, 400);
 
         return () => clearTimeout(timeout);
-    }, [search]);
+    }, [search]); // <-- only search now
+    // Tab switches are immediate, not debounced, and reset the search box
+    // since "Dr." matches from the Dentists tab don't mean much on Staff.
+    const handleTabChange = (role: Role) => {
+        if (role === activeRole) return;
+        setSearch('');
+        router.get(
+            usersIndex().url,
+            { role },
+            { preserveState: true, replace: true },
+        );
+    };
 
     const handleDelete = (id: number, name: string) => {
         if (confirm(`Delete "${name}"? This can't be undone.`)) {
@@ -90,7 +134,7 @@ export default function Index() {
             <Head title="Users" />
 
             <div className="p-6">
-                {flash.message && (
+                {flash?.message && (
                     <div className="mb-4">
                         <Alert>
                             <Megaphone />
@@ -101,9 +145,14 @@ export default function Index() {
                 )}
 
                 <div className="mb-6 flex items-center justify-between">
-                    <h1 className="text-3xl font-extrabold tracking-tight text-ink">
-                        Users
-                    </h1>
+                    <div>
+                        <h1 className="text-3xl font-extrabold tracking-tight text-ink">
+                            Users
+                        </h1>
+                        <p className="text-sm text-subtle">
+                            Manage system users and permissions
+                        </p>
+                    </div>
                     <Link href={create().url}>
                         <Button className="bg-brand-orange font-bold text-white hover:bg-brand-orange-hover">
                             New user
@@ -111,55 +160,84 @@ export default function Index() {
                     </Link>
                 </div>
 
-                <div className="overflow-hidden rounded-xl border border-[#f0ddc8] bg-[#fdf8f2]">
-                    <div className="flex items-center justify-end gap-3 border-b border-[#f0ddc8] px-5 py-3">
+                <div className="mb-5 inline-flex gap-1 rounded-full bg-[#e9e4dc] p-1">
+                    {TABS.map((tab) => (
+                        <button
+                            key={tab.key}
+                            type="button"
+                            onClick={() => handleTabChange(tab.key)}
+                            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${activeRole === tab.key
+                                    ? 'bg-white text-ink shadow-sm'
+                                    : 'text-subtle hover:text-ink'
+                                }`}
+                        >
+                            {tab.label} ({roleCounts?.[tab.key] ?? 0})
+                        </button>
+                    ))}
+                </div>
+
+                <div className="overflow-hidden rounded-xl border border-[#c9c0b7]">
+                    <div className="flex items-center justify-between border-b border-[#c9c0b7] px-5 py-3">
+                        <h2 className="font-bold text-ink">{TAB_TITLES[activeRole]}</h2>
                         <div className="relative">
                             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-orange" />
                             <Input
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Search"
+                                placeholder={`Search ${TABS.find((t) => t.key === activeRole)?.label.toLowerCase()}...`}
                                 maxLength={100}
                                 className="w-56 border-brand-orange/40 bg-white pl-9 text-sm"
                             />
-                            {search.length >= 100 && (
-
-                                <p className="absolute left-0 top-full mb-10 text-xs text-danger">
-                                    Search can't be longer than 5 characters.
-                                </p>
-                            )}
                         </div>
                     </div>
 
                     <Table>
                         <TableHeader>
-                            <TableRow className="border-b border-[#f0ddc8] bg-[#fbead9] hover:bg-[#fbead9]">
+                            <TableRow className="border-b border-[#c9c0b7]">
+                                <TableHead className="font-bold text-brand-orange-hover">ID</TableHead>
                                 <TableHead className="font-bold text-brand-orange-hover">Name</TableHead>
-                                <TableHead className="text-center font-bold text-brand-orange-hover">email</TableHead>
-                                <TableHead className="text-right">Action</TableHead>
+                                <TableHead className="font-bold text-brand-orange-hover">Email</TableHead>
+                                <TableHead className="font-bold text-brand-orange-hover">Status</TableHead>
+                                <TableHead className="font-bold text-brand-orange-hover">Joined</TableHead>
+                                <TableHead className="text-right font-bold text-brand-orange-hover">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {users.data.length === 0 && (
+                            {userRows.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="py-10 text-center text-sm text-subtle">
+                                    <TableCell colSpan={6} className="py-10 text-center text-sm text-subtle">
                                         No users found.
                                     </TableCell>
                                 </TableRow>
                             )}
-                            {users.data.map((user) => (
+                            {userRows.map((user) => (
                                 <TableRow
                                     key={user.id}
-                                    className="border-b border-[#f0ddc8] last:border-0 hover:bg-[#fbf3e8]"
+                                    className="border-b border-[#c9c0b7] last:border-0"
                                 >
-                                    <TableCell className="font-medium text-[#7a3b12]">
+                                    <TableCell className="font-medium ">
+                                        {formatId(user.id)}
+                                    </TableCell>
+                                    <TableCell >
                                         {user.name}
                                     </TableCell>
-                                    <TableCell className="text-center">
-                                        {user.email}
-
+                                    <TableCell>{user.email}</TableCell>
+                                    <TableCell>
+                                        <span
+                                            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white ${user.is_active === 'Active'
+                                                ? 'bg-emerald-600'
+                                                : 'bg-slate-400'
+                                                }`}
+                                        >
+                                            {user.is_active}
+                                        </span>
                                     </TableCell>
-
+                                    <TableCell>
+                                        {new Date(user.created_at).toLocaleDateString('en-US', {
+                                            month: 'short',
+                                            year: 'numeric',
+                                        })}
+                                    </TableCell>
                                     <TableCell>
                                         <div className="flex items-center justify-end gap-4">
                                             <Link
@@ -185,15 +263,15 @@ export default function Index() {
                         </TableBody>
                     </Table>
 
-                    {users.links.length > 3 && (
-                        <div className="flex gap-1 border-t border-[#f0ddc8] px-5 py-3">
+                    {users?.links?.length > 3 && (
+                        <div className="flex gap-1 border-t border-[#c9c0b7] px-5 py-3">
                             {users.links.map((link, i) => (
                                 <Link
                                     key={i}
                                     href={link.url ?? '#'}
                                     className={`flex items-center rounded-md px-3 py-1 text-sm ${link.active
-                                            ? 'bg-brand-orange text-white'
-                                            : 'text-brand-orange-hover hover:bg-[#fbead9]'
+                                        ? 'bg-brand-orange text-white'
+                                        : 'text-brand-orange-hover hover:bg-[#fbead9]'
                                         } ${!link.url ? 'pointer-events-none opacity-40' : ''}`}
                                 >
                                     {paginationLabel(link.label)}

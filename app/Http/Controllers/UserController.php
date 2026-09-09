@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\UserRequest;
+use App\Enums\IsActiveEnum;
 use App\Http\Requests\SearchRequest;
+use App\Http\Requests\UserRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
-
-
+use Inertia\Response;
 /**
  * =====================================================================
  * USER MANAGEMENT MODULE — Controller Notes
@@ -78,72 +81,157 @@ use Inertia\Inertia;
  *    - Email uniqueness check excludes the current user's own record.
  *
  * =====================================================================
+ * REVIEW (implementation note, not part of the original spec above):
+ * Rule 1 and rule 3 read as mildly contradictory once Patient accounts
+ * are pulled out into their own controller — if Staff's only write
+ * access is to Patients, and Patients aren't managed here, Staff ends
+ * up with NO create/update/delete rights in this module at all (view
+ * only). That's the reading this controller and UserPolicy are built
+ * on. Flag me if Staff was actually meant to retain some write access
+ * here.
+ * =====================================================================
  */
-
 
 class UserController extends Controller
 {
-    public function create()
+    public function index(SearchRequest $request): Response
     {
-        $this->authorize('create', User::class);
+        $this->authorize('users.view');
 
-        return Inertia::render('Users/Create', []);
-    }
+        $validated = $request->validated();
 
-    public function store(UserRequest $request)
-    {
-        $this->authorize('create', User::class);
+        $activeRole = $validated['role'] ?? 'admin';
 
-        $request->validated();
+        abort_unless(
+            in_array($activeRole, ['admin', 'dentist', 'staff', 'patient'], true),
+            403
+        );
 
-        User::create($request->all());
-        return redirect()->route('users.index')->with('message', 'User Created Successfully');
-    }
-
-    public function destroy(Request $request)
-    {
-        $user = User::findOrFail($request->id);
-        $this->authorize('delete', $user);
-
-        $user->deleteOrFail();
-        return redirect()->route('users.index')->with('message', 'User Deleted Successfully');
-    }
-
-    public function edit(Request $request)
-    {
-        $p = User::findOrFail($request->id);
-        $this->authorize('view', $p);
-
-        return Inertia::render('Users/Edit', ['users' => $p]);
-    }
-
-    public function update(UserRequest $request)
-    {
-        $p = User::findOrFail($request->id);
-        $this->authorize('update', $p);
-
-        $request->validated();
-        $p->update($request->all());
-
-        return redirect()->route('users.index')->with('message', 'User Updated Successfully');
-    }
-
-    public function index(SearchRequest $request)
-    {
-        $this->authorize('viewAny', User::class);
-
-        $request->validated();
         $users = User::query()
-            ->when($request->string('search')->trim(), function ($query, $search) {
-                $query->where('name', 'like', "{$search}%");
-            })
+            ->role($activeRole)
+            ->when(
+                $validated['search'] ?? null,
+                fn ($query, $search) =>
+                    $query->where('name', 'like', "%{$search}%")
+            )
             ->orderBy('created_at')
             ->paginate(15)
             ->withQueryString();
 
+        $roleCounts = collect(['admin', 'dentist', 'staff', 'patient'])
+            ->mapWithKeys(
+                fn ($role) => [$role => User::role($role)->count()]
+            );
+
         return Inertia::render('Users/Index', [
             'users' => $users,
-            'filters' => $request->only(['search']),
+            'filters' => [
+                'search' => $validated['search'] ?? '',
+                'role' => $activeRole,
+            ],
+            'roleCounts' => $roleCounts,
+            'activeRole' => $activeRole,
         ]);
+    }
+
+    public function create(): Response
+    {
+        $this->authorize('users.create');
+
+        return Inertia::render('Users/Create', [
+            'assignableRoles' => $this->assignableRoles(),
+        ]);
+    }
+
+    public function store(UserRequest $request): RedirectResponse
+    {
+        $this->authorize('users.create');
+
+        $validated = $request->validated();
+        $this->guardRoleAssignment($validated['role']);
+
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'is_active' => IsActiveEnum::ACTIVE->value,
+        ]);
+
+        $user->syncRoles([$validated['role']]);
+
+        return redirect()->route('users.index')->with('message', 'User created successfully.');
+    }
+
+    public function edit(Request $request, User $user): Response
+    {
+        $this->authorize('users.view');
+
+        return Inertia::render('Users/Edit', [
+            'user' => $user->only(['id', 'name', 'email', 'is_active']) + [
+                'role' => $user->getRoleNames()->first(),
+            ],
+            'assignableRoles' => $this->assignableRoles(),
+        ]);
+    }
+
+    public function update(UserRequest $request, User $user): RedirectResponse
+    {
+        $this->authorize('users.update');
+
+        if ($user->id === Auth::id()) {
+            abort(403, 'Use your profile page to edit your own account.');
+        }
+
+        $validated = $request->validated();
+        $this->guardRoleAssignment($validated['role'], $user);
+
+        $user->update([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'is_active' => $validated['is_active'] ?? $user->is_active,
+        ]);
+
+        if (! empty($validated['password'])) {
+            $user->update(['password' => Hash::make($validated['password'])]);
+        }
+
+        $user->syncRoles([$validated['role']]);
+
+        return redirect()->route('users.index')->with('message', 'User updated successfully.');
+    }
+
+    public function destroy(Request $request, User $user): RedirectResponse
+    {
+        $this->authorize('users.delete');
+
+        if ($user->hasRole('admin')) {
+            abort(403, 'Admin accounts cannot be deleted.');
+        }
+
+        if ($user->id === Auth::id()) {
+            abort(403, "You can't delete your own account.");
+        }
+
+        $user->delete();
+
+        return redirect()->route('users.index')->with('message', 'User deleted successfully.');
+    }
+
+    private function assignableRoles(): array
+    {
+        return Auth::user()->hasRole('admin')
+            ? ['admin', 'dentist', 'staff', 'patient']
+            : ['dentist'];
+    }
+
+    private function guardRoleAssignment(string $role, ?User $target = null): void
+    {
+        if (! in_array($role, $this->assignableRoles(), true)) {
+            abort(403, 'You are not allowed to assign that role.');
+        }
+
+        if ($target?->hasRole('admin') && $role !== 'admin') {
+            abort(403, 'Admin accounts cannot be reassigned to another role.');
+        }
     }
 }

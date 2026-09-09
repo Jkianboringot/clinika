@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -18,6 +19,8 @@ class RolePermissionSeeder extends Seeder
 
         $permissions = [
             // Users
+            'users.route',
+
             'users.view',
             'users.create',
             'users.update',
@@ -99,6 +102,7 @@ class RolePermissionSeeder extends Seeder
         */
 
         $admin->syncPermissions([
+            'users.route',
             'users.view',
             'users.create',
             'users.update',
@@ -162,5 +166,10 @@ class RolePermissionSeeder extends Seeder
             'profile.update',
             'appointments.view_own',
         ]);
+
+
+        $user=User::find(1);
+
+        $user->assignRole($admin);
     }
 }

@@ -3,32 +3,57 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { CircleAlert } from 'lucide-react';
 import { store } from '@/routes/users';
-
 
 interface UserForm {
     name: string;
     email: string;
+    password: string;
+    password_confirmation: string;
+    role: string;
 }
-export default function Create() {
-    const { data, setData, post, processing, errors } = useForm<UserForm>({
+
+interface CreateProps {
+    assignableRoles: string[];
+}
+
+const ROLE_LABELS: Record<string, string> = {
+    admin: 'Admin',
+    dentist: 'Dentist',
+    staff: 'Staff',
+};
+
+export default function Create({ assignableRoles }: CreateProps) {
+    const { data, setData, post, processing, errors, reset } = useForm<UserForm>({
         name: '',
         email: '',
+        password: '',
+        password_confirmation: '',
+        role: '',
     });
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        post(store().url);
+        post(store().url, {
+            onSuccess: () => reset('password', 'password_confirmation'),
+        });
     };
 
     return (
         <>
             <Head title="Create New User" />
 
-            <div className="mx-auto w-full  max-w-4xl p-6">
+            <div className="mx-auto w-full max-w-4xl p-6">
                 <div className="mb-4">
-                    <h1 className=" text-2xl font-bold text-ink">New User</h1>
+                    <h1 className="text-2xl font-bold text-ink">New User</h1>
                     <p className="mt-0.5 text-sm text-subtle">
                         Add a user to your catalog.
                     </p>
@@ -58,7 +83,7 @@ export default function Create() {
                         </Label>
                         <Input
                             id="name"
-                            type='text'
+                            type="text"
                             placeholder="User name"
                             value={data.name}
                             minLength={3}
@@ -66,30 +91,89 @@ export default function Create() {
                             onChange={(e) => setData('name', e.target.value)}
                             className="border-[#e0d0c0]"
                         />
-                        {errors.name && <p className="mt-1.5 text-sm text-danger">{errors.name}</p>}
-
+                        {errors.name && (
+                            <p className="mt-1.5 text-sm text-danger">{errors.name}</p>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
-                         <Label htmlFor="email" className="font-semibold text-ink">
-                            Email
-                        </Label>
-                        <Input
-                            id="name"
-                            type='text'
-                            placeholder="Email name"
-                            value={data.name}
-                            minLength={3}
-                            maxLength={75}
-                            onChange={(e) => setData('email', e.target.value)}
-                            className="border-[#e0d0c0]"
-                        />
-                        {errors.name && <p className="mt-1.5 text-sm text-danger">{errors.name}</p>}
-
+                            <Label htmlFor="email" className="font-semibold text-ink">
+                                Email
+                            </Label>
+                            <Input
+                                id="email"
+                                type="email"
+                                placeholder="Email address"
+                                value={data.email}
+                                minLength={3}
+                                maxLength={150}
+                                onChange={(e) => setData('email', e.target.value)}
+                                className="border-[#e0d0c0]"
+                            />
+                            {errors.email && (
+                                <p className="mt-1.5 text-sm text-danger">{errors.email}</p>
+                            )}
                         </div>
 
+                        <div className="space-y-1">
+                            <Label htmlFor="role" className="font-semibold text-ink">
+                                Role
+                            </Label>
+                            <Select
+                                value={data.role}
+                                onValueChange={(value) => setData('role', value)}
+                            >
+                                <SelectTrigger id="role" className="border-[#e0d0c0]">
+                                    <SelectValue placeholder="Select a role" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {assignableRoles.map((role) => (
+                                        <SelectItem key={role} value={role}>
+                                            {ROLE_LABELS[role] ?? role}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {errors.role && (
+                                <p className="mt-1.5 text-sm text-danger">{errors.role}</p>
+                            )}
+                        </div>
+                    </div>
 
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                            <Label htmlFor="password" className="font-semibold text-ink">
+                                Password
+                            </Label>
+                            <Input
+                                id="password"
+                                type="password"
+                                placeholder="••••••••"
+                                value={data.password}
+                                minLength={8}
+                                onChange={(e) => setData('password', e.target.value)}
+                                className="border-[#e0d0c0]"
+                            />
+                            {errors.password && (
+                                <p className="mt-1.5 text-sm text-danger">{errors.password}</p>
+                            )}
+                        </div>
+
+                        <div className="space-y-1">
+                            <Label htmlFor="password_confirmation" className="font-semibold text-ink">
+                                Confirm password
+                            </Label>
+                            <Input
+                                id="password_confirmation"
+                                type="password"
+                                placeholder="••••••••"
+                                value={data.password_confirmation}
+                                minLength={8}
+                                onChange={(e) => setData('password_confirmation', e.target.value)}
+                                className="border-[#e0d0c0]"
+                            />
+                        </div>
                     </div>
 
                     <div className="flex justify-end border-t border-[#f0ddc8] pt-3">

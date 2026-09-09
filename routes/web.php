@@ -12,15 +12,15 @@ Route::redirect('/', 'dashboard')->name('home');
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
 
-    Route::middleware(['can:manage users'])->prefix('users')->name('users.')->group(
+    Route::middleware('permission:users.view')->prefix('users')->name('users.')->group(
         function () {
             Route::get('/', [UserController::class, 'index'])->name('index');
             Route::get('/create', [UserController::class, 'create'])->name('create');
             Route::post('/', [UserController::class, 'store'])->name('store');
-            Route::get('/{id}/edit', [UserController::class, 'edit'])->name('edit');
+            Route::get('/{user}/edit', [UserController::class, 'edit'])->name('edit');
 
-            Route::delete('/{id}', [UserController::class, 'destroy'])->name('destroy');
-            Route::put('/{id}', [UserController::class, 'update'])->name('update');
+            Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
+            Route::put('/{user}', [UserController::class, 'update'])->name('update');
         }
     );
 
