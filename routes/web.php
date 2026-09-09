@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\MedicationController;
 use App\Http\Controllers\ProcedureController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\SaleController;
@@ -22,6 +23,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
             Route::delete('/{procedure}', [ProcedureController::class, 'destroy'])->name('destroy');
             Route::put('/{procedure}', [ProcedureController::class, 'update'])->name('update');
+        }
+    );
+
+       Route::prefix('medications')->name('medications.')->group(
+        function () {
+            Route::get('/', [MedicationController::class, 'index'])->name('index');
+            Route::get('/create', [MedicationController::class, 'create'])->name('create');
+            Route::post('/', [MedicationController::class, 'store'])->name('store');
+            Route::get('/{medication}/edit', [MedicationController::class, 'edit'])->name('edit');
+
+            Route::delete('/{medication}', [MedicationController::class, 'destroy'])->name('destroy');
+            Route::put('/{medication}', [MedicationController::class, 'update'])->name('update');
         }
     );
     Route::middleware('permission:users.view')->prefix('users')->name('users.')->group(

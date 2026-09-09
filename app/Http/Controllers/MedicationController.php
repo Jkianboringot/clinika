@@ -2,8 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-
+use App\Http\Requests\SearchRequest;
+use App\Http\Requests\MedicationRequest;
+use App\Models\Medication;
+use Illuminate\Http\RedirectResponse;
+use Inertia\Inertia;
+use Inertia\Response;
 
 /**
  * =====================================================================
@@ -58,7 +62,78 @@ use Illuminate\Http\Request;
  */
 
 
+
 class MedicationController extends Controller
 {
-    // simple controller like user
+    public function index(SearchRequest $request): Response
+    {
+        // $this->authorize('medications.view');
+
+        $validated = $request->validated();
+
+        $medications = Medication::query()
+            ->when(
+                $validated['search'] ?? null,
+                fn ($query, $search) =>
+                    $query->where('name', 'like', "%{$search}%")
+                        ->orWhere('generic_name', 'like', "%{$search}%")
+            )
+            ->orderBy('name')
+            ->paginate(15)
+            ->withQueryString();
+
+        return Inertia::render('Medications/Index', [
+            'medications' => $medications,
+            'filters' => [
+                'search' => $validated['search'] ?? '',
+            ],
+        ]);
+    }
+
+    public function create(): Response
+    {
+        // $this->authorize('medications.create');
+
+        return Inertia::render('Medications/Create');
+    }
+
+    public function store(MedicationRequest $request): RedirectResponse
+    {
+        // $this->authorize('medications.create');
+
+        $validated = $request->validated();
+
+        Medication::create($validated);
+
+        return redirect()->route('medications.index')->with('message', 'Medication created successfully.');
+    }
+
+    public function edit(Medication $medication): Response
+    {
+        // $this->authorize('medications.view');
+
+        return Inertia::render('Medications/Edit', [
+            'medication' => $medication->only(['id', 'name', 'generic_name', 'dosage_form', 'strength']),
+        ]);
+    }
+
+    public function update(MedicationRequest $request, Medication $medication): RedirectResponse
+    {
+        // $this->authorize('medications.update');
+
+        $validated = $request->validated();
+
+        $medication->update($validated);
+
+        return redirect()->route('medications.index')->with('message', 'Medication updated successfully.');
+    }
+
+    public function destroy(Medication $medication): RedirectResponse
+    {
+        // $this->authorize('medications.delete');
+
+        $medication->delete();
+
+        return redirect()->route('medications.index')->with('message', 'Medication deleted successfully.');
+    }
 }
