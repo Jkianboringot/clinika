@@ -6,5 +6,5 @@ use Illuminate\Database\Eloquent\Model;
 
 class Procedure extends Model
 {
-    //
+    public $guarded = ['id'];
 }

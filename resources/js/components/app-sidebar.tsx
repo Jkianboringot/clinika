@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, FolderGit2, LayoutGrid, House } from 'lucide-react';
+import { BookOpen, FolderGit2, LayoutGrid, House, Syringe } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -39,14 +39,19 @@ export function AppSidebar() {
             href: dashboard(),
             icon: LayoutGrid,
         },
+        {
+            title: 'Procedures',
+            href: '/procedures',
+            icon: Syringe ,
+        },
         ...(canManageUsers
             ? [
-                  {
-                      title: 'User',
-                      href: '/users',
-                      icon: House,
-                  },
-              ]
+                {
+                    title: 'User',
+                    href: '/users',
+                    icon: House,
+                },
+            ]
             : []),
     ];
 
