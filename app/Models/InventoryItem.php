@@ -6,5 +6,5 @@ use Illuminate\Database\Eloquent\Model;
 
 class InventoryItem extends Model
 {
-    //
+    public $guarded = ['id'];
 }

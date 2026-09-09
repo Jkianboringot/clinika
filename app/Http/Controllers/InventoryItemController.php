@@ -2,7 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Http\Requests\InventoryItemRequest;
+use App\Http\Requests\SearchRequest;
+use App\Models\InventoryItem;
+use Inertia\Inertia;
+use Inertia\Response;
+
+use Illuminate\Http\RedirectResponse;
 /**
  * =====================================================================
  * INVENTORY ITEMS MODULE — Controller Notes
@@ -35,7 +41,7 @@ use Illuminate\Http\Request;
  *
  * FIELD PURPOSE
  * --------------
- * - minimum_stock: used as the threshold to determine when an item
+ * - minimum_stock: used as the threshold to determine when an items
  *   is considered "low/minimum stock". This is a business rule in
  *   concept, but not something this module actively enforces —
  *   it just stores the value for other parts of the system to use.
@@ -49,14 +55,14 @@ use Illuminate\Http\Request;
  * BUSINESS LOGIC
  * ---------------
  * 1. Unique name enforcement
- *    - Item name must be unique, no duplicates allowed.
+ *    - Items name must be unique, no duplicates allowed.
  *
  * 2. Delete restriction
- *    - Cannot delete an item if it's connected to something else
+ *    - Cannot delete an items if it's connected to something else
  *      (e.g. a treatment referencing it).
  *
  * 3. Update safeguard
- *    - If the item does not exist, stop the operation immediately
+ *    - If the items does not exist, stop the operation immediately
  *      (e.g. return 404) — do not proceed further.
  *
  * TESTING
@@ -70,5 +76,77 @@ use Illuminate\Http\Request;
 
 class InventoryItemController extends Controller
 {
-    //
+    
+  public function index(SearchRequest $request): Response
+    {
+        // $this->authorize('items.view');
+
+        $validated = $request->validated();
+
+        $items = InventoryItem::query()
+            ->when(
+                $validated['search'] ?? null,
+                fn ($query, $search) =>
+                    $query->where('name', 'like', "%{$search}%")
+                        ->orWhere('generic_name', 'like', "%{$search}%")
+            )
+            ->orderBy('name')
+            ->paginate(15)
+            ->withQueryString();
+
+        return Inertia::render('Items/Index', [
+            'items' => $items,
+            'filters' => [
+                'search' => $validated['search'] ?? '',
+            ],
+        ]);
+    }
+
+    public function create(): Response
+    {
+        // $this->authorize('items.create');
+
+        return Inertia::render('Items/Create');
+    }
+
+    public function store(InventoryItemRequest $request): RedirectResponse
+    {
+        // $this->authorize('items.create');
+
+        $validated = $request->validated();
+
+        InventoryItem::create($validated);
+
+        return redirect()->route('items.index')->with('message', 'InventoryItem created successfully.');
+    }
+
+    public function edit(InventoryItem $inventoryItem): Response
+    {
+        // $this->authorize('items.view');
+
+        return Inertia::render('Items/Edit', [
+            'inventoryItem' => $inventoryItem->only(['id', 'name', 'generic_name', 'dosage_form', 'strength']),
+        ]);
+    }
+
+    public function update(InventoryItemRequest $request, InventoryItem $inventoryItem): RedirectResponse
+    {
+        // $this->authorize('items.update');
+
+        $validated = $request->validated();
+
+        $inventoryItem->update($validated);
+
+        return redirect()->route('items.index')->with('message', 'InventoryItem updated successfully.');
+    }
+
+    public function destroy(InventoryItem $inventoryItem): RedirectResponse
+    {
+        // $this->authorize('items.delete');
+
+        $inventoryItem->delete();
+
+        return redirect()->route('items.index')->with('message', 'InventoryItem deleted successfully.');
+    }
+
 }
