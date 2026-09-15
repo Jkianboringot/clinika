@@ -17,6 +17,10 @@ import { create, destroy, edit, index as proceduresIndex } from '@/routes/proced
 interface Procedure {
     id: number;
     name: string;
+    description: string | null;
+    duration: number | null;
+    price: number | string;
+    is_active: boolean;
     created_at: string;
 }
 
@@ -34,19 +38,24 @@ interface ProceduresPageProps {
     filters: { search?: string };
 }
 
-
 function paginationLabel(label: string) {
     if (label.includes('Previous')) return <ChevronLeft className="h-4 w-4" />;
     if (label.includes('Next')) return <ChevronRight className="h-4 w-4" />;
     return label;
 }
 
+function formatPrice(price: number | string) {
+    const value = typeof price === 'string' ? parseFloat(price) : price;
+    if (Number.isNaN(value)) return '—';
+    return `$${value.toFixed(2)}`;
+}
+
+function formatDuration(duration: number | null) {
+    if (duration === null || duration === undefined) return '—';
+    return `${duration} min`;
+}
 export default function Index() {
-
-    const { flash, procedures, filters } = usePage<
-    ProceduresPageProps & Record<string, unknown>
->().props as unknown as ProceduresPageProps;
-
+const { flash, procedures, filters } = usePage< ProceduresPageProps & Record<string, unknown> >().props as unknown as ProceduresPageProps;
 
     const { processing, delete: destroyForm } = useForm();
     const [search, setSearch] = useState(filters?.search ?? '');
@@ -129,14 +138,16 @@ export default function Index() {
                             <TableRow className="border-b border-[#c9c0b7]">
                                 <TableHead className="font-bold text-brand-orange-hover">ID</TableHead>
                                 <TableHead className="font-bold text-brand-orange-hover">Name</TableHead>
-                                <TableHead className="font-bold text-brand-orange-hover">Created</TableHead>
+                                <TableHead className="font-bold text-brand-orange-hover">Duration</TableHead>
+                                <TableHead className="font-bold text-brand-orange-hover">Price</TableHead>
+                                <TableHead className="font-bold text-brand-orange-hover">Status</TableHead>
                                 <TableHead className="text-right font-bold text-brand-orange-hover">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {procedureRows.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="py-10 text-center text-sm text-subtle">
+                                    <TableCell colSpan={6} className="py-10 text-center text-sm text-subtle">
                                         No procedures found.
                                     </TableCell>
                                 </TableRow>
@@ -148,11 +159,17 @@ export default function Index() {
                                 >
                                     <TableCell className="font-medium">{procedure.id}</TableCell>
                                     <TableCell>{procedure.name}</TableCell>
+                                    <TableCell>{formatDuration(procedure.duration)}</TableCell>
+                                    <TableCell>{formatPrice(procedure.price)}</TableCell>
                                     <TableCell>
-                                        {new Date(procedure.created_at).toLocaleDateString('en-US', {
-                                            month: 'short',
-                                            year: 'numeric',
-                                        })}
+                                        <span
+                                            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${procedure.is_active
+                                                ? 'bg-green-100 text-green-700'
+                                                : 'bg-gray-100 text-gray-500'
+                                                }`}
+                                        >
+                                            {procedure.is_active ? 'Active' : 'Inactive'}
+                                        </span>
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center justify-end gap-4">

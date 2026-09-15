@@ -8,19 +8,20 @@ use App\Models\Procedure;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Http\Request;
+
 
 class ProcedureController extends Controller
 {
-    public function index(SearchRequest $request): Response
+    public function index(Request $request): Response
     {
         // TODO: add this later
         // $this->authorize('procedures.view');
 
-        $validated = $request->validated();
 
         $procedures = Procedure::query()
             ->when(
-                $validated['search'] ?? null,
+                $request->input('search'),
                 fn($query, $search) =>
                     $query->where('name', 'like', "%{$search}%")
             )
@@ -31,7 +32,7 @@ class ProcedureController extends Controller
         return Inertia::render('Procedures/Index', [
             'procedures' => $procedures,
             'filters' => [
-                'search' => $validated['search'] ?? '',
+                'search' => $request->input('search'),
             ],
         ]);
     }
@@ -58,7 +59,7 @@ class ProcedureController extends Controller
         // $this->authorize('procedures.view');
 
         return Inertia::render('Procedures/Edit', [
-            'procedure' => $procedure->only(['id', 'name']),
+            'procedure' => $procedure,
         ]);
     }
 

@@ -24,7 +24,10 @@ class ProcedureRequest extends FormRequest
                 'max:100',
                 Rule::unique('procedures', 'name')->ignore($procedureId),
             ],
-            'description'=>['nullable','string','min:3','max:300']
+            'description' => ['nullable', 'string', 'min:3', 'max:300'],
+            'duration' => ['nullable', 'integer', 'min:0', 'max:1440'],
+            'price' => ['required', 'numeric', 'min:0', 'max:999999.99'],
+            'is_active' => ['boolean'],
         ];
     }
 }
