@@ -73,9 +73,13 @@ function paginationLabel(label: string) {
 }
 
 export default function Index() {
-    const { flash, users, filters, roleCounts, activeRole } = usePage<
-        PageProps & Record<string, unknown>
-    >().props as unknown as PageProps;
+    // NOTE: split from the previous single-statement
+    //   `usePage<PageProps & Record<string, unknown>>().props as unknown as PageProps`
+    // because some @babel/parser TSX versions fail to parse a multi-line
+    // generic argument list immediately followed by `()` (ambiguous with
+    // JSX). Splitting into two statements avoids the parser ambiguity.
+    const page = usePage<PageProps & Record<string, unknown>>();
+    const { flash, users, filters, roleCounts, activeRole } = page.props as unknown as PageProps;
 
     const { processing, delete: destroyForm } = useForm();
     const [search, setSearch] = useState(filters?.search ?? '');
@@ -86,14 +90,14 @@ export default function Index() {
     // Debounced: typing only updates local state immediately. The actual
     // request to the server waits until 400ms after the user stops typing,
     // so it doesn't fire on every keystroke — only once they pause.
-    const activeRoleRef = useRef(activeRole);
+    const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Keep the ref in sync so the debounce effect can read the *latest*
-    // role without needing it as a dependency (which would re-trigger
-    // the debounce on every tab click).
-    useEffect(() => {
-        activeRoleRef.current = activeRole;
-    }, [activeRole]);
+    // When a tab switch also clears `search` (see handleTabChange), we don't
+    // want the debounce effect below to fire a *second*, stale request for
+    // the OLD role a moment later — that race was clobbering tab switches
+    // and made clicking Staff/Patient look broken/reverted. This flag tells
+    // the effect to skip once when the reset came from a tab change.
+    const skipNextSearchEffect = useRef(false);
 
     useEffect(() => {
         if (isFirstRender.current) {
@@ -101,20 +105,35 @@ export default function Index() {
             return;
         }
 
-        const timeout = setTimeout(() => {
+        if (skipNextSearchEffect.current) {
+            skipNextSearchEffect.current = false;
+            return;
+        }
+
+        debounceTimeout.current = setTimeout(() => {
             router.get(
                 usersIndex().url,
-                { search, role: activeRoleRef.current },
+                { search, role: activeRole },
                 { preserveState: true, replace: true },
             );
         }, 400);
 
-        return () => clearTimeout(timeout);
-    }, [search]); // <-- only search now
+        return () => {
+            if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+        };
+    }, [search, activeRole]);
+
     // Tab switches are immediate, not debounced, and reset the search box
     // since "Dr." matches from the Dentists tab don't mean much on Staff.
     const handleTabChange = (role: Role) => {
         if (role === activeRole) return;
+
+        // Cancel any pending debounced search request and suppress the
+        // effect that setSearch('') below would otherwise trigger, so the
+        // tab switch can't be overwritten by a stale request for the old role.
+        if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+        skipNextSearchEffect.current = true;
+
         setSearch('');
         router.get(
             usersIndex().url,

@@ -90,6 +90,14 @@ use Inertia\Response;
  * on. Flag me if Staff was actually meant to retain some write access
  * here.
  * =====================================================================
+ *
+ * FIX NOTE (role filter):
+ * The frontend's index tabs only cover 'dentist' | 'staff' | 'patient'
+ * (no Admin tab exists in Users/Index.tsx). Defaulting the role filter
+ * to 'admin' when no ?role= is present meant a fresh page load showed
+ * Admin accounts with no tab highlighted as active, and TAB_TITLES had
+ * no 'admin' entry on the frontend. Default now matches the first tab.
+ * =====================================================================
  */
 
 class UserController extends Controller
@@ -100,7 +108,9 @@ class UserController extends Controller
 
         $validated = $request->validated();
 
-        $activeRole = $validated['role'] ?? 'admin';
+        // Default to 'dentist' — the first tab the frontend actually renders.
+        // (Frontend TABS = dentist | staff | patient; there is no Admin tab.)
+        $activeRole = $validated['role'] ?? 'dentist';
 
         abort_unless(
             in_array($activeRole, ['admin', 'dentist', 'staff', 'patient'], true),

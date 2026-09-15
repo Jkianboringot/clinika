@@ -22,12 +22,20 @@ class UserRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'min:3', 'max:75'],
             'email' => [
-                'required', 'string', 'min:3', 'max:150',
+                'required',
+                'string',
+                'min:3',
+                'max:150',
                 Rule::unique('users', 'email')->ignore($this->route('user')),
             ],
             'role' => ['required', 'string', Rule::in(['admin', 'dentist', 'staff'])],
             'is_active' => ['sometimes', Rule::enum(IsActiveEnum::class)],
-            'password' => [$this->isMethod('post') ? 'required' : 'nullable', 'string', 'min:3', 'confirmed'],
+            'password' => [
+                $this->isMethod('post') ? 'required' : 'sometimes',
+                'string',
+                'min:3',
+                'confirmed',
+            ],
         ];
     }
 }
