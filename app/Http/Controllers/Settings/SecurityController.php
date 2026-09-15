@@ -18,7 +18,7 @@ class SecurityController extends Controller
     public function edit(TwoFactorAuthenticationRequest $request): Response
     {
         $props = [
-            'passwordRules' => Password::defaults()->toPasswordRulesString(),
+            'passwordRules' => Password::defaults(),
         ];
 
         return Inertia::render('settings/security', $props);
