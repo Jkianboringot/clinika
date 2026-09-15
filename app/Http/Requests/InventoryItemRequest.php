@@ -15,7 +15,9 @@ class InventoryItemRequest extends FormRequest
     {
         return [
             'item_name' => ['required', 'string', 'min:2', 'max:75'],
-            'minumun_stock' => ['nullable', 'integer', 'max:99999','min:1'],
+            'minimum_stock' => ['nullable', 'numeric', 'max:99999','min:1'],
+            'description' => ['required', 'string', 'min:2', 'max:300'],
+
         ];
     }
 }

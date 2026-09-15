@@ -24,6 +24,7 @@ class ProcedureRequest extends FormRequest
                 'max:100',
                 Rule::unique('procedures', 'name')->ignore($procedureId),
             ],
+            'description'=>['nullable','string','min:3','max:300']
         ];
     }
 }

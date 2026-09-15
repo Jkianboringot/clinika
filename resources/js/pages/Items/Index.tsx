@@ -17,7 +17,7 @@ import { create, destroy, edit, index as inventoryitemsIndex } from '@/routes/in
 interface InventoryItem {
     id: number;
     item_name: string;
-    minimun_stock: number|null;
+    minimum_stock: number|null;
 }
 
 interface PaginatedInventoryItems {
@@ -144,7 +144,7 @@ export default function Index() {
                                 >
                                     <TableCell className="font-medium">{item.id}</TableCell>
                                     <TableCell>{item.item_name}</TableCell>
-                                    <TableCell>{item.minimun_stock ?? '—'}</TableCell>
+                                    <TableCell>{item.minimum_stock ?? '—'}</TableCell>
                                     <TableCell>
                                         <div className="flex items-center justify-end gap-4">
                                             <Link

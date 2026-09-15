@@ -21,7 +21,7 @@ class ProcedureController extends Controller
         $procedures = Procedure::query()
             ->when(
                 $validated['search'] ?? null,
-                fn ($query, $search) =>
+                fn($query, $search) =>
                     $query->where('name', 'like', "%{$search}%")
             )
             ->orderBy('name')
@@ -47,11 +47,8 @@ class ProcedureController extends Controller
     {
         // $this->authorize('procedures.create');
 
-        $validated = $request->validated();
 
-        Procedure::create([
-            'name' => $validated['name'],
-        ]);
+        Procedure::create($request->validated());
 
         return redirect()->route('procedures.index')->with('message', 'Procedure created successfully.');
     }
@@ -69,11 +66,8 @@ class ProcedureController extends Controller
     {
         // $this->authorize('procedures.update');
 
-        $validated = $request->validated();
 
-        $procedure->update([
-            'name' => $validated['name'],
-        ]);
+        $procedure->update($request->validated());
 
         return redirect()->route('procedures.index')->with('message', 'Procedure updated successfully.');
     }

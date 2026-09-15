@@ -7,8 +7,10 @@ use App\Http\Requests\SearchRequest;
 use App\Models\InventoryItem;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Http\Request;
 
 use Illuminate\Http\RedirectResponse;
+
 /**
  * =====================================================================
  * INVENTORY ITEMS MODULE — Controller Notes
@@ -76,30 +78,22 @@ use Illuminate\Http\RedirectResponse;
 
 class InventoryItemController extends Controller
 {
-    
-  public function index(SearchRequest $request): Response
-    {
-        // $this->authorize('items.view');
+    public function index(Request $request): Response
+{
+    $items = InventoryItem::query()
+        ->when(
+            $request->input('search'),
+            fn ($query, $search) =>
+                $query->where('item_name', 'like', "%{$search}%")
+        )
+        ->orderBy('item_name')
+        ->paginate(15)
+        ->withQueryString();
 
-        $validated = $request->validated();
-
-        $items = InventoryItem::query()
-            ->when(
-                $validated['search'] ?? null,
-                fn ($query, $search) =>
-                    $query->where('name', 'like', "%{$search}%")
-            )
-            ->orderBy('name')
-            ->paginate(15)
-            ->withQueryString();
-
-        return Inertia::render('Items/Index', [
-            'items' => $items,
-            'filters' => [
-                'search' => $validated['search'] ?? '',
-            ],
-        ]);
-    }
+    return Inertia::render('Items/Index', [
+        'inventoryitems' => $items,
+    ]);
+}
 
     public function create(): Response
     {
@@ -116,7 +110,7 @@ class InventoryItemController extends Controller
 
         InventoryItem::create($validated);
 
-        return redirect()->route('items.index')->with('message', 'InventoryItem created successfully.');
+        return redirect()->route('inventory_items.index')->with('message', 'InventoryItem created successfully.');
     }
 
     public function edit(InventoryItem $inventoryItem): Response
@@ -124,7 +118,7 @@ class InventoryItemController extends Controller
         // $this->authorize('items.view');
 
         return Inertia::render('Items/Edit', [
-            'inventoryItem' => $inventoryItem->only(['id', 'name', 'generic_name', 'dosage_form', 'strength']),
+            'inventoryItem' => $inventoryItem->only(['id', 'item_name', 'description', 'minimum_stock']),
         ]);
     }
 
@@ -136,7 +130,7 @@ class InventoryItemController extends Controller
 
         $inventoryItem->update($validated);
 
-        return redirect()->route('items.index')->with('message', 'InventoryItem updated successfully.');
+        return redirect()->route('inventory_items.index')->with('message', 'InventoryItem updated successfully.');
     }
 
     public function destroy(InventoryItem $inventoryItem): RedirectResponse
@@ -145,7 +139,7 @@ class InventoryItemController extends Controller
 
         $inventoryItem->delete();
 
-        return redirect()->route('items.index')->with('message', 'InventoryItem deleted successfully.');
+        return redirect()->route('inventory_items.index')->with('message', 'InventoryItem deleted successfully.');
     }
 
 }

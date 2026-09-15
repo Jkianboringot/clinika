@@ -20,6 +20,7 @@ use Inertia\Response;
 use Str;
 
 
+
 /**
  * =====================================================================
  * INVENTORY MODULE — Controller / Service Notes
