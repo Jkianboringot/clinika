@@ -45,6 +45,16 @@ FROM dunglas/frankenphp:1-php8.4
 RUN install-php-extensions \
     pdo_mysql mysqli intl zip gd bcmath opcache pcntl exif
 
+# Render's sandboxed runtime doesn't support file capabilities. The
+# frankenphp binary ships with cap_net_bind_service set (so it can bind
+# ports <1024 without root); exec-ing it there fails with "Operation not
+# permitted". We bind to 8080 (unprivileged), so we don't need the
+# capability — strip it.
+RUN apt-get update && apt-get install -y --no-install-recommends libcap2-bin \
+ && setcap -r "$(command -v frankenphp)" \
+ && apt-get purge -y libcap2-bin && apt-get autoremove -y \
+ && rm -rf /var/lib/apt/lists/*
+
 # Sensible production PHP settings
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
