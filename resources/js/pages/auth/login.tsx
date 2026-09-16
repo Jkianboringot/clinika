@@ -154,12 +154,12 @@ export default function Login({ status }: { status?: string }) {
                                 />
                                 <span className="text-sm font-medium text-[#666]">Remember me</span>
                             </label>
-                            <a
+                            {/* <a
                             href="/forgot-password"
                             className="text-xs font-medium text-[#f97316] hover:underline"
         >
                             Forgot password?
-                        </a>
+                        </a> */}
                 </div>
 
                 <button

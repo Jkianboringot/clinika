@@ -97,9 +97,7 @@ export default function Index() {
                         <h1 className="text-3xl font-extrabold tracking-tight text-ink">
                             Medications
                         </h1>
-                        <p className="text-sm text-subtle">
-                            Manage medications used in prescriptions
-                        </p>
+                        
                     </div>
                     <Link href={create().url}>
                         <Button className="bg-brand-orange font-bold text-white hover:bg-brand-orange-hover">

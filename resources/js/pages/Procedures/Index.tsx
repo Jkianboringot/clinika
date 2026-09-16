@@ -107,9 +107,7 @@ const { flash, procedures, filters } = usePage< ProceduresPageProps & Record<str
                         <h1 className="text-3xl font-extrabold tracking-tight text-ink">
                             Procedures
                         </h1>
-                        <p className="text-sm text-subtle">
-                            Manage available dental procedures
-                        </p>
+                       
                     </div>
                     <Link href={create().url}>
                         <Button className="bg-brand-orange font-bold text-white hover:bg-brand-orange-hover">

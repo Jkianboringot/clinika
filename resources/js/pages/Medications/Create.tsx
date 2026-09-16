@@ -24,9 +24,7 @@ export default function Create() {
             <div className="mx-auto w-full max-w-lg p-6">
                 <div className="mb-4">
                     <h1 className="text-2xl font-bold text-ink">New Medication</h1>
-                    <p className="mt-0.5 text-sm text-subtle">
-                        Add a medication to your catalog.
-                    </p>
+                   
                 </div>
 
                 <form

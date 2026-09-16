@@ -36,9 +36,7 @@ export default function Edit({ medication }: EditProps) {
             <div className="mx-auto w-full max-w-lg p-6">
                 <div className="mb-4">
                     <h1 className="text-2xl font-bold text-ink">Edit Medication</h1>
-                    <p className="mt-0.5 text-sm text-subtle">
-                        Update this medication's details.
-                    </p>
+                   
                 </div>
 
                 <form

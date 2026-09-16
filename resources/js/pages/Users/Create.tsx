@@ -54,9 +54,7 @@ export default function Create({ assignableRoles }: CreateProps) {
             <div className="mx-auto w-full max-w-4xl p-6">
                 <div className="mb-4">
                     <h1 className="text-2xl font-bold text-ink">New User</h1>
-                    <p className="mt-0.5 text-sm text-subtle">
-                        Add a user to your catalog.
-                    </p>
+                    
                 </div>
 
                 <form
