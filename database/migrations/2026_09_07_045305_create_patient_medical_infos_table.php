@@ -12,6 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('patient_medical_infos', function (Blueprint $table) {
+            $table->id();
             $table->foreignId('patient_id')->constrained();
             //honestly i want it seperate table but dont need to seperate this since i dont care or it was specify that it needs to have like severity not my problem, just follow the shit done make it harder than it needs to be
             $table->text('medical_history')->nullable();

@@ -13,7 +13,7 @@ return new class extends Migration
     {
         // this is what reduce the stock primarly
         Schema::create('treatment_inventories', function (Blueprint $table) {
-            // $table->id();
+            $table->id();
             $table->foreignId('treatment_id')->constrained();
             $table->foreignId('inventory_item_id')->constrained();
             $table->decimal('quanty');
