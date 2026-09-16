@@ -10,7 +10,8 @@ RUN install-php-extensions \
 COPY --from=node:22-bookworm-slim /usr/local/bin/node /usr/local/bin/node
 COPY --from=node:22-bookworm-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
- && ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+ && ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+ && npm install -g pnpm@10
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
@@ -22,9 +23,9 @@ RUN composer install \
       --no-dev --no-interaction --no-progress \
       --prefer-dist --no-scripts --no-autoloader
 
-# JS deps
-COPY package.json package-lock.json ./
-RUN npm ci
+# JS deps (pnpm, not npm — this project uses pnpm-lock.yaml)
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+RUN pnpm install --frozen-lockfile
 
 # Now the source
 COPY . .
@@ -35,7 +36,7 @@ ENV APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 
 RUN composer dump-autoload --optimize --no-dev \
  && php artisan package:discover --ansi \
- && npm run build \
+ && pnpm run build \
  && rm -rf node_modules
 
 # ---------- Stage 2: runtime ----------
