@@ -15,10 +15,10 @@ return new class extends Migration {
             $table->id();
             //just doing this to be more scalable, its not like its hard to do just do it, no harm done
             //this is just to prepare for future hr addition which am not supprise they will have
-            $table->string('full_name');
+            $table->string('full_name',100);
             $table->date('date_of_birth');
-            $table->string('gender')->default(GenderEnum::OTHER->value);
-            $table->string('contact_number')->nullable();
+            $table->string('gender',25)->default(GenderEnum::OTHER->value);
+            $table->string('contact_number',25)->nullable();
             $table->text('address')->nullable(); //no need for seperate table since its unique for user as it is complete address if it was just barangay or something that repeat then ywah, seperate it with another table
 
             //honestly i want it seperate table but dont need to seperate this since i dont care or it was specify that it needs to have like severity not my problem, just follow the shit done make it harder than it needs to be
@@ -26,11 +26,11 @@ return new class extends Migration {
             $table->text('allergies')->nullable();
 
             //all of this are prime target for seperate table but how often do people here will honestly use this system, if alot then i would take it seroustly but its fucking capstone project so probably not
-            $table->string('emergency_contact_number');
-            $table->string('emergency_contact_name');
+            $table->string('emergency_contact_number',25)->nullable();
+            $table->string('emergency_contact_name',100)->nullable();
 
             // Account Information
-            $table->string('email')->unique();
+            $table->string('email',150)->unique();
             $table->string('password');
 
             // $table->softDeletes();, 

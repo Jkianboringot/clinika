@@ -1,9 +1,11 @@
 <?php
 
 use App\Http\Controllers\BranchController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\InventoryItemController;
 use App\Http\Controllers\MedicationController;
+use App\Http\Controllers\PatientController;
 use App\Http\Controllers\ProcedureController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\SaleController;
@@ -13,7 +15,7 @@ use Illuminate\Support\Facades\Route;
 Route::redirect('/', 'dashboard')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::prefix('procedures')->name('procedures.')->group(
         function () {
@@ -27,7 +29,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         }
     );
 
-       Route::prefix('medications')->name('medications.')->group(
+    Route::prefix('medications')->name('medications.')->group(
         function () {
             Route::get('/', [MedicationController::class, 'index'])->name('index');
             Route::get('/create', [MedicationController::class, 'create'])->name('create');
@@ -39,7 +41,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         }
     );
 
-      Route::prefix('inventory_items')->name('inventory_items.')->group(
+    Route::prefix('inventory_items')->name('inventory_items.')->group(
         function () {
             Route::get('/', [InventoryItemController::class, 'index'])->name('index');
             Route::get('/create', [InventoryItemController::class, 'create'])->name('create');
@@ -48,6 +50,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
             Route::delete('/{inventoryItem}', [InventoryItemController::class, 'destroy'])->name('destroy');
             Route::put('/{inventoryItem}', [InventoryItemController::class, 'update'])->name('update');
+        }
+    );
+
+    Route::prefix('patients')->name('patients.')->group(
+        function () {
+            Route::get('/', [PatientController::class, 'index'])->name('index');
+            Route::get('/create', [PatientController::class, 'create'])->name('create');
+            Route::post('/', [PatientController::class, 'store'])->name('store');
+            Route::get('/{patient}/edit', [PatientController::class, 'edit'])->name('edit');
+
+            Route::delete('/{patient}', [PatientController::class, 'destroy'])->name('destroy');
+            Route::put('/{patient}', [InventoryItemController::class, 'update'])->name('update');
         }
     );
     Route::middleware('permission:users.view')->prefix('users')->name('users.')->group(

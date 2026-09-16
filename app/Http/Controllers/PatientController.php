@@ -1,0 +1,83 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Requests\SearchRequest;
+use App\Http\Requests\PatientRequest;
+use App\Models\Patient;
+use Illuminate\Http\RedirectResponse;
+use Inertia\Inertia;
+use Inertia\Response;
+use Illuminate\Http\Request;
+
+
+class PatientController extends Controller
+{
+    public function index(Request $request): Response
+    {
+        // TODO: add this later
+        // $this->authorize('patients.view');
+
+
+        $patients = Patient::query()
+            ->when(
+                $request->input('search'),
+                fn($query, $search) =>
+                    $query->where('full_name', 'like', "%{$search}%")
+            )
+            ->orderBy('created_at')
+            ->paginate(15)
+            ->withQueryString();
+
+        return Inertia::render('Patients/Index', [
+            'patients' => $patients,
+            'filters' => [
+                'search' => $request->input('search'),
+            ],
+        ]);
+    }
+
+    public function create(): Response
+    {
+        // $this->authorize('patients.create');
+
+        return Inertia::render('Patients/Create');
+    }
+
+    public function store(PatientRequest $request): RedirectResponse
+    {
+        // $this->authorize('patients.create');
+
+
+        Patient::create($request->validated());
+
+        return redirect()->route('patients.index')->with('message', 'Patient created successfully.');
+    }
+
+    public function edit(Patient $patient): Response
+    {
+        // $this->authorize('patients.view');
+
+        return Inertia::render('Patients/Edit', [
+            'patient' => $patient,
+        ]);
+    }
+
+    public function update(PatientRequest $request, Patient $patient): RedirectResponse
+    {
+        // $this->authorize('patients.update');
+
+
+        $patient->update($request->validated());
+
+        return redirect()->route('patients.index')->with('message', 'Patient updated successfully.');
+    }
+
+    public function destroy(Patient $patient): RedirectResponse
+    {
+        // $this->authorize('patients.delete');
+        $patient->deleteOrFail();
+
+        return redirect()->route('patients.index')->with('message', 'Patient deleted successfully.');
+    }
+}
