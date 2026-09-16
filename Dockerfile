@@ -1,9 +1,9 @@
 # ---------- Stage 1: build ----------
 FROM dunglas/frankenphp:1-php8.4 AS build
 
-# PHP extensions Laravel + Postgres need
+# PHP extensions Laravel + MySQL need
 RUN install-php-extensions \
-    pdo_pgsql pgsql intl zip gd bcmath opcache pcntl exif
+    pdo_mysql mysqli intl zip gd bcmath opcache pcntl exif
 
 # Node 22, copied from the official image (Wayfinder needs PHP present
 # during the Vite build, so Node has to live in the PHP image)
@@ -43,7 +43,7 @@ RUN composer dump-autoload --optimize --no-dev \
 FROM dunglas/frankenphp:1-php8.4
 
 RUN install-php-extensions \
-    pdo_pgsql pgsql intl zip gd bcmath opcache pcntl exif
+    pdo_mysql mysqli intl zip gd bcmath opcache pcntl exif
 
 # Sensible production PHP settings
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
