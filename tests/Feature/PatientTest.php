@@ -1,16 +1,22 @@
 <?php
 
-use App\Models\User;
 
-test('guests are redirected to the login page', function () {
-    $response = $this->get(route('dashboard'));
-    $response->assertRedirect(route('login'));
-});
+// just discribe what test it neds and why , honeslty for something simple its hart but that sthe point
+// i was suppose to do this saturday fuck i can leanr becoase of this projects fuckl,also i was suppose to be doing
+// mb now not this shit as i was suppose to only do this on morning, one hour fuck you nothing is in myhead and that the point
+// you are shit thats why
 
-test('authenticated users can visit the dashboard', function () {
-    $user = User::factory()->create();
-    $this->actingAs($user);
+// create
 
-    $response = $this->get(route('dashboard'));
-    $response->assertOk();
-});
+
+// update
+
+
+// delete
+
+
+// sanity
+
+// edge case
+
+// common route check
