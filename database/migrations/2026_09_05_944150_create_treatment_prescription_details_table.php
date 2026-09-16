@@ -24,7 +24,9 @@ return new class extends Migration
             $table->string('dosage');
             $table->string('frequency');
             $table->unsignedInteger('duration_days');
-            $table->text('special_instructions')->nullable();
+
+            // note or special instruction for patient
+            $table->text('dentist_note')->nullable();
         });
     }
 

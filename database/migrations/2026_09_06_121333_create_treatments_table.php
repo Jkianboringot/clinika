@@ -19,15 +19,12 @@ return new class extends Migration {
             $table->foreignId('appointment_id')
                 ->constrained()
                 ->cascadeOnDelete();
-
-            $table->foreignId('procedure_id')
-                ->constrained()
-                ->restrictOnDelete();
+            
             
             $table->string('tooth_numbers')->nullable();
             $table->unsignedInteger('duration_minutes')->nullable();
-            $table->text('summary');
-            $table->text('dentist_notes')->nullable();
+            // summary of what was done
+            $table->text('summary')->nullable();
 
             $table->timestamps();
         });

@@ -17,9 +17,10 @@ return new class extends Migration
             $table->id();
             $table->foreignId('staff_id')->constrained('users');
             $table->foreignId('patient_id')->constrained();
+            $table->foreignId('procedure_id')->constrained();
+            $table->text('description')->nullable();
             $table->date('appointment_date');
             $table->time('appointment_time');
-
         // TODO(later) bring back later after am done with user
             // $table->string('status')->default(GlobalAppointmentStatusEnum::InProgress->value);
             $table->timestamps();
