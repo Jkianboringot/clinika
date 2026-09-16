@@ -105,45 +105,42 @@ export default function Login({ status }: { status?: string }) {
                             {status}
                         </div>
                     )}
-
-                    <form onSubmit={submit} className="mt-6 space-y-4">
+                    <form onSubmit={submit} className="mt-6 space-y-4" style={{ colorScheme: 'light' }}>
                         <div>
-                            <label className="mb-1.5 block text-xs font-semibold tracking-wide text-ink">
+                            <label className="mb-1.5 block text-xs font-semibold tracking-wide text-[#1a1a1a]">
                                 Email Address
                             </label>
                             <div className="relative">
-                                <MailIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
+                                <MailIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9a9a]" />
                                 <input
                                     type="email"
                                     value={data.email}
                                     onChange={(e) => setData('email', e.target.value)}
-                                    className={`w-full rounded-md border-[1.5px] bg-[#fdfaf7] py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-brand-orange focus:bg-white ${
-                                        errors.email ? 'border-danger' : 'border-[#e0d0c0]'
-                                    }`}
+                                    className={`w-full rounded-md border-[1.5px] bg-[#fdfaf7] py-2.5 pl-10 pr-4 text-sm text-[#1a1a1a] outline-none transition focus:border-[#2f6fed] focus:bg-white ${errors.email ? 'border-[#dc2626]' : 'border-[#e0d0c0]'
+                                        }`}
                                     placeholder="you@example.com"
                                 />
                             </div>
-                            {errors.email && <p className="mt-1 text-xs font-medium text-danger">{errors.email}</p>}
+                            {errors.email && <p className="mt-1 text-xs font-medium text-[#dc2626]">{errors.email}</p>}
                         </div>
 
                         <div>
-                            <label className="mb-1.5 block text-xs font-semibold tracking-wide text-ink">
+                            <label className="mb-1.5 block text-xs font-semibold tracking-wide text-[#1a1a1a]">
                                 Password
                             </label>
                             <div className="relative">
-                                <LockIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
+                                <LockIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9a9a]" />
                                 <input
                                     type="password"
                                     value={data.password}
                                     onChange={(e) => setData('password', e.target.value)}
-                                    className={`w-full rounded-md border-[1.5px] bg-[#fdfaf7] py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-brand-orange focus:bg-white ${
-                                        errors.password ? 'border-danger' : 'border-[#e0d0c0]'
-                                    }`}
+                                    className={`w-full rounded-md border-[1.5px] bg-[#fdfaf7] py-2.5 pl-10 pr-4 text-sm text-[#1a1a1a] outline-none transition focus:border-[#2f6fed] focus:bg-white ${errors.password ? 'border-[#dc2626]' : 'border-[#e0d0c0]'
+                                        }`}
                                     placeholder="••••••••"
                                 />
                             </div>
                             {errors.password && (
-                                <p className="mt-1 text-xs font-medium text-danger">{errors.password}</p>
+                                <p className="mt-1 text-xs font-medium text-[#dc2626]">{errors.password}</p>
                             )}
                         </div>
 
@@ -153,41 +150,41 @@ export default function Login({ status }: { status?: string }) {
                                     type="checkbox"
                                     checked={data.remember}
                                     onChange={(e) => setData('remember', e.target.checked)}
-                                    className="h-4 w-4 accent-brand-orange"
+                                    className="h-4 w-4 accent-[#f97316]"
                                 />
                                 <span className="text-sm font-medium text-[#666]">Remember me</span>
                             </label>
                             <a
-                                href="/forgot-password"
-                                className="text-xs font-medium text-brand-orange hover:underline"
-                            >
-                                Forgot password?
-                            </a>
-                        </div>
+                            href="/forgot-password"
+                            className="text-xs font-medium text-[#f97316] hover:underline"
+        >
+                            Forgot password?
+                        </a>
+                </div>
 
-                        <button
+                <button
                             type="submit"
                             disabled={processing}
                             className="w-full rounded-md bg-brand-orange py-3 text-sm font-bold tracking-wide text-white transition hover:-translate-y-px hover:bg-brand-orange-hover disabled:opacity-60"
                         >
                             Sign In
                         </button>
-                    </form>
+            </form>
 
-                    <div className="mt-6 flex items-center gap-3">
-                        <div className="h-px flex-1 bg-[#e0d0c0]" />
-                        <span className="text-xs font-medium text-subtle">New to   Klinika?</span>
-                        <div className="h-px flex-1 bg-[#e0d0c0]" />
-                    </div>
-
-                    <a
-                        href="/register"
-                        className="mt-4 block w-full rounded-md border-[1.5px] border-[#e0d0c0] py-3 text-center text-sm font-bold text-ink transition hover:border-brand-orange hover:text-brand-orange"
-                    >
-                        Register as New Patient
-                    </a>
-                </div>
+            <div className="mt-6 flex items-center gap-3">
+                <div className="h-px flex-1 bg-[#e0d0c0]" />
+                <span className="text-xs font-medium text-subtle">New to   Klinika?</span>
+                <div className="h-px flex-1 bg-[#e0d0c0]" />
             </div>
+
+            <a
+                href="/register"
+                className="mt-4 block w-full rounded-md border-[1.5px] border-[#e0d0c0] py-3 text-center text-sm font-bold text-ink transition hover:border-brand-orange hover:text-brand-orange"
+            >
+                Register as New Patient
+            </a>
         </div>
+            </div >
+        </div >
     );
 }
