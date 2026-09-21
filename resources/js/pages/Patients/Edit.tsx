@@ -195,6 +195,7 @@ export default function Edit({ patient }: Props) {
                             <Input
                                 id="password"
                                 type="password"
+                                autoComplete="new-password"
                                 placeholder="Leave blank to keep current password"
                                 value={data.password}
                                 minLength={8}
@@ -213,6 +214,7 @@ export default function Edit({ patient }: Props) {
                             <Input
                                 id="password_confirmation"
                                 type="password"
+                                autoComplete="new-password"
                                 placeholder="••••••••"
                                 value={data.password_confirmation}
                                 minLength={8}

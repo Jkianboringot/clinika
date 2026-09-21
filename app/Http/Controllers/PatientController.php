@@ -65,10 +65,15 @@ class PatientController extends Controller
 
     public function update(PatientRequest $request, Patient $patient): RedirectResponse
     {
-        // $this->authorize('patients.update');
+        $data = $request->validated();
 
+        if (empty($data['password'])) {
+            unset($data['password']);
+        } else {
+            $data['password'] = bcrypt($data['password']);
+        }
 
-        $patient->update($request->validated());
+        $patient->update($data);
 
         return redirect()->route('patients.index')->with('message', 'Patient updated successfully.');
     }
@@ -82,11 +87,11 @@ class PatientController extends Controller
     }
 
     public function show(Patient $patient): Response
-{
-    // $this->authorize('patients.view');
+    {
+        // $this->authorize('patients.view');
 
-    return Inertia::render('Patients/Show', [
-        'patient' => $patient,
-    ]);
-}
+        return Inertia::render('Patients/Show', [
+            'patient' => $patient,
+        ]);
+    }
 }

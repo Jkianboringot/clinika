@@ -16,9 +16,19 @@ class UserRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->password === '') {
+            $this->merge(['password' => null]);
+        }
+
+        if ($this->password_confirmation === '') {
+            $this->merge(['password_confirmation' => null]);
+        }
+    }
+
     public function rules(): array
     {
-
         return [
             'name' => ['required', 'string', 'min:3', 'max:75'],
             'email' => [
@@ -31,9 +41,9 @@ class UserRequest extends FormRequest
             'role' => ['required', 'string', Rule::in(['admin', 'dentist', 'staff'])],
             'is_active' => ['sometimes', Rule::enum(IsActiveEnum::class)],
             'password' => [
-                $this->isMethod('post') ? 'required' : 'sometimes',
+                $this->isMethod('post') ? 'required' : 'nullable',
                 'string',
-                'min:3',
+                'min:8',
                 'confirmed',
             ],
         ];
