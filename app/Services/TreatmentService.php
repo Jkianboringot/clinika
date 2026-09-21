@@ -14,29 +14,32 @@ use Illuminate\Support\Facades\Log;
 use function Laravel\Prompts\error;
 use function Livewire\store;
 
-class TreatmentServiceService
+
+//just summaries it am not stupid,just check the migration
+//data=[treatment:...$treatment,
+//treatment_descriptionlist:...$treatment_description,//the medicine is just the id
+
+//treatmentItemList:...$items,
+
+
+//]
+    
+    
+//]
+
+
+
+
+class TreatmentService
 {
 
-    // this needs to do create for sale,payroll, and add_ingredeint✅
 
 
-    // let focus on just making inventory
-
-    //step:
-    //1. Inventory($data) will recieve data as already validated
-    //2. it save data and sync but it must go to check first
-    // -data is just save in here but the validation happen before, check 
-    // is possible if it is busines logic like below
-    //check: it must check first if branch and ingredient alrady exist in pivot table
 
 
-    // $data=[{
-//     inventory=>[type=>IN,
-//     encoder_id=>3,
-//     inventory_type=>,
-// ],
-//     productList =>[product1QTY=>1,product2QTY=>1,,product3QTY=>1,],
-// }]
+
+
+
     function InventoryIN(array $data)
     {
         // $data=['branch_id'=>1,'ingredient_id'=>1,'quantity'=>10]
@@ -251,4 +254,4 @@ class TreatmentServiceService
 
 // finish this today so that we can move on to to pern which should be easier, learn isolation for it   
 
-// figure out how you will send data here first and fins the fucing pivot pk    
+// figure out how you will send data here first and fins the fucing pivot pk

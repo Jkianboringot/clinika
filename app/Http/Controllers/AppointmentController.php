@@ -130,17 +130,17 @@ class AppointmentController extends Controller
         return redirect()->route('appointments.index')->with('message', 'Appointment created successfully.');
     }
 
-    public function edit(Appointment $appointment): Response
-    {
-        $this->authorize('view', $appointment);
+        public function edit(Appointment $appointment): Response
+        {
+            // $this->authorize('view', $appointment);
 
-        return Inertia::render('Appointments/Edit', [
-            'appointment' => $appointment,
-            'patients' => Patient::select('id', 'full_name')->orderBy('full_name')->get(),
-            'staff' => User::select('id', 'name')->orderBy('name')->get(),
-            'procedures' => Procedure::select('id', 'name')->orderBy('name')->get(),
-        ]);
-    }
+            return Inertia::render('Appointments/Edit', [
+                'appointment' => $appointment,
+                'patients' => Patient::select('id', 'full_name')->orderBy('full_name')->get(),
+                'staff' => User::select('id', 'name')->orderBy('name')->get(),
+                'procedures' => Procedure::select('id', 'name')->orderBy('name')->get(),
+            ]);
+        }
 
     public function update(AppointmentRequest $request, Appointment $appointment): RedirectResponse
     {

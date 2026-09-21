@@ -80,4 +80,13 @@ class PatientController extends Controller
 
         return redirect()->route('patients.index')->with('message', 'Patient deleted successfully.');
     }
+
+    public function show(Patient $patient): Response
+{
+    // $this->authorize('patients.view');
+
+    return Inertia::render('Patients/Show', [
+        'patient' => $patient,
+    ]);
+}
 }

@@ -7,9 +7,24 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Appointment extends Model
 {
-    
 
-    function patient(){
+    public $guarded = ['id'];
+    function patient()
+    {
         return $this->belongsTo(Patient::class);
     }
+
+    function procedure()
+    {
+        return $this->belongsTo(Procedure::class);
+    }
+
+
+
+    function staff()
+    {
+        return $this->belongsTo(User::class, 'staff_id');
+    }
+
+
 }

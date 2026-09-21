@@ -10,8 +10,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { ChevronLeft, ChevronRight, Eye, Plus, Search, X } from 'lucide-react';
-import { create, index } from '@/routes/patients';
+import { ChevronLeft, ChevronRight, Eye, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { create, destroy, edit, index, show } from '@/routes/patients';
 
 interface PatientRow {
     id: number;
@@ -64,6 +64,12 @@ export default function Index({ patients, filters }: Props) {
     function clearSearch() {
         setSearch('');
         router.get(index().url, {}, { preserveState: true, replace: true });
+    }
+
+    function handleDelete(patient: PatientRow) {
+        if (confirm(`Delete ${patient.full_name}'s record? This can't be undone.`)) {
+            router.delete(destroy(patient.id).url, { preserveScroll: true });
+        }
     }
 
     return (
@@ -164,13 +170,30 @@ export default function Index({ patients, filters }: Props) {
                                         {patient.last_visit ?? '—'}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <Link
-                                            href={show(patient.id).url}
-                                            className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                                        >
-                                            <Eye className="h-3.5 w-3.5" />
-                                            View
-                                        </Link>
+                                        <div className="flex items-center justify-end gap-2">
+                                            <Link
+                                                href={show(patient.id).url}
+                                                className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                            >
+                                                <Eye className="h-3.5 w-3.5" />
+                                                View
+                                            </Link>
+                                            <Link
+                                                href={edit(patient.id).url}
+                                                className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                            >
+                                                <Pencil className="h-3.5 w-3.5" />
+                                                Edit
+                                            </Link>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDelete(patient)}
+                                                className="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                                Delete
+                                            </button>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ))}

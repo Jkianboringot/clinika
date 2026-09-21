@@ -55,7 +55,7 @@ const GENDER_LABELS: Record<string, string> = {
 };
 
 export default function Edit({ patient }: Props) {
-    const { data, setData, patch, processing, errors } = useForm<PatientForm>({
+    const { data, setData, put, processing, errors } = useForm<PatientForm>({
         full_name: patient.full_name ?? '',
         gender: patient.gender ?? '',
         date_of_birth: patient.date_of_birth ?? '',
@@ -72,7 +72,7 @@ export default function Edit({ patient }: Props) {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        patch(update(patient.id).url);
+        put(update(patient.id).url);
     };
 
     return (

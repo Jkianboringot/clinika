@@ -63,6 +63,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
             Route::delete('/{patient}', [PatientController::class, 'destroy'])->name('destroy');
             Route::put('/{patient}', [PatientController::class, 'update'])->name('update');
+            Route::get('/{patient}', [PatientController::class, 'show'])->name('show');
         }
     );
     Route::middleware('permission:users.view')->prefix('users')->name('users.')->group(
@@ -82,10 +83,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/', [AppointmentController::class, 'index'])->name('index');
             Route::get('/create', [AppointmentController::class, 'create'])->name('create');
             Route::post('/', [AppointmentController::class, 'store'])->name('store');
-            Route::get('/{patient}/edit', [AppointmentController::class, 'edit'])->name('edit');
+            Route::get('/{appointment}/edit', [AppointmentController::class, 'edit'])->name('edit');
 
-            Route::delete('/{patient}', [AppointmentController::class, 'destroy'])->name('destroy');
-            Route::put('/{patient}', [AppointmentController::class, 'update'])->name('update');
+            Route::delete('/{appointment}', [AppointmentController::class, 'destroy'])->name('destroy');
+            Route::put('/{appointment}', [AppointmentController::class, 'update'])->name('update');
         }
     );
 

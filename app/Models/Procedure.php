@@ -9,4 +9,10 @@ class Procedure extends Model
 {
     use HasFactory;
     public $guarded = ['id'];
+
+    function appointment()
+    {
+        return $this->hasMany(Appointment::class);
+    }
+
 }

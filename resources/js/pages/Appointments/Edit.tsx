@@ -1,129 +1,227 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { update, index as medicationsIndex } from '@/routes/medications';
+import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { CircleAlert } from 'lucide-react';
+import { update } from '@/routes/appointments';
 
-interface Medication {
+interface Option {
     id: number;
-    name: string;
-    generic_name: string | null;
-    dosage_form: string | null;
-    strength: string | null;
+    full_name?: string;
+    name?: string;
 }
 
-interface EditProps {
-    medication: Medication;
+interface Appointment {
+    id: number;
+    patient_id: number;
+    staff_id: number;
+    procedure_id: number;
+    description: string | null;
+    appointment_date: string; // "YYYY-MM-DD"
+    appointment_time: string; // "HH:mm"
 }
 
-export default function Edit({ medication }: EditProps) {
-    const { data, setData, put, processing, errors } = useForm({
-        name: medication.name,
-        generic_name: medication.generic_name ?? '',
-        dosage_form: medication.dosage_form ?? '',
-        strength: medication.strength ?? '',
+interface AppointmentForm {
+    patient_id: string;
+    staff_id: string;
+    procedure_id: string;
+    description: string;
+    appointment_date: string;
+    appointment_time: string;
+}
+
+interface Props {
+    appointment: Appointment;
+    patients: Option[];
+    staff: Option[];
+    procedures: Option[];
+}
+
+export default function Edit({ appointment, patients, staff, procedures }: Props) {
+    const { data, setData, put, processing, errors } = useForm<AppointmentForm>({
+        patient_id: String(appointment.patient_id),
+        staff_id: String(appointment.staff_id),
+        procedure_id: String(appointment.procedure_id),
+        description: appointment.description ?? '',
+        appointment_date: appointment.appointment_date,
+        appointment_time: appointment.appointment_time,
     });
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        put(update(medication.id).url);
+        put(update(appointment.id).url);
     };
 
     return (
         <>
-            <Head title="Edit Medication" />
+            <Head title="Edit Appointment" />
 
-            <div className="mx-auto w-full max-w-lg p-6">
+            <div className="mx-auto w-full max-w-3xl p-6">
                 <div className="mb-4">
-                    <h1 className="text-2xl font-bold text-ink">Edit Medication</h1>
-                   
+                    <h1 className="text-2xl font-bold text-ink">Edit Appointment</h1>
+                    <p className="mt-1 text-sm text-subtle">Update this patient visit</p>
                 </div>
 
                 <form
                     onSubmit={handleSubmit}
-                    className="space-y-4 rounded-xl border border-[#f0ddc8] bg-white p-5"
+                    className="space-y-4 rounded-xl border border-gray-200 bg-white p-5"
                 >
-                    <div className="space-y-1.5">
-                        <Label htmlFor="name" className="font-semibold text-ink">
-                            Name
-                        </Label>
-                        <Input
-                            id="name"
-                            value={data.name}
-                            onChange={(e) => setData('name', e.target.value)}
-                            maxLength={150}
-                            autoFocus
-                            className="border-[#e0d0c0]"
-                        />
-                        {errors.name && (
-                            <p className="mt-1 text-sm text-danger">{errors.name}</p>
-                        )}
-                    </div>
+                    {Object.keys(errors).length > 0 && (
+                        <Alert variant="destructive">
+                            <CircleAlert />
+                            <AlertTitle>Something's not right</AlertTitle>
+                            <AlertDescription>
+                                <ul className="list-inside list-disc text-sm text-danger">
+                                    {Object.entries(errors).map(([key, message]) => (
+                                        <li key={key}>{message as string}</li>
+                                    ))}
+                                </ul>
+                            </AlertDescription>
+                        </Alert>
+                    )}
 
-                    <div className="space-y-1.5">
-                        <Label htmlFor="generic_name" className="font-semibold text-ink">
-                            Generic name
+                    <div className="space-y-1">
+                        <Label htmlFor="patient_id" className="font-semibold text-ink">
+                            Patient
                         </Label>
-                        <Input
-                            id="generic_name"
-                            value={data.generic_name}
-                            onChange={(e) => setData('generic_name', e.target.value)}
-                            maxLength={150}
-                            className="border-[#e0d0c0]"
-                        />
-                        {errors.generic_name && (
-                            <p className="mt-1 text-sm text-danger">{errors.generic_name}</p>
+                        <Select
+                            value={data.patient_id}
+                            onValueChange={(value) => setData('patient_id', value)}
+                        >
+                            <SelectTrigger id="patient_id" className="border-gray-200">
+                                <SelectValue placeholder="Select a patient" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {patients.map((p) => (
+                                    <SelectItem key={p.id} value={String(p.id)}>
+                                        {p.full_name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {errors.patient_id && (
+                            <p className="mt-1.5 text-sm text-danger">{errors.patient_id}</p>
                         )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                            <Label htmlFor="dosage_form" className="font-semibold text-ink">
-                                Dosage form
+                        <div className="space-y-1">
+                            <Label htmlFor="procedure_id" className="font-semibold text-ink">
+                                Procedure
                             </Label>
-                            <Input
-                                id="dosage_form"
-                                value={data.dosage_form}
-                                onChange={(e) => setData('dosage_form', e.target.value)}
-                                maxLength={75}
-                                className="border-[#e0d0c0]"
-                            />
-                            {errors.dosage_form && (
-                                <p className="mt-1 text-sm text-danger">{errors.dosage_form}</p>
+                            <Select
+                                value={data.procedure_id}
+                                onValueChange={(value) => setData('procedure_id', value)}
+                            >
+                                <SelectTrigger id="procedure_id" className="border-gray-200">
+                                    <SelectValue placeholder="Select a procedure" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {procedures.map((p) => (
+                                        <SelectItem key={p.id} value={String(p.id)}>
+                                            {p.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {errors.procedure_id && (
+                                <p className="mt-1.5 text-sm text-danger">{errors.procedure_id}</p>
                             )}
                         </div>
 
-                        <div className="space-y-1.5">
-                            <Label htmlFor="strength" className="font-semibold text-ink">
-                                Strength
+                        <div className="space-y-1">
+                            <Label htmlFor="staff_id" className="font-semibold text-ink">
+                                Staff
                             </Label>
-                            <Input
-                                id="strength"
-                                value={data.strength}
-                                onChange={(e) => setData('strength', e.target.value)}
-                                maxLength={50}
-                                className="border-[#e0d0c0]"
-                            />
-                            {errors.strength && (
-                                <p className="mt-1 text-sm text-danger">{errors.strength}</p>
+                            <Select
+                                value={data.staff_id}
+                                onValueChange={(value) => setData('staff_id', value)}
+                            >
+                                <SelectTrigger id="staff_id" className="border-gray-200">
+                                    <SelectValue placeholder="Select staff" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {staff.map((s) => (
+                                        <SelectItem key={s.id} value={String(s.id)}>
+                                            {s.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {errors.staff_id && (
+                                <p className="mt-1.5 text-sm text-danger">{errors.staff_id}</p>
                             )}
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3 border-t border-[#f0ddc8] pt-3">
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                            <Label htmlFor="appointment_date" className="font-semibold text-ink">
+                                Date
+                            </Label>
+                            <Input
+                                id="appointment_date"
+                                type="date"
+                                value={data.appointment_date}
+                                onChange={(e) => setData('appointment_date', e.target.value)}
+                                className="border-gray-200"
+                            />
+                            {errors.appointment_date && (
+                                <p className="mt-1.5 text-sm text-danger">{errors.appointment_date}</p>
+                            )}
+                        </div>
+
+                        <div className="space-y-1">
+                            <Label htmlFor="appointment_time" className="font-semibold text-ink">
+                                Time
+                            </Label>
+                            <Input
+                                id="appointment_time"
+                                type="time"
+                                value={data.appointment_time}
+                                onChange={(e) => setData('appointment_time', e.target.value)}
+                                className="border-gray-200"
+                            />
+                            {errors.appointment_time && (
+                                <p className="mt-1.5 text-sm text-danger">{errors.appointment_time}</p>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="space-y-1">
+                        <Label htmlFor="description" className="font-semibold text-ink">
+                            Notes
+                        </Label>
+                        <Textarea
+                            id="description"
+                            placeholder="Any additional notes for this visit"
+                            value={data.description}
+                            maxLength={1000}
+                            onChange={(e) => setData('description', e.target.value)}
+                            className="border-gray-200"
+                        />
+                        {errors.description && (
+                            <p className="mt-1.5 text-sm text-danger">{errors.description}</p>
+                        )}
+                    </div>
+
+                    <div className="flex justify-end border-t border-gray-200 pt-3">
                         <Button
                             type="submit"
                             disabled={processing}
-                            className="bg-brand-orange font-bold text-white hover:bg-brand-orange-hover disabled:opacity-60"
+                            className="bg-blue-600 font-bold text-white hover:bg-blue-700 disabled:opacity-60"
                         >
-                            Save changes
+                            Update Appointment
                         </Button>
-                        <Link
-                            href={medicationsIndex().url}
-                            className="text-sm font-medium text-subtle hover:text-ink"
-                        >
-                            Cancel
-                        </Link>
                     </div>
                 </form>
             </div>
@@ -133,7 +231,9 @@ export default function Edit({ medication }: EditProps) {
 
 Edit.layout = {
     breadcrumbs: [
-        { title: 'Medications', href: '/medications' },
-        { title: 'Edit', href: '#' },
+        {
+            title: 'Edit Appointment',
+            href: '/appointments/edit',
+        },
     ],
 };
