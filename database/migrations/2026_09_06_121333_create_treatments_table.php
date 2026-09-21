@@ -12,16 +12,14 @@ return new class extends Migration {
     {
         Schema::create('treatments', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained();
-            $table->foreignId('treatment_prescription_id')->constrained('treatment_prescription_details');
-            $table->string('follow_up_schedule');
+            $table->foreignId('user_id')->constrained();//doctor
+            $table->string('follow_up_schedule')->nullable();
             
             $table->foreignId('appointment_id')
                 ->constrained()
                 ->cascadeOnDelete();
-            
-            
-            $table->string('tooth_numbers')->nullable();
+           
+            // $table->string('tooth_numbers')->nullable();
             $table->unsignedInteger('duration_minutes')->nullable();
             // summary of what was done
             $table->text('summary')->nullable();

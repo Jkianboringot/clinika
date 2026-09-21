@@ -15,7 +15,8 @@ return new class extends Migration
     {
         Schema::create('treatment_prescription_details', function (Blueprint $table) {
             $table->id();
-
+            // TODO: make this primary but not now since aivon will have issues and its development still so i dont give a shit
+            $table->foreignId('treatment_id')->constrained(); 
     
             $table->foreignId('medication_id')
                 ->constrained()

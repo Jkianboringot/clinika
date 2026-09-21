@@ -9,4 +9,10 @@ class InventoryItem extends Model
 {
     use HasFactory;
     public $guarded = ['id'];
+
+
+    public function treatment()
+    {
+        return $this->hasMany(Treatment::class);
+    }
 }

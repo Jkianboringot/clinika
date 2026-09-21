@@ -10,6 +10,7 @@ use App\Http\Controllers\PatientController;
 use App\Http\Controllers\ProcedureController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\SaleController;
+use App\Http\Controllers\TreatmentController;
 use App\Models\Branch;
 use Illuminate\Support\Facades\Route;
 
@@ -87,6 +88,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
             Route::delete('/{appointment}', [AppointmentController::class, 'destroy'])->name('destroy');
             Route::put('/{appointment}', [AppointmentController::class, 'update'])->name('update');
+        }
+    );
+
+    Route::prefix('treatments')->name('treatments.')->group(
+        function () {
+            Route::get('/', [TreatmentController::class, 'index'])->name('index');
+            Route::get('{appointment}/create', [TreatmentController::class, 'create'])->name('create');
+            Route::post('{appointment}/', [TreatmentController::class, 'store'])->name('store');
+            Route::get('/{treatment}/edit', [TreatmentController::class, 'edit'])->name('edit');
+
+            Route::delete('/{treatment}', [TreatmentController::class, 'destroy'])->name('destroy');
+            Route::put('/{treatment}', [TreatmentController::class, 'update'])->name('update');
         }
     );
 

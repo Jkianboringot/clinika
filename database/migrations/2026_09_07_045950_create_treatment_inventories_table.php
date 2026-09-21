@@ -16,7 +16,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('treatment_id')->constrained();
             $table->foreignId('inventory_item_id')->constrained();
-            $table->decimal('quanty');
+            $table->decimal('quanty',8,2)->unsigned();
             $table->timestamps();
         });
     }
