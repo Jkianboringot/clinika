@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import {  LayoutGrid, House, Syringe, Pill, ListPlus, UsersRound, FileUser, TicketCheck } from 'lucide-react';
+import {  LayoutGrid, House, Syringe, Pill, ListPlus, UsersRound, FileUser, TicketCheck, Stethoscope } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -63,6 +63,11 @@ export function AppSidebar() {
             title: 'Appointment',
             href: '/appointments',
             icon: TicketCheck  ,
+        },
+         {
+            title: 'Treatment',
+            href: '/treatments',
+            icon: Stethoscope   ,
         },
         ...(canManageUsers
             ? [

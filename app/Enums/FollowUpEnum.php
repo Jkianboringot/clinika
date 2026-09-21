@@ -1,5 +1,5 @@
 <?php
-
+namespace App\Enums;
 enum FollowUpIntervalEnum: string
 {
     case One_Week = '1_week';

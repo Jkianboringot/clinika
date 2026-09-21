@@ -9,7 +9,7 @@ use App\Models\Inventory;
 use App\Models\Sale;
 use App\Models\Treatment;
 use App\Models\TreatmentPrescriptionDetails;
-use AppointmentStatusEnum;
+use App\Enums\AppointmentStatusEnum;
 use Error;
 use ErrorException;
 use Illuminate\Support\Facades\DB;
@@ -85,8 +85,8 @@ class TreatmentService
                         // $m=$pl->findOrfial('medication_id');
                         $tpdl = new TreatmentPrescriptionDetails();
                         $tpdl->fill($pl);
-                        $pl->treatment_id = $tr->id;
-                        $pl->save();
+                        $tpdl->treatment_id = $tr->id;
+                        $tpdl->save();
                     }
 
 
@@ -102,7 +102,7 @@ class TreatmentService
 
                     //why does this work here but not inmigration?
                     $ap->status = AppointmentStatusEnum::Completed->value;
-
+                    $ap->save();
                     return $tr;
 
 
@@ -129,18 +129,18 @@ class TreatmentService
 
 
 
-    function treatmentUdpate(Treatment $treatment,array $data)
+    function treatmentUdpate(Treatment $treatment, array $data)
     {
-      
-            try {
-                return DB::transaction(function () use ($treatment,$data){
+
+        try {
+            return DB::transaction(function () use ($treatment, $data) {
 
 
 
-                });
-            } catch (\Throwable $th) {
-                //throw $th;
-            }
+            });
+        } catch (\Throwable $th) {
+            //throw $th;
+        }
     }
 
 
@@ -149,34 +149,34 @@ class TreatmentService
 
 
 
-// when delte happens:
+    // when delte happens:
 // 1.reverse the reduction on stock by deleting the record of invnetoryItem or setting them to is_deleted, just let this auto since we are doing pattern 1 or live data
 // 2.appointment status cancelled
 // 3.prescriptionlist and treatment needs to be delete
 
-// test:
+    // test:
 // 1.when deleting we need to do db check if prescriptionlist is actually gone along with Treatment
 // 2.check current stock if it return, or in this case just check if inventoryItem is delete, since we have no way to know how many it is or rather is not needed 
 // 3.check if appointment status is updated properly
     function treatmentDelete(Treatment $treatment)
     {
 
-      
-
-            try {
-                return DB::transaction(function () use ($treatment){
 
 
+        try {
+            return DB::transaction(function () use ($treatment) {
 
-                });
-            } catch (\Throwable $th) {
-                //throw $th;
-            }
+
+
+            });
+        } catch (\Throwable $th) {
+            //throw $th;
+        }
     }
 
 
 
-    
+
 
 
 

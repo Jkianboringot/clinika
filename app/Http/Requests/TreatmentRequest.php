@@ -3,7 +3,6 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class TreatmentRequest extends FormRequest
 {
@@ -14,36 +13,37 @@ class TreatmentRequest extends FormRequest
 
     public function rules(): array
     {
-       
-
         return [
-          
-            // 'appointment_id' => ['required', 'exists:appointments,id'],
-            'follow_up_schedule' => ['nullable', 'date', 'today'],
+            'follow_up_schedule' => ['nullable', 'date'],
+            'duration_minutes'   => ['required', 'integer', 'min:1', 'max:1440'],
+            'summary'            => ['nullable', 'string', 'max:500'],
 
-            'duration_minutes' => ['required', 'integer', 'min:1', 'max:1440'],
-            'summary' => ['nullable', 'string', 'max:300'],
+            // Items used (matches the form: itemList[].item_id / quantity)
+            'itemList'            => ['required', 'array', 'min:1'],
+            'itemList.*.item_id'  => ['required', 'exists:inventory_items,id'],
+            'itemList.*.quantity' => ['required', 'numeric', 'min:1'],
 
-            // If you are also saving inventories together with treatment
-            'treatmentItemList' => ['required', 'array'],
-            'treatmentItemList.*.inventory_item_id' => ['required', 'exists:inventory_items,id'],
-            'itemlist.*.quantity' => ['required', 'numeric', 'min:0.01'],
-            // If you create multiple prescriptions at once for one treatment
-            'prescriptions' => ['required', 'array', 'min:1'],
-            'prescriptions.*.medication_id' => ['required', 'exists:medications,id'],
-            'prescriptions.*.dosage' => ['required', 'string', 'max:100'],
-            'prescriptions.*.frequency' => ['required', 'string', 'max:100'],
-            'prescriptions.*.duration_days' => ['required', 'integer', 'min:1'],
-
-
-
+            // Prescription (optional; matches the form: prescriptionlist[])
+            'prescriptionlist'                   => ['nullable', 'array'],
+            'prescriptionlist.*.medication_id'   => ['required', 'exists:medications,id'],
+            'prescriptionlist.*.dosage'          => ['required', 'string', 'max:100'],
+            'prescriptionlist.*.frequency'       => ['required', 'string', 'max:100'],
+            'prescriptionlist.*.duration_days'   => ['required', 'integer', 'min:1'],
         ];
     }
 
     public function messages(): array
     {
         return [
-            'appointment_id.unique' => 'This appointment already has a treatment record.',
+            'itemList.required' => 'A treatment needs at least one item.',
+            'itemList.min'      => 'A treatment needs at least one item.',
+            'itemList.*.item_id.required' => 'Please select an item.',
+            'itemList.*.quantity.min'     => 'Quantity must be at least 1.',
+
+            'prescriptionlist.*.medication_id.required' => 'Please select a medication.',
+            'prescriptionlist.*.dosage.required'        => 'Dosage is required.',
+            'prescriptionlist.*.frequency.required'     => 'Frequency is required.',
+            'prescriptionlist.*.duration_days.required' => 'Duration (days) is required.',
         ];
     }
 }

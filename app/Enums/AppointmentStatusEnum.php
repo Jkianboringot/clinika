@@ -1,5 +1,5 @@
 <?php
-
+namespace App\Enums;
 enum AppointmentStatusEnum: string
 {
     case Cancelled = 'cancelled';

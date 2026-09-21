@@ -10,8 +10,9 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { ChevronLeft, ChevronRight, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Pencil, Plus, Search, Stethoscope, Trash2, X } from 'lucide-react';
 import { create, edit, index, destroy } from '@/routes/appointments';
+import { create as createTreatment } from '@/routes/treatments';
 import { useForm } from '@inertiajs/react';
 
 interface AppointmentRow {
@@ -182,6 +183,13 @@ export default function Index({ appointments, filters }: Props) {
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center justify-end gap-4">
+                                            <Link
+                                                href={createTreatment(appt.id).url}
+                                                className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-blue-700"
+                                            >
+                                                <Stethoscope className="h-4 w-4" />
+                                                Treat
+                                            </Link>
                                             <Link
                                                 href={edit(appt.id).url}
                                                 className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-blue-700"

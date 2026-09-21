@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AppointmentStatusEnum as EnumsAppointmentStatusEnum;
 use App\Http\Requests\TreatmentRequest;
 use App\Models\Appointment;
 use App\Models\InventoryItem;
@@ -21,10 +22,32 @@ class TreatmentController extends Controller
     {
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $t = Treatment::all();
-        return Inertia::render('Treatments/Index', ['treatments' => $t]);
+        $search = $request->string('search')->toString();
+
+        $treatments = Treatment::with('appointment.patient')
+            ->when($search, fn($q) => $q->whereHas(
+                'appointment.patient',
+                fn($p) => $p->where('full_name', 'like', "%{$search}%")
+            ))
+            ->latest()
+            ->paginate(10)
+            ->withQueryString()
+            ->through(fn($t) => [
+                'id' => $t->id,
+                'patient_name' => $t->appointment?->patient?->full_name,
+                'appointment_id' => $t->appointment_id,
+                'follow_up_schedule' => $t->follow_up_schedule,
+                'duration_minutes' => $t->duration_minutes,
+                'summary' => $t->summary,
+                'created_at' => $t->created_at?->format('M d, Y'),
+            ]);
+
+        return Inertia::render('Treatments/Index', [
+            'treatments' => $treatments,
+            'filters' => ['search' => $search],
+        ]);
     }
 
 
@@ -37,10 +60,14 @@ class TreatmentController extends Controller
 
 
         return Inertia::render('Treatments/Create', [
-            'appointment' => $appointment,
-            'items' => InventoryItem::all(),
+            'appointment' => $appointment->load('patient'),
+            'items' => InventoryItem::selectRaw('id, item_name as name')->orderBy('item_name')->get(),
             'procedures' => Procedure::all(),
-            'followUpEnum' => collect(AppointmentStatusEnum::cases())->map(fn($a) =>
+            'medications' => \App\Models\Medication::all()->map(fn($m) => [
+                'id' => $m->id,
+                'name' => $m->name ?? $m->medication_name ?? $m->generic_name ?? "Medication #{$m->id}",
+            ]),
+            'followUpEnum' => collect(EnumsAppointmentStatusEnum::cases())->map(fn($a) =>
                 [
                     'value' => $a->value,
                     'label' => $a->value
@@ -95,10 +122,10 @@ class TreatmentController extends Controller
         return Inertia::render('Treatments/Edit', [
 
             'treatment' => $treatment,
-            'appointment' => $ap, //just to show the appoitment and patient
+            'appointment' => $ap->load('patient'), //just to show the appoitment and patient
             'items' => InventoryItem::all(),
             'procedures' => Procedure::all(),
-            'followUpEnum' => collect(AppointmentStatusEnum::cases())->map(fn($a) =>
+            'followUpEnum' => collect(EnumsAppointmentStatusEnum::cases())->map(fn($a) =>
                 [
                     'value' => $a->value,
                     'label' => $a->value
@@ -135,8 +162,9 @@ class TreatmentController extends Controller
     }
 
 
-    public function delete(Treatment $treatment){
-        return ;
+    public function delete(Treatment $treatment)
+    {
+        return;
     }
 
 

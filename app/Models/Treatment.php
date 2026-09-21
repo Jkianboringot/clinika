@@ -12,4 +12,9 @@ class Treatment extends Model
     public function items(){
         return $this->hasMany(TreatmentInventory::class);
     }
+
+    
+    public function perscriptions(){
+        return $this->hasMany(TreatmentPrescriptionDetails::class);
+    }
 }
