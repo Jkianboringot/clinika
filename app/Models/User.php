@@ -53,5 +53,7 @@ class User extends Authenticatable
         'branch_id'
     ];
 
-   
+   public function appointments(){
+    return $this->hasMany(Appointment::class);
+   }
 }

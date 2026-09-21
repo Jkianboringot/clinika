@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InventoryController;
@@ -61,7 +62,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/{patient}/edit', [PatientController::class, 'edit'])->name('edit');
 
             Route::delete('/{patient}', [PatientController::class, 'destroy'])->name('destroy');
-            Route::put('/{patient}', [InventoryItemController::class, 'update'])->name('update');
+            Route::put('/{patient}', [PatientController::class, 'update'])->name('update');
         }
     );
     Route::middleware('permission:users.view')->prefix('users')->name('users.')->group(
@@ -76,7 +77,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         }
     );
 
+    Route::prefix('appointments')->name('appointments.')->group(
+        function () {
+            Route::get('/', [AppointmentController::class, 'index'])->name('index');
+            Route::get('/create', [AppointmentController::class, 'create'])->name('create');
+            Route::post('/', [AppointmentController::class, 'store'])->name('store');
+            Route::get('/{patient}/edit', [AppointmentController::class, 'edit'])->name('edit');
 
+            Route::delete('/{patient}', [AppointmentController::class, 'destroy'])->name('destroy');
+            Route::put('/{patient}', [AppointmentController::class, 'update'])->name('update');
+        }
+    );
 
 
 

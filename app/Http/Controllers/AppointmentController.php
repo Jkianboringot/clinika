@@ -5,8 +5,14 @@ namespace App\Http\Controllers;
 use App\Http\Requests\AppointmentRequest;
 use App\Http\Requests\SearchRequest;
 use App\Models\Appointment;
+use App\Models\Patient;
+use App\Models\Procedure;
+use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Inertia\Response;
+
 /**
  * =====================================================================
  * APPOINTMENT MODULE — Controller Notes
@@ -82,63 +88,21 @@ use Inertia\Inertia;
 
 class AppointmentController extends Controller
 {
-
-    
-    public function create()
+    public function index(SearchRequest $request): Response
     {
-        $this->authorize('create', Appointment::class);
-
-        return Inertia::render('Appointments/Create', []);
-    }
-
-    public function store(AppointmentRequest $request)
-    {
-        $this->authorize('create', Appointment::class);
+        // $this->authorize('viewAny', Appointment::class);
 
         $request->validated();
 
-        Appointment::create($request->all());
-        return redirect()->route('appointments.index')->with('message', 'Appointment Created Successfully');
-    }
-
-    public function destroy(Request $request)
-    {
-        $appointment = Appointment::findOrFail($request->id);
-        $this->authorize('delete', $appointment);
-
-        $appointment->deleteOrFail();
-        return redirect()->route('appointments.index')->with('message', 'Appointment Deleted Successfully');
-    }
-
-    public function edit(Request $request)
-    {
-        $p = Appointment::findOrFail($request->id);
-        $this->authorize('view', $p);
-
-        return Inertia::render('Appointments/Edit', ['appointments' => $p]);
-    }
-
-    public function update(AppointmentRequest $request)
-    {
-        $p = Appointment::findOrFail($request->id);
-        $this->authorize('update', $p);
-
-        $request->validated();
-        $p->update($request->all());
-
-        return redirect()->route('appointments.index')->with('message', 'Appointment Updated Successfully');
-    }
-
-    public function index(SearchRequest $request)
-    {
-        $this->authorize('viewAny', Appointment::class);
-
-        $request->validated();
         $appointments = Appointment::query()
-            ->when($request->string('search')->trim(), function ($query, $search) {
-                $query->where('name', 'like', "{$search}%");
-            })
-            ->orderBy('created_at')
+            ->with(['staff:id,name', 'patient:id,full_name', 'procedure:id,name'])
+            ->when(
+                $request->string('search')->trim(),
+                fn($query, $search) =>
+                    $query->whereHas('patient', fn($q) => $q->where('full_name', 'like', "{$search}%"))
+            )
+            ->orderBy('appointment_date')
+            ->orderBy('appointment_time')
             ->paginate(15)
             ->withQueryString();
 
@@ -146,5 +110,52 @@ class AppointmentController extends Controller
             'appointments' => $appointments,
             'filters' => $request->only(['search']),
         ]);
+    }
+
+    public function create(): Response
+    {
+
+        return Inertia::render('Appointments/Create', [
+            'patients' => Patient::select('id', 'full_name')->orderBy('full_name')->get(),
+            'staff' => User::select('id', 'name')->orderBy('name')->get(),
+            'procedures' => Procedure::select('id', 'name')->orderBy('name')->get(),
+        ]);
+    }
+
+    public function store(AppointmentRequest $request): RedirectResponse
+    {
+
+        Appointment::create($request->validated());
+
+        return redirect()->route('appointments.index')->with('message', 'Appointment created successfully.');
+    }
+
+    public function edit(Appointment $appointment): Response
+    {
+        $this->authorize('view', $appointment);
+
+        return Inertia::render('Appointments/Edit', [
+            'appointment' => $appointment,
+            'patients' => Patient::select('id', 'full_name')->orderBy('full_name')->get(),
+            'staff' => User::select('id', 'name')->orderBy('name')->get(),
+            'procedures' => Procedure::select('id', 'name')->orderBy('name')->get(),
+        ]);
+    }
+
+    public function update(AppointmentRequest $request, Appointment $appointment): RedirectResponse
+    {
+
+        $appointment->update($request->validated());
+
+        return redirect()->route('appointments.index')->with('message', 'Appointment updated successfully.');
+    }
+
+    public function destroy(Appointment $appointment): RedirectResponse
+    {
+        // $this->authorize('delete', $appointment);
+
+        $appointment->deleteOrFail();
+
+        return redirect()->route('appointments.index')->with('message', 'Appointment deleted successfully.');
     }
 }

@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, FolderGit2, LayoutGrid, House, Syringe, Pill, ListPlus } from 'lucide-react';
+import {  LayoutGrid, House, Syringe, Pill, ListPlus, UsersRound, FileUser, TicketCheck } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -54,12 +54,22 @@ export function AppSidebar() {
             href: '/inventory_items',
             icon: ListPlus ,
         },
+         {
+            title: 'Patient',
+            href: '/patients',
+            icon: UsersRound ,
+        },
+         {
+            title: 'Appointment',
+            href: '/appointments',
+            icon: TicketCheck  ,
+        },
         ...(canManageUsers
             ? [
                 {
                     title: 'User',
                     href: '/users',
-                    icon: House,
+                    icon: FileUser   ,
                 },
             ]
             : []),
