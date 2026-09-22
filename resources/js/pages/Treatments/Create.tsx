@@ -34,7 +34,7 @@ interface PrescriptionRow {
     medication_id: string;
     dosage: string;
     frequency: string;
-    duration: string;
+    duration_days: string;
 }
 
 interface ItemRow {
@@ -61,7 +61,7 @@ const emptyPrescription: PrescriptionRow = {
     medication_id: '',
     dosage: '',
     frequency: '',
-    duration: '',
+    duration_days: '',
 };
 
 const emptyItem: ItemRow = { item_id: '', quantity: '1' };
@@ -345,24 +345,55 @@ export default function Create({ appointment, items, medications = [], procedure
                                     )}
                                 </div>
 
-                                <Input
-                                    placeholder="Dosage"
-                                    value={row.dosage}
-                                    onChange={(e) => updatePrescription(i, 'dosage', e.target.value)}
-                                    className="border-[#e0d0c0]"
-                                />
-                                <Input
-                                    placeholder="Frequency"
-                                    value={row.frequency}
-                                    onChange={(e) => updatePrescription(i, 'frequency', e.target.value)}
-                                    className="border-[#e0d0c0]"
-                                />
-                                <Input
-                                    placeholder="Duration"
-                                    value={row.duration}
-                                    onChange={(e) => updatePrescription(i, 'duration', e.target.value)}
-                                    className="border-[#e0d0c0]"
-                                />
+                                <div className="space-y-1">
+                                    <Input
+                                        placeholder="Dosage"
+                                        value={row.dosage}
+                                        onChange={(e) =>
+                                            updatePrescription(i, 'dosage', e.target.value)
+                                        }
+                                        className="border-[#e0d0c0]"
+                                    />
+                                    {fieldError(`prescriptionlist.${i}.dosage`) && (
+                                        <p className="mt-1.5 text-sm text-danger">
+                                            {fieldError(`prescriptionlist.${i}.dosage`)}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="space-y-1">
+                                    <Input
+                                        placeholder="Frequency"
+                                        value={row.frequency}
+                                        onChange={(e) =>
+                                            updatePrescription(i, 'frequency', e.target.value)
+                                        }
+                                        className="border-[#e0d0c0]"
+                                    />
+                                    {fieldError(`prescriptionlist.${i}.frequency`) && (
+                                        <p className="mt-1.5 text-sm text-danger">
+                                            {fieldError(`prescriptionlist.${i}.frequency`)}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="space-y-1">
+                                    <Input
+                                        type="number"
+                                        min={1}
+                                        placeholder="Days"
+                                        value={row.duration_days}
+                                        onChange={(e) =>
+                                            updatePrescription(i, 'duration_days', e.target.value)
+                                        }
+                                        className="border-[#e0d0c0]"
+                                    />
+                                    {fieldError(`prescriptionlist.${i}.duration_days`) && (
+                                        <p className="mt-1.5 text-sm text-danger">
+                                            {fieldError(`prescriptionlist.${i}.duration_days`)}
+                                        </p>
+                                    )}
+                                </div>
 
                                 <Button
                                     type="button"

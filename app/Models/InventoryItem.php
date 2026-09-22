@@ -11,8 +11,9 @@ class InventoryItem extends Model
     public $guarded = ['id'];
 
 
-    public function treatment()
+    public function treatmentInventories()
     {
-        return $this->hasMany(Treatment::class);
+        return $this->hasMany(TreatmentInventory::class);
     }
+
 }

@@ -19,6 +19,9 @@ class Appointment extends Model
         return $this->belongsTo(Procedure::class);
     }
 
+    function treatment(){
+        return $this->hasOne(Treatment::class);
+    }
 
 
     function staff()

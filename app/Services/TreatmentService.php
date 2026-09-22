@@ -90,13 +90,11 @@ class TreatmentService
                     }
 
 
-
-
                     foreach ($data['itemList'] as $listItem) {
-                        $itemId = $listItem['item_id'];
-                        $qty = $listItem['quantity'];
-                        // TODO(later):i think this was suppose to be sync but i forgot what is that, research it
-                        $tr->items()->attach($itemId, ['quantity' => $qty]);
+                        $tr->treatmentInventories()->create([
+                            'inventory_item_id' => $listItem['item_id'],
+                            'quanty' => $listItem['quantity'],
+                        ]);
                     }
 
 
@@ -129,19 +127,63 @@ class TreatmentService
 
 
 
-    function treatmentUdpate(Treatment $treatment, array $data)
+    function treatmentUpdate(Treatment $tr, array $data)
     {
 
         try {
-            return DB::transaction(function () use ($treatment, $data) {
+
+            return DB::transaction(
+                function () use ($tr, $data) {
+
+
+                    $tr->fill($data['treatment']);
+                    $tr->user_id = auth()->id();
+                    $tr->save();
 
 
 
-            });
+                    // TODO(later): added check if medicine even exist, no harm in double security even if validation should already catch this
+                    foreach ($data['prescriptionlist'] as $pl) {
+                        // $m=$pl->findOrfial('medication_id');
+                        $tpdl = TreatmentPrescriptionDetails::findOrFail($tr->id);
+                        $tpdl->fill($pl);
+                        $tpdl->save();
+                    }
+
+
+                    foreach ($data['itemList'] as $listItem) {
+                        $tr->treatmentInventories()->updateOrCreate(
+                            ['inventory_item_id' => $listItem['item_id']],
+                            ['quanty' => $listItem['quantity']]
+                        );
+                    }
+                    //why does this work here but not inmigration?
+                        // $ap->status = AppointmentStatusEnum::Completed->value;
+                        // $ap->save();
+                    return $tr;
+
+
+                }
+            );
+
         } catch (\Throwable $th) {
-            //throw $th;
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+
+            //   ask what is this for
+            if (
+                !($th instanceof \Illuminate\Validation\ValidationException) &&
+                !($th instanceof \Illuminate\Auth\Access\AuthorizationException)
+            ) {
+                Log::error($th);
+            }
         }
+
+
+
     }
+
 
 
 

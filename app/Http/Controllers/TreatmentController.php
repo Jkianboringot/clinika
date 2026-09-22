@@ -25,7 +25,6 @@ class TreatmentController extends Controller
     public function index(Request $request)
     {
         $search = $request->string('search')->toString();
-
         $treatments = Treatment::with('appointment.patient')
             ->when($search, fn($q) => $q->whereHas(
                 'appointment.patient',
@@ -114,26 +113,45 @@ class TreatmentController extends Controller
 
     }
 
-
     public function edit(Treatment $treatment)
     {
-        $ap = Appointment::findOrFail($treatment->appointment_id);//lets do it like this so that appointment can only be true to one treatment
+        $treatment->load(['treatmentInventories', 'perscriptions']);
+
+        // lets do it like this so that appointment can only be true to one treatment
+        $appointment = Appointment::with('patient')->findOrFail($treatment->appointment_id);
 
         return Inertia::render('Treatments/Edit', [
-
-            'treatment' => $treatment,
-            'appointment' => $ap->load('patient'), //just to show the appoitment and patient
-            'items' => InventoryItem::all(),
-            'procedures' => Procedure::all(),
-            'followUpEnum' => collect(EnumsAppointmentStatusEnum::cases())->map(fn($a) =>
-                [
-                    'value' => $a->value,
-                    'label' => $a->value
-                ])
+            'treatment' => [
+                'id' => $treatment->id,
+                'follow_up_schedule' => $treatment->follow_up_schedule,
+                'duration_minutes' => $treatment->duration_minutes,
+                'summary' => $treatment->summary,
+                'itemList' => $treatment->treatmentInventories->map(fn($ti) => [
+                    'item_id' => $ti->inventory_item_id,
+                    'quantity' => $ti->quanty,
+                ]),
+                'prescriptionlist' => $treatment->perscriptions->map(fn($p) => [
+                    'medication_id' => $p->medication_id,
+                    'dosage' => $p->dosage,
+                    'frequency' => $p->frequency,
+                    'duration_days' => $p->duration_days,
+                ]),
+            ],
+            'appointment' => $appointment,
+            'items' => \App\Models\InventoryItem::all()->map(fn($i) => [
+                'id' => $i->id,
+                'name' => $i->item_name,
+            ]),
+            'procedures' => \App\Models\Procedure::all()->map(fn($p) => [
+                'id' => $p->id,
+                'name' => $p->name,
+            ]),
+            'medications' => \App\Models\Medication::all()->map(fn($m) => [
+                'id' => $m->id,
+                'name' => $m->name ?? $m->medication_name ?? $m->generic_name ?? "Medication #{$m->id}",
+            ]),
         ]);
-
     }
-
 
 
 
@@ -141,7 +159,7 @@ class TreatmentController extends Controller
     {
 
         $data = $request->validated();
-        $tr = $this->treatmentService->treatmentUdpate(
+        $tr = $this->treatmentService->treatmentUpdate(
             $treatment,
             [
                 'treatment' => [

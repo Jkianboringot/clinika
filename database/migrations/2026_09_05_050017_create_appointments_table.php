@@ -21,7 +21,7 @@ return new class extends Migration {
             $table->time('appointment_time');
             // TODO(later) bring back later after am done with user
             //this is fine for now we just have to set it up in appointment our self
-            $table->string('status')->nullable; //->default(AppointmentStatusEnum::InProgress->value)
+            $table->string('status')->default(AppointmentStatusEnum::Scheduled->value); 
             $table->timestamps();
         });
     }

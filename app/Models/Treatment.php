@@ -9,10 +9,13 @@ class Treatment extends Model
     public $guarded = ['id'];
 
 
-    public function items(){
+    public function treatmentInventories(){
         return $this->hasMany(TreatmentInventory::class);
     }
 
+    public function appointment(){
+        return $this->belongsTo(Appointment::class);
+    }
     
     public function perscriptions(){
         return $this->hasMany(TreatmentPrescriptionDetails::class);
