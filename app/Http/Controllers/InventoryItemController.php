@@ -79,21 +79,30 @@ use Illuminate\Http\RedirectResponse;
 class InventoryItemController extends Controller
 {
     public function index(Request $request): Response
-{
-    $items = InventoryItem::query()
-        ->when(
-            $request->input('search'),
-            fn ($query, $search) =>
+    {
+        $search = $request->string('search')->toString();
+ 
+        $items = InventoryItem::query()
+            ->when($search, fn ($query) =>
                 $query->where('item_name', 'like', "%{$search}%")
-        )
-        ->orderBy('item_name')
-        ->paginate(15)
-        ->withQueryString();
-
-    return Inertia::render('Items/Index', [
-        'inventoryitems' => $items,
-    ]);
-}
+            )
+            ->orderBy('item_name')
+            ->paginate(15)
+            ->withQueryString()
+            ->through(fn (InventoryItem $item) => [
+                'id' => $item->id,
+                'item_name' => $item->item_name,
+                'minimum_stock' => $item->minimum_stock,
+                'stock' => $item->stock(),
+            ]);
+ 
+        return Inertia::render('Items/Index', [
+            'inventoryitems' => $items,
+            'filters' => [
+                'search' => $search,
+            ],
+        ]);
+    }
 
     public function create(): Response
     {

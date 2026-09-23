@@ -13,16 +13,15 @@ class Inventory extends Model
     use HasFactory;
     public $guarded = ['id'];
 
-    public function sales()
+
+    function inventoryStock()
     {
-        return $this->hasOne(Sale::class);
+        return $this->hasMany(InventoryStockAddition::class);
     }
 
-
-   
-    public function encoder(): BelongsTo
+    public function staff(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'encoder_id');
+        return $this->belongsTo(User::class, 'staff_id');
     }
 
 }

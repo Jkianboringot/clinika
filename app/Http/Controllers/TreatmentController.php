@@ -128,7 +128,7 @@ class TreatmentController extends Controller
                 'summary' => $treatment->summary,
                 'itemList' => $treatment->treatmentInventories->map(fn($ti) => [
                     'item_id' => $ti->inventory_item_id,
-                    'quantity' => $ti->quanty,
+                    'quantity' => $ti->quantity,
                 ]),
                 'prescriptionlist' => $treatment->perscriptions->map(fn($p) => [
                     'medication_id' => $p->medication_id,

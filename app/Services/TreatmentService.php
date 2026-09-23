@@ -93,7 +93,7 @@ class TreatmentService
                     foreach ($data['itemList'] as $listItem) {
                         $tr->treatmentInventories()->create([
                             'inventory_item_id' => $listItem['item_id'],
-                            'quanty' => $listItem['quantity'],
+                            'quantity' => $listItem['quantity'],
                         ]);
                     }
 
@@ -154,7 +154,7 @@ class TreatmentService
                     foreach ($data['itemList'] as $listItem) {
                         $tr->treatmentInventories()->updateOrCreate(
                             ['inventory_item_id' => $listItem['item_id']],
-                            ['quanty' => $listItem['quantity']]
+                            ['quantity' => $listItem['quantity']]
                         );
                     }
                     //why does this work here but not inmigration?

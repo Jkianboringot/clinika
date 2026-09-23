@@ -5,11 +5,14 @@ namespace App\Http\Controllers;
 use App\Enums\InOutType;
 use App\Enums\Shift;
 use App\Enums\StockMovementType;
+use App\Http\Requests\InventoryItemRequest;
+use App\Http\Requests\InventoryRequest;
 use App\Http\Requests\StoreInInventoryRequest;
 use App\Http\Requests\StoreInventoryRequest;
 use App\Http\Requests\StoreOutInventoryRequest;
 use App\Models\Branch;
 use App\Models\Inventory;
+use App\Models\InventoryItem;
 use App\Models\Product;
 use App\Services\InventoryService;
 use Illuminate\Http\RedirectResponse;
@@ -27,7 +30,7 @@ use Str;
  * =====================================================================
  * Type   : Product — Backend Logic
  * Purpose: Responsible ONLY for increasing product stock.
- *          Stock REDUCTION is handled elsewhere (e.g. treatment
+ *          Stock REDUCTION is handled elsewhere (e.g. inventory
  *          equipment usage) — not this module's responsibility.
  * =====================================================================
  *
@@ -58,6 +61,8 @@ use Str;
  * BUSINESS LOGIC
  * ---------------
  *
+ * 
+ *  no we will be using pattern 1 now, 
  * 1. CREATE (Adding stock) — "Pattern 2" (aggregate, not overwrite)
  *    - Check if the product already has an existing quantity in stock.
  *      - If YES  -> new_stock = current_quantity + incoming_quantity
@@ -108,129 +113,142 @@ use Str;
  * =====================================================================
  */
 
+
+// that is useless now since i will be using pattent 1
+
 class InventoryController extends Controller
 {
     public function __construct(protected InventoryService $inventoryService)
     {
     }
 
-    /**
-     * List all inventory records (both IN and OUT), same data the
-     * Filament table showed.
-     */
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $inventories = Inventory::with(['branchs', 'encoder', 'sales'])
+        $search = $request->string('search')->toString();
+
+        $inventories = Inventory::query()
+            ->with(['staff', 'inventoryStock.items'])
+            ->when($search, function ($query, $search) {
+                $query->where(function ($q) use ($search) {
+                    $q->whereHas('staff', function ($staffQuery) use ($search) {
+                        $staffQuery->where('name', 'like', "%{$search}%");
+                    })
+                        ->orWhereHas('inventoryStock.items', function ($itemQuery) use ($search) {
+                            $itemQuery->where('item_name', 'like', "%{$search}%");
+                        });
+                });
+            })
             ->latest()
             ->paginate(15)
-            ->through(fn(Inventory $inv) => [
-                'id' => $inv->id,
-                'type' => $inv->type,
-                'inventory_type' => $inv->inventory_type,
-                'stock_movement_type' => $inv->stock_movement_type,
-                'branch' => $inv->branchs?->location,
-                'encoder' => $inv->encoder?->name,
-                'cash_amount' => $inv->sales?->cash_amount,
-                'net_cash' => $inv->sales?->net_cash,
-                'created_at' => $inv->created_at->format('M d, Y g:i A'),
+            ->withQueryString()
+            ->through(fn(Inventory $inventory) => [
+                'id' => $inventory->id,
+                'staff_name' => $inventory->staff?->name,
+                'items' => $inventory->inventoryStock->map(fn($stock) => [
+                    'id' => $stock->id,
+                    'item_name' => $stock->items?->item_name,
+                    'quantity' => $stock->quantity,
+                ]),
+                'created_at' => $inventory->created_at?->format('M d, Y'),
             ]);
 
         return Inertia::render('Inventories/Index', [
             'inventories' => $inventories,
-        ]);
-    }
-
-    /**
-     * Show the "Stock In" form. Product list is open to every item —
-     * a delivery can introduce a new item to a branch.
-     */
-    public function createIn(): Response
-    {
-        return Inertia::render('Inventories/CreateIn', [
-
-            'stockMovementTypes' => collect(StockMovementType::cases())->map(fn($cases) => ['value' => $cases->value, 'label' => Str::headline($cases->name)]),
-            'branches' => Branch::select('id', 'location', 'branch_type')->get(),
-            'products' => Product::select('id', 'name', 'price')->get(),
-        ]);
-    }
-
-    public function storeIn(StoreInInventoryRequest $request): RedirectResponse
-    {
-        $data = $request->validated();
-
-        $inv = $this->inventoryService->inventoryIn([
-            'branch_id' => $data['branch_id'],
-            'inventory' => [
-                'stock_movement_type' => $data['stock_movement_type'],
-
+            'filters' => [
+                'search' => $search,
             ],
-            'productList' => $data['productList'],
+        ]);
+    }
+
+    //this needs to start from appointment and all we need to do is click it and put as in create of inventory or we could just show it in drop-down 
+
+    //this needs the appointment info such as patient and id of appointment,procedure, item, the inventory description is not needed since we dont need to show data on that,
+    public function create()
+    {
+
+
+        return Inertia::render('Inventories/Create', [
+            'items' => InventoryItem::selectRaw('id, item_name as name')->orderBy('item_name')->get(),
         ]);
 
-        if (!$inv) {
-            return back()->with('error', 'Failed to record stock in. Check the logs.');
+    }
+
+
+    public function store(InventoryRequest $request)
+    {
+
+        $data = $request->validated();
+        // dd($data);
+        $tr = $this->inventoryService->inventoryStore(
+            [
+                'itemList' => $data['itemList'],
+            ]
+        );
+
+        if (!$tr) {
+            return back()->with('error', 'Failed to created inventory');
         }
 
-        return redirect()
-            ->route('inventories.index')
-            ->with('success', 'Stock in recorded.');
+        return redirect()->route('inventories.index')->with('message', 'Sucessfully created inventory');
+
     }
 
-    /**
-     * Show the "Stock Out" form. Sends every branch along with the
-     * products it already carries (with current quantity), so the
-     * frontend can filter/display stock without extra requests.
-     */
-    public function createOut(): Response
+    public function edit(Inventory $inventory)
     {
-        $branches = Branch::with('products')->get()->map(fn(Branch $branch) => [
-            'id' => $branch->id,
-            'location' => $branch->location,
-            'products' => $branch->products->map(fn(Product $item) => [
-                'id' => $item->id,
-                'name' => $item->name,
-                'quantity' => $item->pivot->quantity,
+        $inventory->load(['inventoryStock']);
+
+
+
+        // i cant make that just return inventory=>$inventory but i honestly have no desired to chagne the ui stucture for nwo is no
+        return Inertia::render('Inventories/Edit', [
+            'inventory' => [
+                'id' => $inventory->id,
+                'staff_id' => $inventory->staff_id,
+                'created_at' => $inventory->created_at,
+                'itemList' => $inventory->inventoryStock->map(fn($ti) => [
+                    'item_id' => $ti->inventory_item_id,
+                    'quantity' => $ti->quantity,
+                ]),
+
+            ],
+            'items' => InventoryItem::all()->map(fn($i) => [
+                'id' => $i->id,
+                'name' => $i->item_name,
             ]),
-        ]);
 
-        return Inertia::render('Inventories/CreateOut', [
-            'shifts' => collect(Shift::cases())->map(fn($cases) => ['value' => $cases->value, 'label' => Str::headline($cases->name)]),
-
-            'stockMovementTypes' => collect(StockMovementType::cases())->map(fn($cases) => ['value' => $cases->value, 'label' => Str::headline($cases->name)]),
-
-            'branches' => $branches,
         ]);
     }
 
-    public function storeOut(StoreOutInventoryRequest $request): RedirectResponse
+
+
+    public function update(Inventory $inventory, InventoryRequest $request)
     {
-        // dd($request);
+
+
+        // all good
+
         $data = $request->validated();
+        $tr = $this->inventoryService->inventoryUpdate(
+            $inventory,//this is just to make sure that inventoury actually exist but we will check that in valdiation
+            [
 
-        $inv = $this->inventoryService->inventoryOut([
-            'branch_id' => $data['branch_id'],
-            'inventory' => [
-                'stock_movement_type' => $data['stock_movement_type'],
+                'itemList' => $data['itemList'],
+            ]
 
-            ],
-            'productList' => $data['productList'],
-            'sale' => [
-                'shift' => $data['shift'],
-                'cash_amount' => $data['cash_amount'],
-                'gcash_amount' => $data['gcash_amount'],
-                'cash_advance' => $data['cash_advance'],
-                'remitted_expenses' => $data['remitted_expenses'],
-                'cash_shortage' => $data['cash_shortage'] ?? 0,
-                'net_cash' => $data['net_cash'],
-            ],
-        ]);
+        );
 
-        if (!$inv) {
-            return back()->with('error', 'Failed to record sale. Check the logs.');
+        if (!$tr) {
+            return back()->with('error', 'Failed to udpated inventory');
         }
 
-        return redirect()
-            ->route('inventories.index')
-            ->with('success', 'Sale recorded.');
+        return redirect()->route('inventories.index')->with('message', 'Sucessfully udpated inventory');
+
     }
+
+
+    public function delete(Inventory $inventory)
+    {
+        return;
+    }
+
 }

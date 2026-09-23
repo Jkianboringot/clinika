@@ -17,6 +17,8 @@ return new class extends Migration
             $table->foreignId('inventory_item_id')->constrained('inventory_items');
             $table->decimal('quantity',8,2)->unsigned();
             $table->timestamps();
+
+            
         });
     }
 

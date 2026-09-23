@@ -1,20 +1,6 @@
 import { useForm } from '@inertiajs/react';
 import { FormEvent } from 'react';
 
-function StethoscopeIcon({ className }: { className?: string }) {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" className={className}>
-            <path
-                d="M6 3v6a4 4 0 0 0 8 0V3M6 5H4.5M14 5h1.5M18 9v2a6 6 0 0 1-12 0V9"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-            />
-            <circle cx="19" cy="15" r="2.2" stroke="currentColor" strokeWidth="1.6" />
-        </svg>
-    );
-}
-
 function MailIcon({ className }: { className?: string }) {
     return (
         <svg viewBox="0 0 24 24" fill="none" className={className}>
@@ -33,13 +19,6 @@ function LockIcon({ className }: { className?: string }) {
     );
 }
 
-const stats = [
-    { value: '500+', label: 'Active Patients' },
-    { value: '1000+', label: 'Appointments' },
-    { value: '98%', label: 'Satisfaction' },
-    { value: '24/7', label: 'Online Access' },
-];
-
 export default function Login({ status }: { status?: string }) {
     const { data, setData, post, processing, errors } = useForm({
         email: '',
@@ -53,50 +32,17 @@ export default function Login({ status }: { status?: string }) {
     }
 
     return (
-        <div className="flex min-h-screen w-full font-sans">
-            {/* Left panel — brand / value prop */}
-            <div className="relative hidden w-1/2 flex-col justify-center overflow-hidden bg-gradient-to-br from-brand-orange to-brand-orange-light px-14 py-16 text-white lg:flex">
-                <div className="pointer-events-none absolute -right-32 -top-32 h-[420px] w-[420px] rounded-full bg-white/10" />
-                <div className="pointer-events-none absolute -bottom-24 -left-16 h-[320px] w-[320px] rounded-full bg-black/5" />
-
-                <div className="relative z-10 mb-10 flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white">
-                        <StethoscopeIcon className="h-6 w-6 text-brand-orange" />
-                    </div>
-                    <div>
-                        <div className="text-lg font-extrabold leading-tight">  Klinika</div>
-                        <div className="text-xs font-medium text-white/80">Dental Care Excellence</div>
-                    </div>
+        <div className="flex min-h-screen w-full items-center justify-center bg-gray-50 px-6 py-16 font-sans">
+            <div className="w-full max-w-md">
+                {/* Logo on top, centered */}
+                <div className="mb-6 flex flex-col items-center text-center">
+                    <img src="/logo.png" alt="Klinika logo" className="h-16 w-16 object-contain" />
+                    <div className="mt-3 text-xl font-extrabold leading-tight text-ink">Klinika</div>
+                    <div className="text-xs font-medium text-subtle">Dental Care Excellence</div>
                 </div>
 
-                <h1 className="relative z-10 max-w-md text-4xl font-extrabold leading-tight tracking-tight">
-                    Integrated Clinic Management System
-                </h1>
-                <p className="relative z-10 mt-4 max-w-md text-sm font-medium leading-relaxed text-white/85">
-                    Streamline your dental practice with automated notifications, inventory
-                    monitoring, and comprehensive patient care management.
-                </p>
-
-                <div className="relative z-10 mt-10 grid max-w-md grid-cols-2 gap-4">
-                    {stats.map((stat) => (
-                        <div key={stat.label} className="rounded-xl bg-white/15 px-5 py-4 backdrop-blur-sm">
-                            <div className="text-2xl font-extrabold">{stat.value}</div>
-                            <div className="text-xs font-medium text-white/85">{stat.label}</div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Right panel — sign in form */}
-            <div className="flex w-full items-center justify-center bg-cream px-6 py-16 lg:w-1/2">
-                <div className="w-full max-w-md rounded-xl bg-white p-10 shadow-card lg:border-t-0 lg:shadow-none">
-                    <div className="mb-2 flex items-center gap-3 lg:hidden">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-orange">
-                            <StethoscopeIcon className="h-5 w-5 text-white" />
-                        </div>
-                        <div className="text-lg font-extrabold text-ink">  Klinika</div>
-                    </div>
-
+                {/* Sign in card */}
+                <div className="w-full rounded-xl bg-white p-10 shadow-card">
                     <h2 className="text-2xl font-extrabold tracking-tight text-ink">Welcome Back</h2>
                     <p className="mt-1 text-sm font-medium text-subtle">Sign in to access your account</p>
 
@@ -116,7 +62,7 @@ export default function Login({ status }: { status?: string }) {
                                     type="email"
                                     value={data.email}
                                     onChange={(e) => setData('email', e.target.value)}
-                                    className={`w-full rounded-md border-[1.5px] bg-[#fdfaf7] py-2.5 pl-10 pr-4 text-sm text-[#1a1a1a] outline-none transition focus:border-[#2f6fed] focus:bg-white ${errors.email ? 'border-[#dc2626]' : 'border-[#e0d0c0]'
+                                    className={`w-full rounded-md border-[1.5px] bg-gray-50 py-2.5 pl-10 pr-4 text-sm text-[#1a1a1a] outline-none transition focus:border-[#2f6fed] focus:bg-white ${errors.email ? 'border-[#dc2626]' : 'border-gray-200'
                                         }`}
                                     placeholder="you@example.com"
                                 />
@@ -134,7 +80,7 @@ export default function Login({ status }: { status?: string }) {
                                     type="password"
                                     value={data.password}
                                     onChange={(e) => setData('password', e.target.value)}
-                                    className={`w-full rounded-md border-[1.5px] bg-[#fdfaf7] py-2.5 pl-10 pr-4 text-sm text-[#1a1a1a] outline-none transition focus:border-[#2f6fed] focus:bg-white ${errors.password ? 'border-[#dc2626]' : 'border-[#e0d0c0]'
+                                    className={`w-full rounded-md border-[1.5px] bg-gray-50 py-2.5 pl-10 pr-4 text-sm text-[#1a1a1a] outline-none transition focus:border-[#2f6fed] focus:bg-white ${errors.password ? 'border-[#dc2626]' : 'border-gray-200'
                                         }`}
                                     placeholder="••••••••"
                                 />
@@ -154,37 +100,31 @@ export default function Login({ status }: { status?: string }) {
                                 />
                                 <span className="text-sm font-medium text-[#666]">Remember me</span>
                             </label>
-                            {/* <a
-                            href="/forgot-password"
-                            className="text-xs font-medium text-[#f97316] hover:underline"
-        >
-                            Forgot password?
-                        </a> */}
-                </div>
+                        </div>
 
-                <button
+                        <button
                             type="submit"
                             disabled={processing}
                             className="w-full rounded-md bg-brand-orange py-3 text-sm font-bold tracking-wide text-white transition hover:-translate-y-px hover:bg-brand-orange-hover disabled:opacity-60"
                         >
                             Sign In
                         </button>
-            </form>
+                    </form>
 
-            <div className="mt-6 flex items-center gap-3">
-                <div className="h-px flex-1 bg-[#e0d0c0]" />
-                <span className="text-xs font-medium text-subtle">New to   Klinika?</span>
-                <div className="h-px flex-1 bg-[#e0d0c0]" />
+                    <div className="mt-6 flex items-center gap-3">
+                        <div className="h-px flex-1 bg-gray-200" />
+                        <span className="text-xs font-medium text-subtle">New to Klinika?</span>
+                        <div className="h-px flex-1 bg-gray-200" />
+                    </div>
+
+                    <a
+                        href="/register"
+                        className="mt-4 block w-full rounded-md border-[1.5px] border-gray-200 py-3 text-center text-sm font-bold text-ink transition hover:border-gray-400 hover:text-brand-orange"
+                    >
+                        Register as New Patient
+                    </a>
+                </div>
             </div>
-
-            <a
-                href="/register"
-                className="mt-4 block w-full rounded-md border-[1.5px] border-[#e0d0c0] py-3 text-center text-sm font-bold text-ink transition hover:border-brand-orange hover:text-brand-orange"
-            >
-                Register as New Patient
-            </a>
         </div>
-            </div >
-        </div >
     );
 }

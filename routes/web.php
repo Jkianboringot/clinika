@@ -104,6 +104,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
     );
 
 
+    Route::prefix('inventories')->name('inventories.')->group(
+        function () {
+            Route::get('/', [InventoryController::class, 'index'])->name('index');
+            Route::get('/create', [InventoryController::class, 'create'])->name('create');
+            Route::post('/', [InventoryController::class, 'store'])->name('store');
+            Route::get('/{inventory}/edit', [InventoryController::class, 'edit'])->name('edit');
+
+            Route::delete('/{inventory}', [InventoryController::class, 'destroy'])->name('destroy');
+            Route::put('/{inventory}', [InventoryController::class, 'update'])->name('update');
+        }
+    );
+
 
 
 

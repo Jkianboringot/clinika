@@ -17,7 +17,8 @@ import { create, destroy, edit, index as inventoryitemsIndex } from '@/routes/in
 interface InventoryItem {
     id: number;
     item_name: string;
-    minimum_stock: number|null;
+    minimum_stock: number | null;
+    stock: number;
 }
 
 interface PaginatedInventoryItems {
@@ -44,7 +45,7 @@ export default function Index() {
     const { flash, inventoryitems, filters } = usePage<
         InventoryItemsPageProps & Record<string, unknown>
     >().props as unknown as InventoryItemsPageProps;
-    
+
     const { processing, delete: destroyForm } = useForm();
     const [search, setSearch] = useState(filters?.search ?? '');
     const isFirstRender = useRef(true);
@@ -94,7 +95,6 @@ export default function Index() {
                         <h1 className="text-3xl font-extrabold tracking-tight text-ink">
                             InventoryItems
                         </h1>
-                      
                     </div>
                     <Link href={create().url}>
                         <Button className="bg-brand-orange font-bold text-white hover:bg-brand-orange-hover">
@@ -123,6 +123,7 @@ export default function Index() {
                             <TableRow className="border-b border-[#c9c0b7]">
                                 <TableHead className="font-bold text-brand-orange-hover">ID</TableHead>
                                 <TableHead className="font-bold text-brand-orange-hover">Name</TableHead>
+                                <TableHead className="font-bold text-brand-orange-hover">Stock</TableHead>
                                 <TableHead className="font-bold text-brand-orange-hover">Mininum Stock</TableHead>
                                 <TableHead className="text-right font-bold text-brand-orange-hover">Actions</TableHead>
                             </TableRow>
@@ -130,7 +131,7 @@ export default function Index() {
                         <TableBody>
                             {inventoryitemRows.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="py-10 text-center text-sm text-subtle">
+                                    <TableCell colSpan={5} className="py-10 text-center text-sm text-subtle">
                                         No inventoryitems found.
                                     </TableCell>
                                 </TableRow>
@@ -142,6 +143,15 @@ export default function Index() {
                                 >
                                     <TableCell className="font-medium">{item.id}</TableCell>
                                     <TableCell>{item.item_name}</TableCell>
+                                    <TableCell
+                                        className={
+                                            item.minimum_stock != null && item.stock < item.minimum_stock
+                                                ? 'font-semibold text-danger'
+                                                : ''
+                                        }
+                                    >
+                                        {item.stock}
+                                    </TableCell>
                                     <TableCell>{item.minimum_stock ?? '—'}</TableCell>
                                     <TableCell>
                                         <div className="flex items-center justify-end gap-4">
