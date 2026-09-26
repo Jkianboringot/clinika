@@ -16,7 +16,7 @@ export default function Appearance() {
                     title="Appearance settings"
                     description="Update the appearance settings for your account"
                 />
-                <AppearanceTabs />
+                {/* <AppearanceTabs /> */}
             </div>
         </>
     );
