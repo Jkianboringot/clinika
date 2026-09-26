@@ -20,8 +20,9 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { create, destroy, edit, index as usersIndex } from '@/routes/users';
+import { destroy as destroyPatient, edit as editPatient } from '@/routes/patients';
 
-interface User {
+interface UserRow {
     id: number;
     name: string;
     email: string;
@@ -29,8 +30,26 @@ interface User {
     created_at: string;
 }
 
-interface PaginatedUsers {
-    data: User[];
+// Patients are their own model/table (see Patient.php), not a User with a
+// "patient" role. The backend aliases `full_name as name` so this shape
+// lines up with UserRow on `name`/`email`/`created_at` — the only real
+// difference is contact_number instead of is_active.
+interface PatientRow {
+    id: number;
+    name: string;
+    email: string;
+    contact_number: string | null;
+    created_at: string;
+}
+
+type Row = UserRow | PatientRow;
+
+function isPatientRow(row: Row): row is PatientRow {
+    return 'contact_number' in row;
+}
+
+interface PaginatedRows<T> {
+    data: T[];
     links: { url: string | null; label: string; active: boolean }[];
 }
 
@@ -42,7 +61,7 @@ interface PageProps {
         message?: string;
         error?: string;
     };
-    users: PaginatedUsers;
+    users: PaginatedRows<Row>;
     filters: { search?: string; role?: Role };
     roleCounts: Record<Role, number>;
     activeRole: Role;
@@ -155,9 +174,15 @@ export default function Index() {
         );
     };
 
-    const handleDelete = (id: number, name: string) => {
-        if (confirm(`Delete "${name}"? This can't be undone.`)) {
-            destroyForm(destroy(id).url);
+    const handleDelete = (row: Row) => {
+        if (!confirm(`Delete "${row.name}"? This can't be undone.`)) return;
+
+        // Patients live in a separate table/resource, so they need their own
+        // destroy route rather than the users one.
+        if (isPatientRow(row)) {
+            destroyForm(destroyPatient(row.id).url);
+        } else {
+            destroyForm(destroy(row.id).url);
         }
     };
 
@@ -226,7 +251,9 @@ export default function Index() {
                             <TableRow className="border-b border-[#c9c0b7]">
                                 <TableHead className="font-bold text-brand-orange-hover">Name</TableHead>
                                 <TableHead className="font-bold text-brand-orange-hover">Email</TableHead>
-                                <TableHead className="font-bold text-brand-orange-hover">Status</TableHead>
+                                <TableHead className="font-bold text-brand-orange-hover">
+                                    {activeRole === 'patient' ? 'Contact' : 'Status'}
+                                </TableHead>
                                 <TableHead className="font-bold text-brand-orange-hover">Joined</TableHead>
                                 <TableHead className="text-right font-bold text-brand-orange-hover">Actions</TableHead>
                             </TableRow>
@@ -239,51 +266,58 @@ export default function Index() {
                                     </TableCell>
                                 </TableRow>
                             )}
-                            {userRows.map((user) => (
-                                <TableRow
-                                    key={user.id}
-                                    className="border-b border-[#c9c0b7] last:border-0"
-                                >
-                               
-                                    <TableCell >
-                                        {user.name}
-                                    </TableCell>
-                                    <TableCell>{user.email}</TableCell>
-                                    <TableCell>
-                                        <span
-                                            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white ${user.is_active === 'Active'
-                                                ? 'bg-emerald-600'
-                                                : 'bg-slate-400'
-                                                }`}
-                                        >
-                                            {user.is_active}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell>
-                                        {formatDate(user.created_at)}
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center justify-end gap-4">
-                                            <Link
-                                                href={edit(user.id).url}
-                                                className="flex items-center gap-1 text-sm font-medium text-ink hover:text-brand-orange"
-                                            >
-                                                <Pencil className="h-4 w-4" />
-                                                Edit
-                                            </Link>
-                                            <button
-                                                type="button"
-                                                disabled={processing}
-                                                onClick={() => handleDelete(user.id, user.name)}
-                                                className="flex items-center gap-1 text-sm font-medium text-ink hover:text-danger disabled:opacity-50"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                                Delete
-                                            </button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                            {userRows.map((row) => {
+                                const patientRow = isPatientRow(row);
+
+                                return (
+                                    <TableRow
+                                        key={row.id}
+                                        className="border-b border-[#c9c0b7] last:border-0"
+                                    >
+                                        <TableCell>
+                                            {row.name}
+                                        </TableCell>
+                                        <TableCell>{row.email}</TableCell>
+                                        <TableCell>
+                                            {patientRow ? (
+                                                row.contact_number ?? '—'
+                                            ) : (
+                                                <span
+                                                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white ${row.is_active === 'Active'
+                                                        ? 'bg-emerald-600'
+                                                        : 'bg-slate-400'
+                                                        }`}
+                                                >
+                                                    {row.is_active}
+                                                </span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            {formatDate(row.created_at)}
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center justify-end gap-4">
+                                                <Link
+                                                    href={patientRow ? editPatient(row.id).url : edit(row.id).url}
+                                                    className="flex items-center gap-1 text-sm font-medium text-ink hover:text-brand-orange"
+                                                >
+                                                    <Pencil className="h-4 w-4" />
+                                                    Edit
+                                                </Link>
+                                                <button
+                                                    type="button"
+                                                    disabled={processing}
+                                                    onClick={() => handleDelete(row)}
+                                                    className="flex items-center gap-1 text-sm font-medium text-ink hover:text-danger disabled:opacity-50"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
                         </TableBody>
                     </Table>
 

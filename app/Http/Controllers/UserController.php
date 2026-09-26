@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\IsActiveEnum;
 use App\Http\Requests\SearchRequest;
 use App\Http\Requests\UserRequest;
+use App\Models\Patient;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
@@ -102,6 +103,7 @@ use Inertia\Response;
 
 class UserController extends Controller
 {
+
     public function index(SearchRequest $request): Response
     {
         $this->authorize('users.view');
@@ -117,21 +119,40 @@ class UserController extends Controller
             403
         );
 
-        $users = User::query()
-            ->role($activeRole)
-            ->when(
-                $validated['search'] ?? null,
-                fn ($query, $search) =>
-                    $query->where('name', 'like', "%{$search}%")
-            )
-            ->orderBy('created_at')
-            ->paginate(15)
-            ->withQueryString();
+        if ($activeRole === 'patient') {
+            // Patients live in their own table/model (see Patient.php), not
+            // in `users` with a "patient" role — so this branch queries
+            // Patient directly. `full_name as name` aliases the column so
+            // the frontend can read `row.name` the same way it does for
+            // users, without needing to know the underlying column differs.
+            $users = Patient::query()
+                ->select(['id', 'full_name as name', 'email', 'contact_number', 'created_at'])
+                ->when(
+                    $validated['search'] ?? null,
+                    fn($query, $search) =>
+                        $query->where('full_name', 'like', "%{$search}%")
+                )
+                ->orderBy('created_at')
+                ->paginate(15)
+                ->withQueryString();
+        } else {
+            $users = User::query()
+                ->role($activeRole)
+                ->when(
+                    $validated['search'] ?? null,
+                    fn($query, $search) =>
+                        $query->where('name', 'like', "%{$search}%")
+                )
+                ->orderBy('created_at')
+                ->paginate(15)
+                ->withQueryString();
+        }
 
-        $roleCounts = collect(['admin', 'dentist', 'staff', 'patient'])
+        $roleCounts = collect(['admin', 'dentist', 'staff'])
             ->mapWithKeys(
-                fn ($role) => [$role => User::role($role)->count()]
-            );
+                fn($role) => [$role => User::role($role)->count()]
+            )
+            ->merge(['patient' => Patient::count()]);
 
         return Inertia::render('Users/Index', [
             'users' => $users,
@@ -144,6 +165,7 @@ class UserController extends Controller
         ]);
     }
 
+    
     public function create(): Response
     {
         $this->authorize('users.create');
@@ -201,7 +223,7 @@ class UserController extends Controller
             'is_active' => $validated['is_active'] ?? $user->is_active,
         ]);
 
-        if (! empty($validated['password'])) {
+        if (!empty($validated['password'])) {
             $user->update(['password' => Hash::make($validated['password'])]);
         }
 
@@ -236,7 +258,7 @@ class UserController extends Controller
 
     private function guardRoleAssignment(string $role, ?User $target = null): void
     {
-        if (! in_array($role, $this->assignableRoles(), true)) {
+        if (!in_array($role, $this->assignableRoles(), true)) {
             abort(403, 'You are not allowed to assign that role.');
         }
 
