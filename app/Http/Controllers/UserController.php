@@ -165,7 +165,7 @@ class UserController extends Controller
         ]);
     }
 
-    
+
     public function create(): Response
     {
         $this->authorize('users.create');
@@ -252,10 +252,11 @@ class UserController extends Controller
     private function assignableRoles(): array
     {
         return Auth::user()->hasRole('admin')
-            ? ['admin', 'dentist', 'staff', 'patient']
+            ? ['admin', 'dentist', 'staff']
             : ['dentist'];
     }
 
+    //ok this already ensure that we cannot assign just some random role it must be   ['admin', 'dentist', 'staff'], if not it throw error good
     private function guardRoleAssignment(string $role, ?User $target = null): void
     {
         if (!in_array($role, $this->assignableRoles(), true)) {
