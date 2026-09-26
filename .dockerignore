@@ -11,3 +11,4 @@ public/build
 public/hot
 tests
 .phpunit.cache
+/playwright
