@@ -128,30 +128,19 @@ class MedicationController extends Controller
         return redirect()->route('medications.index')->with('message', 'Medication updated successfully.');
     }
 
-    public function e(Medication $medication): RedirectResponse
-    {
-        // $this->authorize('medications.delete');
-
-        $medication->delete();
-
-        return redirect()->route('medications.index')->with('message', 'Medication deleted successfully.');
-    }
 
     
  public function destroy(Medication $medication): RedirectResponse
     {
-
-       
-
-        
-        if ($medication->treatmentPrescriptions()->exists()) {
+      
+if ($medication->treatmentPrescriptions()->exists()) {
             return redirect()
                 ->route('medications.index')
                 ->with('error', 'This Medication use in treatment and cannot be deleted.');
         }
-        // dd($medication->treatmentPerscription()->get());
-
         try {
+              
+        
             $medication->deleteOrFail();
 
         } catch (\Throwable $e) {

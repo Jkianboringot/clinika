@@ -73,10 +73,25 @@ class ProcedureController extends Controller
         return redirect()->route('procedures.index')->with('message', 'Procedure updated successfully.');
     }
 
+
+
+
     public function destroy(Procedure $procedure): RedirectResponse
     {
-        // $this->authorize('procedures.delete');
-        $procedure->deleteOrFail();
+
+        if ($procedure->appointment()->exists()) {
+            return redirect()
+                ->route('procedures.index')
+                ->with('error', 'This Procedure use in appointment and cannot be deleted.');
+        }
+        try {
+
+
+            $procedure->deleteOrFail();
+
+        } catch (\Throwable $e) {
+            return redirect()->route('procedures.index')->with('error', 'Failed to delete procedure');
+        }
 
         return redirect()->route('procedures.index')->with('message', 'Procedure deleted successfully.');
     }
