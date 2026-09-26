@@ -96,9 +96,7 @@ export default function Index({ inventories, filters }: Props) {
                         <h1 className="text-3xl font-extrabold tracking-tight text-ink">
                             Inventory
                         </h1>
-                        <p className="mt-1 text-sm text-subtle">
-                            Stock additions recorded by staff
-                        </p>
+                    
                     </div>
                     <Link
                         href="/inventories/create"

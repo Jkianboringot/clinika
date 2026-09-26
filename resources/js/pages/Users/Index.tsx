@@ -64,6 +64,19 @@ function formatId(id: number) {
     return `D${String(id).padStart(3, '0')}`;
 }
 
+function formatDate(value: string | null) {
+    if (!value) return '—';
+
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return value;
+
+    const month = date.toLocaleString('en-US', { month: 'short' }); // "Sep"
+    const day = date.getDate();                                     // 25
+    const year = date.getFullYear();                                // 2026
+
+    return `${month} ${day}, ${year}`; // e.g. "Sep 25, 2026"
+}
+
 // Laravel's paginator labels are always one of these three shapes —
 // render icons for prev/next instead of trusting raw HTML entities.
 function paginationLabel(label: string) {
@@ -247,10 +260,7 @@ export default function Index() {
                                         </span>
                                     </TableCell>
                                     <TableCell>
-                                        {new Date(user.created_at).toLocaleDateString('en-US', {
-                                            month: 'short',
-                                            year: 'numeric',
-                                        })}
+                                        {formatDate(user.created_at)}
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center justify-end gap-4">

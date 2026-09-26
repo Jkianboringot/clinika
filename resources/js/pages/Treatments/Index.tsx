@@ -45,6 +45,19 @@ function paginationLabel(label: string) {
     return label;
 }
 
+function formatDate(value: string | null) {
+    if (!value) return '—';
+
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return value;
+
+    const month = date.toLocaleString('en-US', { month: 'short' }); // "Sep"
+    const day = date.getDate();                                     // 25
+    const year = date.getFullYear();                                // 2026
+
+    return `${month} ${day}, ${year}`; // e.g. "Sep 25, 2026" — matches the Date column's format
+}
+
 export default function Index({ treatments, filters }: Props) {
     const [search, setSearch] = useState(filters?.search ?? '');
 
@@ -77,9 +90,7 @@ export default function Index({ treatments, filters }: Props) {
                         <h1 className="text-3xl font-extrabold tracking-tight text-ink">
                             Treatments
                         </h1>
-                        <p className="mt-1 text-sm text-subtle">
-                            Treatment records are created from an appointment
-                        </p>
+                      
                     </div>
                 </div>
 
@@ -158,7 +169,7 @@ export default function Index({ treatments, filters }: Props) {
                                         {treatment.duration_minutes ? `${treatment.duration_minutes} min` : '—'}
                                     </TableCell>
                                     <TableCell className="text-gray-700">
-                                        {treatment.follow_up_schedule ?? '—'}
+                                        {formatDate(treatment.follow_up_schedule)}
                                     </TableCell>
                                     <TableCell className="max-w-xs truncate text-gray-700">
                                         {treatment.summary ?? '—'}

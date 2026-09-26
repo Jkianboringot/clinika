@@ -82,9 +82,7 @@ export default function Index({ patients, filters }: Props) {
                         <h1 className="text-3xl font-extrabold tracking-tight text-ink">
                             Patient Records
                         </h1>
-                        <p className="mt-1 text-sm text-subtle">
-                            Manage patient information and records
-                        </p>
+                      
                     </div>
                     <Link href={create().url}>
                         <Button className="bg-brand-orange font-bold text-white hover:bg-brand-orange-hover">

@@ -55,6 +55,19 @@ function formatTime(time: string) {
     return `${hour12}:${String(m).padStart(2, '0')} ${period}`;
 }
 
+function formatDate(value: string | null) {
+    if (!value) return '—';
+
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return value;
+
+    const month = date.toLocaleString('en-US', { month: 'short' }); // "Sep"
+    const day = date.getDate();                                     // 25
+    const year = date.getFullYear();                                // 2026
+
+    return `${month} ${day}, ${year}`; // e.g. "Sep 25, 2026"
+}
+
 export default function Index({ appointments, filters }: Props) {
     const [search, setSearch] = useState(filters?.search ?? '');
     const { processing, delete: destroyForm } = useForm();
@@ -94,9 +107,7 @@ export default function Index({ appointments, filters }: Props) {
                         <h1 className="text-3xl font-extrabold tracking-tight text-ink">
                             Appointments
                         </h1>
-                        <p className="mt-1 text-sm text-subtle">
-                            Schedule and manage patient visits
-                        </p>
+                      
                     </div>
                     <Link href={create().url}>
                         <Button className="bg-blue-600 font-bold text-white hover:bg-blue-700">
@@ -182,7 +193,7 @@ export default function Index({ appointments, filters }: Props) {
                                         {appt.staff?.name ?? '—'}
                                     </TableCell>
                                     <TableCell className="text-gray-700">
-                                        {appt.appointment_date}
+                                        {formatDate(appt.appointment_date)}
                                     </TableCell>
                                     <TableCell className="text-gray-700">
                                         {formatTime(appt.appointment_time)}
