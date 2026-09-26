@@ -119,7 +119,7 @@ class InventoryItemController extends Controller
 
         InventoryItem::create($validated);
 
-        return redirect()->route('inventory_items.index')->with('message', 'InventoryItem created successfully.');
+        return redirect()->route('inventory_items.index')->with('message', 'Inventory Item created successfully.');
     }
 
     public function edit(InventoryItem $inventoryItem): Response
@@ -139,7 +139,7 @@ class InventoryItemController extends Controller
 
         $inventoryItem->update($validated);
 
-        return redirect()->route('inventory_items.index')->with('message', 'InventoryItem updated successfully.');
+        return redirect()->route('inventory_items.index')->with('message', 'Inventory Item updated successfully.');
     }
 
     public function destroy(InventoryItem $inventoryItem): RedirectResponse
@@ -148,7 +148,7 @@ class InventoryItemController extends Controller
 
         $inventoryItem->delete();
 
-        return redirect()->route('inventory_items.index')->with('message', 'InventoryItem deleted successfully.');
+        return redirect()->route('inventory_items.index')->with('message', 'Inventory Item deleted successfully.');
     }
 
 }

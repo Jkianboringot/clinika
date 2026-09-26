@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { useEffect, useRef, useState } from 'react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { toast, Toaster } from 'sonner';
 import {
     Table,
     TableBody,
@@ -38,6 +39,13 @@ interface Props {
     filters: { search?: string };
 }
 
+interface FlashProps {
+    flash?: {
+        message?: string;
+        error?: string;
+    };
+}
+
 function paginationLabel(label: string) {
     if (label.includes('Previous')) return <ChevronLeft className="h-4 w-4" />;
     if (label.includes('Next')) return <ChevronRight className="h-4 w-4" />;
@@ -45,6 +53,26 @@ function paginationLabel(label: string) {
 }
 
 export default function Index({ patients, filters }: Props) {
+    const { flash } = usePage<FlashProps & Record<string, unknown>>().props as unknown as FlashProps;
+
+    // Guards against React 18 Strict Mode (createInertiaApp's `strictMode: true`)
+    // double-invoking this effect on mount in development, which would
+    // otherwise show the same toast twice. Doesn't affect production.
+    const lastFlashRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        const current = flash?.error ?? flash?.message ?? null;
+        if (!current || current === lastFlashRef.current) return;
+
+        lastFlashRef.current = current;
+
+        if (flash?.error) {
+            toast.error(flash.error);
+        } else if (flash?.message) {
+            toast.success(flash.message);
+        }
+    }, [flash?.message, flash?.error]);
+
     const [search, setSearch] = useState(filters?.search ?? '');
 
     useEffect(() => {
@@ -75,6 +103,8 @@ export default function Index({ patients, filters }: Props) {
     return (
         <>
             <Head title="Patient Records" />
+
+            <Toaster richColors position="top-right" />
 
             <div className="p-6">
                 <div className="mb-6 flex items-start justify-between">

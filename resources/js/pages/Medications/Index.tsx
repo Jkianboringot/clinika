@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ChevronLeft, ChevronRight, Megaphone, Pencil, Search, Trash2 } from 'lucide-react';
+import { toast, Toaster } from 'sonner';
+import { ChevronLeft, ChevronRight, Pencil, Search, Trash2 } from 'lucide-react';
 import {
     Table,
     TableBody,
@@ -47,7 +47,25 @@ export default function Index() {
     const { flash, medications, filters } = usePage<
         MedicationsPageProps & Record<string, unknown>
     >().props as unknown as MedicationsPageProps;
-    
+
+    // Guards against React 18 Strict Mode (createInertiaApp's `strictMode: true`)
+    // double-invoking this effect on mount in development, which would
+    // otherwise show the same toast twice. Doesn't affect production.
+    const lastFlashRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        const current = flash?.error ?? flash?.message ?? null;
+        if (!current || current === lastFlashRef.current) return;
+
+        lastFlashRef.current = current;
+
+        if (flash?.error) {
+            toast.error(flash.error);
+        } else if (flash?.message) {
+            toast.success(flash.message);
+        }
+    }, [flash?.message, flash?.error]);
+
     const { processing, delete: destroyForm } = useForm();
     const [search, setSearch] = useState(filters?.search ?? '');
     const isFirstRender = useRef(true);
@@ -81,17 +99,9 @@ export default function Index() {
         <>
             <Head title="Medications" />
 
-            <div className="p-6">
-                {flash?.message && (
-                    <div className="mb-4">
-                        <Alert>
-                            <Megaphone />
-                            <AlertTitle>Notification</AlertTitle>
-                            <AlertDescription>{flash.message}</AlertDescription>
-                        </Alert>
-                    </div>
-                )}
+            <Toaster richColors position="top-right" />
 
+            <div className="p-6">
                 <div className="mb-6 flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-extrabold tracking-tight text-ink">
