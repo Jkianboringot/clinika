@@ -2,11 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { toast, Toaster } from 'sonner';
 import {
     ChevronLeft,
     ChevronRight,
-    Megaphone,
     Pencil,
     Search,
     Trash2,
@@ -117,6 +116,26 @@ export default function Index() {
     const [search, setSearch] = useState(filters?.search ?? '');
     const isFirstRender = useRef(true);
 
+    // Guards against React 18 Strict Mode (enabled via createInertiaApp's
+    // `strictMode: true`) double-invoking this effect on mount in
+    // development, which was firing the toast twice. Tracking the last
+    // flash value we actually showed makes the second invocation a no-op.
+    // Doesn't affect production, where effects only run once anyway.
+    const lastFlashRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        const current = flash?.error ?? flash?.message ?? null;
+        if (!current || current === lastFlashRef.current) return;
+
+        lastFlashRef.current = current;
+
+        if (flash?.error) {
+            toast.error(flash.error);
+        } else if (flash?.message) {
+            toast.success(flash.message);
+        }
+    }, [flash?.message, flash?.error]);
+
     const userRows = users?.data ?? [];
 
     // Debounced: typing only updates local state immediately. The actual
@@ -190,17 +209,9 @@ export default function Index() {
         <>
             <Head title="Users" />
 
-            <div className="p-6">
-                {flash?.message && (
-                    <div className="mb-4">
-                        <Alert>
-                            <Megaphone />
-                            <AlertTitle>Notification</AlertTitle>
-                            <AlertDescription>{flash.message}</AlertDescription>
-                        </Alert>
-                    </div>
-                )}
+            <Toaster richColors position="top-right" />
 
+            <div className="p-6">
                 <div className="mb-6 flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-extrabold tracking-tight text-ink">
