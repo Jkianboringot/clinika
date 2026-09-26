@@ -25,7 +25,7 @@ class ProcedureController extends Controller
                 fn($query, $search) =>
                     $query->where('name', 'like', "%{$search}%")
             )
-            ->orderBy('name')
+            ->orderBy('created_at')
             ->paginate(15)
             ->withQueryString();
 

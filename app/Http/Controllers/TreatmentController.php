@@ -23,32 +23,33 @@ class TreatmentController extends Controller
     {
     }
 
-    public function index(Request $request)
-    {
-        $search = $request->string('search')->toString();
-        $treatments = Treatment::with('appointment.patient')
-            ->when($search, fn($q) => $q->whereHas(
-                'appointment.patient',
-                fn($p) => $p->where('full_name', 'like', "%{$search}%")
-            ))
-            ->latest()
-            ->paginate(10)
-            ->withQueryString()
-            ->through(fn($t) => [
-                'id' => $t->id,
-                'patient_name' => $t->appointment?->patient?->full_name,
-                'appointment_id' => $t->appointment_id,
-                'follow_up_schedule' => $t->follow_up_schedule,
-                'duration_minutes' => $t->duration_minutes,
-                'summary' => $t->summary,
-                'created_at' => $t->created_at?->format('M d, Y'),
-            ]);
+  public function index(Request $request)
+{
+    $search = $request->string('search')->toString();
 
-        return Inertia::render('Treatments/Index', [
-            'treatments' => $treatments,
-            'filters' => ['search' => $search],
+    $treatments = Treatment::with('appointment.patient')
+        ->when($search, fn($q) => $q->whereHas(
+            'appointment.patient',
+            fn($p) => $p->where('full_name', 'like', "%{$search}%")
+        ))
+        ->latest()
+        ->paginate(10)
+        ->withQueryString()
+        ->through(fn($t) => [
+            'id' => $t->id,
+            'patient_name' => $t->appointment?->patient?->full_name,
+            'appointment_id' => $t->appointment_id,
+            'follow_up_schedule' => $t->follow_up_schedule,
+            'duration_minutes' => $t->duration_minutes,
+            'summary' => $t->summary,
+            'created_at' => $t->created_at?->format('M d, Y'),
         ]);
-    }
+
+    return Inertia::render('Treatments/Index', [
+        'treatments' => $treatments,
+        'filters' => ['search' => $search],
+    ]);
+}
 
 
 

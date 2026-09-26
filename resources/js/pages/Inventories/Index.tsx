@@ -11,13 +11,13 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { ChevronLeft, ChevronRight, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import { edit, index, destroy } from '@/routes/inventories';
 
 interface InventoryStockItem {
     id: number;
     item_name: string;
-    quantity: number;
+    quantity: number | string;
 }
 
 interface InventoryRow {
@@ -58,8 +58,76 @@ function paginationLabel(label: string) {
     return label;
 }
 
+// Groups items with the same name together and sums their quantities,
+// so "Cotton Rolls x5" and "Cotton Rolls x3" collapse into "Cotton Rolls x8".
+// Laravel serializes decimal columns as strings, so every quantity is
+// coerced to a real number here before any addition happens.
+function groupItems(items: InventoryStockItem[]) {
+    const grouped = new Map<string, { item_name: string; quantity: number }>();
+
+    for (const item of items) {
+        const qty = Number(item.quantity) || 0;
+        const existing = grouped.get(item.item_name);
+        if (existing) {
+            existing.quantity += qty;
+        } else {
+            grouped.set(item.item_name, { item_name: item.item_name, quantity: qty });
+        }
+    }
+
+    return Array.from(grouped.values());
+}
+
+// Sums the (already-grouped, already-numeric) quantities into one grand total.
 function totalQuantity(items: InventoryStockItem[]) {
-    return items.reduce((sum, item) => sum + (item.quantity ?? 0), 0);
+    return groupItems(items).reduce((sum, item) => sum + item.quantity, 0);
+}
+
+const VISIBLE_ITEM_LIMIT = 3;
+
+function ItemsCell({ items }: { items: InventoryStockItem[] }) {
+    const [expanded, setExpanded] = useState(false);
+    const grouped = groupItems(items);
+
+    if (grouped.length === 0) {
+        return <span>—</span>;
+    }
+
+    const hasMore = grouped.length > VISIBLE_ITEM_LIMIT;
+    const visibleItems = expanded ? grouped : grouped.slice(0, VISIBLE_ITEM_LIMIT);
+    const hiddenCount = grouped.length - VISIBLE_ITEM_LIMIT;
+
+    return (
+        <div>
+            <ul className="space-y-0.5">
+                {visibleItems.map((item) => (
+                    <li key={item.item_name}>
+                        {item.item_name}{' '}
+                        <span className="font-bold text-gray-400">×{item.quantity.toFixed(2)}</span>
+                    </li>
+                ))}
+            </ul>
+            {hasMore && (
+                <button
+                    type="button"
+                    onClick={() => setExpanded((prev) => !prev)}
+                    className="mt-1 flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700"
+                >
+                    {expanded ? (
+                        <>
+                            <ChevronUp className="h-3 w-3" />
+                            Show less
+                        </>
+                    ) : (
+                        <>
+                            <ChevronDown className="h-3 w-3" />
+                            +{hiddenCount} more
+                        </>
+                    )}
+                </button>
+            )}
+        </div>
+    );
 }
 
 export default function Index({ inventories, filters }: Props) {
@@ -203,22 +271,11 @@ export default function Index({ inventories, filters }: Props) {
                                     <TableCell className="font-medium text-blue-700">
                                         {inventory.staff_name ?? '—'}
                                     </TableCell>
-                                    <TableCell className="text-gray-700">
-                                        {inventory.items.length === 0 ? (
-                                            '—'
-                                        ) : (
-                                            <ul className="space-y-0.5">
-                                                {inventory.items.map((item) => (
-                                                    <li key={item.id}>
-                                                        {item.item_name}{' '}
-                                                        <span className="text-gray-400">×{item.quantity}</span>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        )}
+                                    <TableCell className="text-gray-700 align-top">
+                                        <ItemsCell items={inventory.items} />
                                     </TableCell>
                                     <TableCell className="text-gray-700">
-                                        {totalQuantity(inventory.items)}
+                                        {totalQuantity(inventory.items).toFixed(2)}
                                     </TableCell>
                                     <TableCell className="text-gray-500">
                                         {inventory.created_at ?? '—'}

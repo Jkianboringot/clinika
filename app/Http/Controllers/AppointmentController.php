@@ -101,8 +101,8 @@ class AppointmentController extends Controller
                 fn($query, $search) =>
                     $query->whereHas('patient', fn($q) => $q->where('full_name', 'like', "{$search}%"))
             )
-            ->orderBy('appointment_date')
-            ->orderBy('appointment_time')
+            // ->orderBy('appointment_date')
+            ->orderBy('created_at','desc')
             ->paginate(15)
             ->withQueryString();
 
@@ -124,7 +124,7 @@ class AppointmentController extends Controller
 
     public function store(AppointmentRequest $request): RedirectResponse
     {
-
+        // dd($request);
         Appointment::create($request->validated());
 
         return redirect()->route('appointments.index')->with('message', 'Appointment created successfully.');
