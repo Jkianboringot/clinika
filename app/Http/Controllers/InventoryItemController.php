@@ -142,11 +142,39 @@ class InventoryItemController extends Controller
         return redirect()->route('inventory_items.index')->with('message', 'Inventory Item updated successfully.');
     }
 
-    public function destroy(InventoryItem $inventoryItem): RedirectResponse
+    public function destrody(InventoryItem $inventoryItem): RedirectResponse
     {
         // $this->authorize('items.delete');
 
         $inventoryItem->delete();
+
+        return redirect()->route('inventory_items.index')->with('message', 'Inventory Item deleted successfully.');
+    }
+
+    
+
+ public function destroy(InventoryItem $inventoryItem): RedirectResponse
+    {
+
+        if ($inventoryItem->inventoryStock()->exists()) {
+            return redirect()
+                ->route('inventory_items.index')
+                ->with('error', 'This Inventory Item has stock and cannot be deleted.');
+        }
+
+        
+        if ($inventoryItem->treatmentInventories()->exists()) {
+            return redirect()
+                ->route('inventory_items.index')
+                ->with('error', 'This Inventory Item use in treatment and cannot be deleted.');
+        }
+
+        try {
+            $inventoryItem->deleteOrFail();
+
+        } catch (\Throwable $e) {
+            return redirect()->route('inventory_items.index')->with('error', 'Failed to delete Inventory Item');
+        }
 
         return redirect()->route('inventory_items.index')->with('message', 'Inventory Item deleted successfully.');
     }
