@@ -156,6 +156,11 @@ class AppointmentController extends Controller
 
         // its good that this is not allowed to be delete becuase it is ilegal to allow delete
         //  of something that prove service has been completely delivered that is hiding income
+        if ($appointment->treatment()->exists()) {
+            return redirect()
+                ->route('appointments.index')
+                ->with('error', 'This appointment has treatment assigned and cannot be deleted.');
+        }
         try {
             $appointment->deleteOrFail();
 

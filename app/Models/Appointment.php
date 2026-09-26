@@ -20,7 +20,7 @@ class Appointment extends Model
     }
 
     function treatment(){
-        return $this->hasOne(Treatment::class);
+        return $this->hasOne(Treatment::class,'appointment_id');
     }
 
 

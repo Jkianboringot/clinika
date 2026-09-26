@@ -78,13 +78,28 @@ class PatientController extends Controller
         return redirect()->route('patients.index')->with('message', 'Patient updated successfully.');
     }
 
-    public function destroy(Patient $patient): RedirectResponse
-    {
-        // $this->authorize('patients.delete');
-        $patient->deleteOrFail();
 
-        return redirect()->route('patients.index')->with('message', 'Patient deleted successfully.');
+
+ public function destroy(Patient $patient): RedirectResponse
+    {
+
+        if ($patient->appointments()->exists()) {
+            return redirect()
+                ->route('patients.index')
+                ->with('error', 'This patient has appointment assigned and cannot be deleted.');
+        }
+        try {
+            $patient->deleteOrFail();
+
+        } catch (\Throwable $e) {
+            return redirect()->route('patients.index')->with('error', 'Failed to delete, already has with treatment');
+        }
+
+        return redirect()->route('patients.index')->with('message', 'Patients deleted successfully.');
     }
+
+    
+
 
     public function show(Patient $patient): Response
     {
