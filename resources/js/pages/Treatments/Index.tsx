@@ -110,9 +110,7 @@ export default function Index({ treatments, filters }: Props) {
                     <Table>
                         <TableHeader>
                             <TableRow className="border-b border-gray-200 hover:bg-transparent">
-                                <TableHead className="font-bold tracking-wide text-blue-700">
-                                    Treatment ID
-                                </TableHead>
+                              
                                 <TableHead className="font-bold tracking-wide text-blue-700">
                                     Patient
                                 </TableHead>
@@ -149,9 +147,7 @@ export default function Index({ treatments, filters }: Props) {
                                     key={treatment.id}
                                     className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
                                 >
-                                    <TableCell className="text-gray-700">
-                                        {treatment.id}
-                                    </TableCell>
+                                  
                                     <TableCell className="font-medium text-blue-700">
                                         {treatment.patient_name ?? '—'}
                                     </TableCell>

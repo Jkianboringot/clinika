@@ -121,7 +121,6 @@ export default function Index() {
                     <Table>
                         <TableHeader>
                             <TableRow className="border-b border-[#c9c0b7]">
-                                <TableHead className="font-bold text-brand-orange-hover">ID</TableHead>
                                 <TableHead className="font-bold text-brand-orange-hover">Name</TableHead>
                                 <TableHead className="font-bold text-brand-orange-hover">Stock</TableHead>
                                 <TableHead className="font-bold text-brand-orange-hover">Mininum Stock</TableHead>
@@ -141,7 +140,6 @@ export default function Index() {
                                     key={item.id}
                                     className="border-b border-[#c9c0b7] last:border-0"
                                 >
-                                    <TableCell className="font-medium">{item.id}</TableCell>
                                     <TableCell>{item.item_name}</TableCell>
                                     <TableCell
                                         className={

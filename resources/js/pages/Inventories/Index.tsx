@@ -136,9 +136,7 @@ export default function Index({ inventories, filters }: Props) {
                     <Table>
                         <TableHeader>
                             <TableRow className="border-b border-gray-200 hover:bg-transparent">
-                                <TableHead className="font-bold tracking-wide text-blue-700">
-                                    Inventory ID
-                                </TableHead>
+                              
                                 <TableHead className="font-bold tracking-wide text-blue-700">
                                     Staff
                                 </TableHead>
@@ -169,9 +167,7 @@ export default function Index({ inventories, filters }: Props) {
                                     key={inventory.id}
                                     className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
                                 >
-                                    <TableCell className="text-gray-700">
-                                        {inventory.id}
-                                    </TableCell>
+                                  
                                     <TableCell className="font-medium text-blue-700">
                                         {inventory.staff_name ?? '—'}
                                     </TableCell>

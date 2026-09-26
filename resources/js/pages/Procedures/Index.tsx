@@ -134,7 +134,6 @@ const { flash, procedures, filters } = usePage< ProceduresPageProps & Record<str
                     <Table>
                         <TableHeader>
                             <TableRow className="border-b border-[#c9c0b7]">
-                                <TableHead className="font-bold text-brand-orange-hover">ID</TableHead>
                                 <TableHead className="font-bold text-brand-orange-hover">Name</TableHead>
                                 <TableHead className="font-bold text-brand-orange-hover">Duration</TableHead>
                                 <TableHead className="font-bold text-brand-orange-hover">Price</TableHead>
@@ -155,7 +154,6 @@ const { flash, procedures, filters } = usePage< ProceduresPageProps & Record<str
                                     key={procedure.id}
                                     className="border-b border-[#c9c0b7] last:border-0"
                                 >
-                                    <TableCell className="font-medium">{procedure.id}</TableCell>
                                     <TableCell>{procedure.name}</TableCell>
                                     <TableCell>{formatDuration(procedure.duration)}</TableCell>
                                     <TableCell>{formatPrice(procedure.price)}</TableCell>
