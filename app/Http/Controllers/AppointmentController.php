@@ -130,17 +130,17 @@ class AppointmentController extends Controller
         return redirect()->route('appointments.index')->with('message', 'Appointment created successfully.');
     }
 
-        public function edit(Appointment $appointment): Response
-        {
-            // $this->authorize('view', $appointment);
+    public function edit(Appointment $appointment): Response
+    {
+        // $this->authorize('view', $appointment);
 
-            return Inertia::render('Appointments/Edit', [
-                'appointment' => $appointment,
-                'patients' => Patient::select('id', 'full_name')->orderBy('full_name')->get(),
-                'staff' => User::select('id', 'name')->orderBy('name')->get(),
-                'procedures' => Procedure::select('id', 'name')->orderBy('name')->get(),
-            ]);
-        }
+        return Inertia::render('Appointments/Edit', [
+            'appointment' => $appointment,
+            'patients' => Patient::select('id', 'full_name')->orderBy('full_name')->get(),
+            'staff' => User::select('id', 'name')->orderBy('name')->get(),
+            'procedures' => Procedure::select('id', 'name')->orderBy('name')->get(),
+        ]);
+    }
 
     public function update(AppointmentRequest $request, Appointment $appointment): RedirectResponse
     {
@@ -154,8 +154,20 @@ class AppointmentController extends Controller
     {
         // $this->authorize('delete', $appointment);
 
-        $appointment->deleteOrFail();
+        // its good that this is not allowed to be delete becuase it is ilegal to allow delete
+        //  of something that prove service has been completely delivered that is hiding income
+        try {
+            $appointment->deleteOrFail();
+
+        } catch (\Throwable $e) {
+            return redirect()->route('appointments.index')->with('error', 'Failed to delete, already has with treatment');
+        }
 
         return redirect()->route('appointments.index')->with('message', 'Appointment deleted successfully.');
     }
+
+
+
+
+
 }
