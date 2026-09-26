@@ -15,9 +15,9 @@ return new class extends Migration {
             $table->foreignId('user_id')->constrained();//doctor
             $table->string('follow_up_schedule')->nullable();
             
+            //dont allow delete if it has a treatment already
             $table->foreignId('appointment_id')
-                ->constrained()
-                ->cascadeOnDelete();
+                ->constrained();
            
             // $table->string('tooth_numbers')->nullable();
             $table->unsignedInteger('duration_minutes')->nullable();

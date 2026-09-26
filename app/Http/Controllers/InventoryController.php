@@ -246,9 +246,15 @@ class InventoryController extends Controller
     }
 
 
-    public function delete(Inventory $inventory)
+    public function destroy(Inventory $inventory): RedirectResponse
     {
-        return;
-    }
+        try {
+            //allowed delete, its fine
+            $inventory->deleteOrFail();
+        } catch (\Throwable $e) {
+            return redirect()->route('inventories.index')->with('error', 'Could not delete this inventory entry.');
+        }
 
+        return redirect()->route('inventories.index')->with('message', 'Inventory entry deleted successfully.');
+    }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage, useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast, Toaster } from 'sonner';
@@ -11,8 +11,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { ChevronLeft, ChevronRight, Pencil, Plus, Search, X } from 'lucide-react';
-import { edit, index } from '@/routes/inventories';
+import { ChevronLeft, ChevronRight, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { edit, index, destroy } from '@/routes/inventories';
 
 interface InventoryStockItem {
     id: number;
@@ -94,6 +94,7 @@ export default function Index({ inventories, filters }: Props) {
     const safeFilters = filters ?? {};
 
     const [search, setSearch] = useState(safeFilters.search ?? '');
+    const { processing, delete: destroyForm } = useForm();
 
     useEffect(() => {
         if (search === (safeFilters.search ?? '')) return;
@@ -114,6 +115,12 @@ export default function Index({ inventories, filters }: Props) {
         router.get(index().url, {}, { preserveState: true, replace: true });
     }
 
+    const handleDelete = (id: number, staffName: string) => {
+        if (confirm(`Delete the inventory entry for "${staffName}"? This can't be undone.`)) {
+            destroyForm(destroy(id).url);
+        }
+    };
+
     return (
         <>
             <Head title="Inventory" />
@@ -126,7 +133,6 @@ export default function Index({ inventories, filters }: Props) {
                         <h1 className="text-3xl font-extrabold tracking-tight text-ink">
                             Inventory
                         </h1>
-                    
                     </div>
                     <Link
                         href="/inventories/create"
@@ -164,7 +170,6 @@ export default function Index({ inventories, filters }: Props) {
                     <Table>
                         <TableHeader>
                             <TableRow className="border-b border-gray-200 hover:bg-transparent">
-                              
                                 <TableHead className="font-bold tracking-wide text-blue-700">
                                     Staff
                                 </TableHead>
@@ -185,7 +190,7 @@ export default function Index({ inventories, filters }: Props) {
                         <TableBody>
                             {safeInventories.data.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="py-10 text-center text-sm text-subtle">
+                                    <TableCell colSpan={5} className="py-10 text-center text-sm text-subtle">
                                         No inventory entries found.
                                     </TableCell>
                                 </TableRow>
@@ -195,7 +200,6 @@ export default function Index({ inventories, filters }: Props) {
                                     key={inventory.id}
                                     className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
                                 >
-                                  
                                     <TableCell className="font-medium text-blue-700">
                                         {inventory.staff_name ?? '—'}
                                     </TableCell>
@@ -228,6 +232,20 @@ export default function Index({ inventories, filters }: Props) {
                                                 <Pencil className="h-3.5 w-3.5" />
                                                 Edit
                                             </Link>
+                                            <button
+                                                type="button"
+                                                disabled={processing}
+                                                onClick={() =>
+                                                    handleDelete(
+                                                        inventory.id,
+                                                        inventory.staff_name ?? `#${inventory.id}`,
+                                                    )
+                                                }
+                                                className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-danger disabled:opacity-50"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                                Delete
+                                            </button>
                                         </div>
                                     </TableCell>
                                 </TableRow>
