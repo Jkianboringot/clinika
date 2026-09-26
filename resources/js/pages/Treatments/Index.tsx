@@ -90,6 +90,21 @@ export default function Index({ treatments, filters }: Props) {
     const [search, setSearch] = useState(filters?.search ?? '');
     const { processing, delete: destroyForm } = useForm();
 
+    // Tracks which rows' Summary cell is expanded to full text (by treatment id).
+    const [expandedSummaries, setExpandedSummaries] = useState<Set<number>>(new Set());
+
+    const toggleSummary = (id: number) => {
+        setExpandedSummaries((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    };
+
     useEffect(() => {
         if (search === (filters?.search ?? '')) return;
 
@@ -190,57 +205,75 @@ export default function Index({ treatments, filters }: Props) {
                                     </TableCell>
                                 </TableRow>
                             )}
-                            {treatments.data.map((treatment) => (
-                                <TableRow
-                                    key={treatment.id}
-                                    className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
-                                >
-                                  
-                                    <TableCell className="font-medium text-blue-700">
-                                        {treatment.patient_name ?? '—'}
-                                    </TableCell>
-                                    <TableCell className="text-gray-700">
-                                        #{treatment.appointment_id}
-                                    </TableCell>
-                                    <TableCell className="text-gray-700">
-                                        {treatment.duration_minutes ? `${treatment.duration_minutes} min` : '—'}
-                                    </TableCell>
-                                    <TableCell className="text-gray-700">
-                                        {formatDate(treatment.follow_up_schedule)}
-                                    </TableCell>
-                                    <TableCell className="max-w-xs truncate text-gray-700">
-                                        {treatment.summary ?? '—'}
-                                    </TableCell>
-                                    <TableCell className="text-gray-500">
-                                        {treatment.created_at ?? '—'}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <Link
-                                                href={edit(treatment.id).url}
-                                                className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                                            >
-                                                <Pencil className="h-3.5 w-3.5" />
-                                                Edit
-                                            </Link>
-                                            <button
-                                                type="button"
-                                                disabled={processing}
-                                                onClick={() =>
-                                                    handleDelete(
-                                                        treatment.id,
-                                                        treatment.patient_name ?? `#${treatment.id}`,
-                                                    )
-                                                }
-                                                className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-danger disabled:opacity-50"
-                                            >
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                                Delete
-                                            </button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                            {treatments.data.map((treatment) => {
+                                const isExpanded = expandedSummaries.has(treatment.id);
+                                const summaryText = treatment.summary ?? '—';
+                                // Only offer the toggle when there's actually enough text to hide.
+                                const isLong = (treatment.summary?.length ?? 0) > 60;
+
+                                return (
+                                    <TableRow
+                                        key={treatment.id}
+                                        className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
+                                    >
+                                      
+                                        <TableCell className="font-medium text-blue-700">
+                                            {treatment.patient_name ?? '—'}
+                                        </TableCell>
+                                        <TableCell className="text-gray-700">
+                                            #{treatment.appointment_id}
+                                        </TableCell>
+                                        <TableCell className="text-gray-700">
+                                            {treatment.duration_minutes ? `${treatment.duration_minutes} min` : '—'}
+                                        </TableCell>
+                                        <TableCell className="text-gray-700">
+                                            {formatDate(treatment.follow_up_schedule)}
+                                        </TableCell>
+                                        <TableCell className="max-w-xs text-gray-700">
+                                            <span className={isExpanded ? 'block whitespace-pre-wrap break-words' : 'block truncate'}>
+                                                {summaryText}
+                                            </span>
+                                            {isLong && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleSummary(treatment.id)}
+                                                    className="mt-0.5 text-xs font-medium text-blue-600 hover:underline"
+                                                >
+                                                    {isExpanded ? 'Show less' : 'Show more'}
+                                                </button>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-gray-500">
+                                            {treatment.created_at ?? '—'}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <Link
+                                                    href={edit(treatment.id).url}
+                                                    className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                                >
+                                                    <Pencil className="h-3.5 w-3.5" />
+                                                    Edit
+                                                </Link>
+                                                <button
+                                                    type="button"
+                                                    disabled={processing}
+                                                    onClick={() =>
+                                                        handleDelete(
+                                                            treatment.id,
+                                                            treatment.patient_name ?? `#${treatment.id}`,
+                                                        )
+                                                    }
+                                                    className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-danger disabled:opacity-50"
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
                         </TableBody>
                     </Table>
 
