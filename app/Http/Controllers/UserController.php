@@ -244,7 +244,35 @@ class UserController extends Controller
             abort(403, "You can't delete your own account.");
         }
 
-        $user->delete();
+        //for staff
+        if ($user->appointments()->exists()) {
+            return redirect()
+                ->route('users.index')
+                ->with('error', 'This user has appointments assigned and cannot be deleted.');
+        }
+
+        // for staff
+        if ($user->inventory()->exists()) {
+            return redirect()
+                ->route('users.index')
+                ->with('error', 'This user has inventory assigned and cannot be deleted.');
+        }
+
+         // for doctor
+        if ($user->treatment()->exists()) {
+            return redirect()
+                ->route('users.index')
+                ->with('error', 'This user has treatment assigned and cannot be deleted.');
+        }
+
+        try {
+            //
+            $user->deleteOrFail();
+        } catch (\Illuminate\Database\QueryException $e) {
+            return redirect()
+                ->route('users.index')
+                ->with('error', 'This user cannot be deleted because related records exist.');
+        }
 
         return redirect()->route('users.index')->with('message', 'User deleted successfully.');
     }
