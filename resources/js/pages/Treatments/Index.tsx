@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage, useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast, Toaster } from 'sonner';
@@ -11,8 +11,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { ChevronLeft, ChevronRight, Pencil, Search, X } from 'lucide-react';
-import { edit, index } from '@/routes/treatments';
+import { ChevronLeft, ChevronRight, Pencil, Search, Trash2, X } from 'lucide-react';
+import { edit, index, destroy } from '@/routes/treatments';
 
 interface TreatmentRow {
     id: number;
@@ -88,6 +88,7 @@ export default function Index({ treatments, filters }: Props) {
     }, [flash?.message, flash?.error]);
 
     const [search, setSearch] = useState(filters?.search ?? '');
+    const { processing, delete: destroyForm } = useForm();
 
     useEffect(() => {
         if (search === (filters?.search ?? '')) return;
@@ -107,6 +108,12 @@ export default function Index({ treatments, filters }: Props) {
         setSearch('');
         router.get(index().url, {}, { preserveState: true, replace: true });
     }
+
+    const handleDelete = (id: number, patientName: string) => {
+        if (confirm(`Delete the treatment for "${patientName}"? This can't be undone.`)) {
+            destroyForm(destroy(id).url);
+        }
+    };
 
     return (
         <>
@@ -216,6 +223,20 @@ export default function Index({ treatments, filters }: Props) {
                                                 <Pencil className="h-3.5 w-3.5" />
                                                 Edit
                                             </Link>
+                                            <button
+                                                type="button"
+                                                disabled={processing}
+                                                onClick={() =>
+                                                    handleDelete(
+                                                        treatment.id,
+                                                        treatment.patient_name ?? `#${treatment.id}`,
+                                                    )
+                                                }
+                                                className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-danger disabled:opacity-50"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                                Delete
+                                            </button>
                                         </div>
                                     </TableCell>
                                 </TableRow>

@@ -10,6 +10,7 @@ use App\Models\Procedure;
 use App\Models\Treatment;
 use App\Services\TreatmentService;
 use AppointmentStatusEnum;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -179,11 +180,19 @@ class TreatmentController extends Controller
 
     }
 
-
-    public function delete(Treatment $treatment)
+    public function destroy(Treatment $treatment): RedirectResponse
     {
-        return;
+
+        try {
+            $treatment->deleteOrFail();
+
+        } catch (\Throwable $e) {
+            return redirect()->route('treatments.index')->with('error', 'Failed to delete, already has with treatment');
+        }
+
+        return redirect()->route('treatments.index')->with('message', 'Treatment deleted successfully.');
     }
+
 
 
 
