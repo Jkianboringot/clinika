@@ -117,7 +117,13 @@ class InventoryItemController extends Controller
 
         $validated = $request->validated();
 
-        InventoryItem::create($validated);
+        try {
+            InventoryItem::create($validated);
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('inventory_items.index')
+                ->with('error', 'Failed to create Inventory Item.');
+        }
 
         return redirect()->route('inventory_items.index')->with('message', 'Inventory Item created successfully.');
     }
@@ -137,7 +143,13 @@ class InventoryItemController extends Controller
 
         $validated = $request->validated();
 
-        $inventoryItem->update($validated);
+        try {
+            $inventoryItem->update($validated);
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('inventory_items.index')
+                ->with('error', 'Failed to update Inventory Item.');
+        }
 
         return redirect()->route('inventory_items.index')->with('message', 'Inventory Item updated successfully.');
     }

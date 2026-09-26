@@ -48,8 +48,13 @@ class PatientController extends Controller
     {
         // $this->authorize('patients.create');
 
-
-        Patient::create($request->validated());
+        try {
+            Patient::create($request->validated());
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('patients.index')
+                ->with('error', 'Failed to create Patient.');
+        }
 
         return redirect()->route('patients.index')->with('message', 'Patient created successfully.');
     }
@@ -73,7 +78,13 @@ class PatientController extends Controller
             $data['password'] = bcrypt($data['password']);
         }
 
-        $patient->update($data);
+        try {
+            $patient->update($data);
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('patients.index')
+                ->with('error', 'Failed to update Patient.');
+        }
 
         return redirect()->route('patients.index')->with('message', 'Patient updated successfully.');
     }

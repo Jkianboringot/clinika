@@ -48,8 +48,13 @@ class ProcedureController extends Controller
     {
         // $this->authorize('procedures.create');
 
-
-        Procedure::create($request->validated());
+        try {
+            Procedure::create($request->validated());
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('procedures.index')
+                ->with('error', 'Failed to create Procedure.');
+        }
 
         return redirect()->route('procedures.index')->with('message', 'Procedure created successfully.');
     }
@@ -67,8 +72,13 @@ class ProcedureController extends Controller
     {
         // $this->authorize('procedures.update');
 
-
-        $procedure->update($request->validated());
+        try {
+            $procedure->update($request->validated());
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('procedures.index')
+                ->with('error', 'Failed to update Procedure.');
+        }
 
         return redirect()->route('procedures.index')->with('message', 'Procedure updated successfully.');
     }

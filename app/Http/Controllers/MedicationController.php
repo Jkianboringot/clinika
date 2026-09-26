@@ -103,7 +103,13 @@ class MedicationController extends Controller
 
         $validated = $request->validated();
 
-        Medication::create($validated);
+        try {
+            Medication::create($validated);
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('medications.index')
+                ->with('error', 'Failed to create Medication.');
+        }
 
         return redirect()->route('medications.index')->with('message', 'Medication created successfully.');
     }
@@ -123,7 +129,13 @@ class MedicationController extends Controller
 
         $validated = $request->validated();
 
-        $medication->update($validated);
+        try {
+            $medication->update($validated);
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('medications.index')
+                ->with('error', 'Failed to update Medication.');
+        }
 
         return redirect()->route('medications.index')->with('message', 'Medication updated successfully.');
     }

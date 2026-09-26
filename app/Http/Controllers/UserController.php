@@ -182,14 +182,20 @@ class UserController extends Controller
         $validated = $request->validated();
         $this->guardRoleAssignment($validated['role']);
 
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'is_active' => IsActiveEnum::ACTIVE->value,
-        ]);
+        try {
+            $user = User::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+                'is_active' => IsActiveEnum::ACTIVE->value,
+            ]);
 
-        $user->syncRoles([$validated['role']]);
+            $user->syncRoles([$validated['role']]);
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('users.index')
+                ->with('error', 'Failed to create User.');
+        }
 
         return redirect()->route('users.index')->with('message', 'User created successfully.');
     }
@@ -217,17 +223,23 @@ class UserController extends Controller
         $validated = $request->validated();
         $this->guardRoleAssignment($validated['role'], $user);
 
-        $user->update([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'is_active' => $validated['is_active'] ?? $user->is_active,
-        ]);
+        try {
+            $user->update([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'is_active' => $validated['is_active'] ?? $user->is_active,
+            ]);
 
-        if (!empty($validated['password'])) {
-            $user->update(['password' => Hash::make($validated['password'])]);
+            if (!empty($validated['password'])) {
+                $user->update(['password' => Hash::make($validated['password'])]);
+            }
+
+            $user->syncRoles([$validated['role']]);
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('users.index')
+                ->with('error', 'Failed to update User.');
         }
-
-        $user->syncRoles([$validated['role']]);
 
         return redirect()->route('users.index')->with('message', 'User updated successfully.');
     }

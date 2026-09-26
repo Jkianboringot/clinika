@@ -125,7 +125,13 @@ class AppointmentController extends Controller
     public function store(AppointmentRequest $request): RedirectResponse
     {
         // dd($request);
-        Appointment::create($request->validated());
+        try {
+            Appointment::create($request->validated());
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('appointments.index')
+                ->with('error', 'Failed to create appointment.');
+        }
 
         return redirect()->route('appointments.index')->with('message', 'Appointment created successfully.');
     }
@@ -144,8 +150,13 @@ class AppointmentController extends Controller
 
     public function update(AppointmentRequest $request, Appointment $appointment): RedirectResponse
     {
-
-        $appointment->update($request->validated());
+        try {
+            $appointment->update($request->validated());
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('appointments.index')
+                ->with('error', 'Failed to update appointment.');
+        }
 
         return redirect()->route('appointments.index')->with('message', 'Appointment updated successfully.');
     }
@@ -170,9 +181,4 @@ class AppointmentController extends Controller
 
         return redirect()->route('appointments.index')->with('message', 'Appointment deleted successfully.');
     }
-
-
-
-
-
 }
