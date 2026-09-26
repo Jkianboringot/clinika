@@ -242,7 +242,7 @@ export default function Index() {
                     ))}
                 </div>
 
-                <div className="overflow-hidden rounded-xl border border-[#c9c0b7]">
+                <div className="overflow-hidden rounded-xl border border-[#c9c0b7]  bg-white">
                     <div className="flex items-center justify-between border-b border-[#c9c0b7] px-5 py-3">
                         <h2 className="font-bold text-ink">{TAB_TITLES[activeRole]}</h2>
                         <div className="relative">
