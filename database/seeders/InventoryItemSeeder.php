@@ -10,7 +10,7 @@ class InventoryItemSeeder extends Seeder
     public function run(): void
     {
         if (InventoryItem::count() === 0) {
-            InventoryItem::factory()->count(15)->create();
+            InventoryItem::factory()->count(50)->create();
         }
     }
 }

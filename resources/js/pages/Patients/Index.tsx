@@ -17,10 +17,9 @@ import { create, destroy, edit, index, show } from '@/routes/patients';
 interface PatientRow {
     id: number;
     full_name: string;
-    age: number | null;
+    date_of_birth: string | null;
     contact_number: string | null;
     email: string;
-    last_visit: string | null;
 }
 
 interface PaginationLink {
@@ -50,6 +49,36 @@ function paginationLabel(label: string) {
     if (label.includes('Previous')) return <ChevronLeft className="h-4 w-4" />;
     if (label.includes('Next')) return <ChevronRight className="h-4 w-4" />;
     return label;
+}
+
+function calculateAge(dob: string | null): number | null {
+    if (!dob) return null;
+
+    const birthDate = new Date(dob);
+    if (isNaN(birthDate.getTime())) return null;
+
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+    }
+
+    return age;
+}
+
+function formatDate(value: string | null) {
+    if (!value) return '—';
+
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return value;
+
+    const month = date.toLocaleString('en-US', { month: 'short' });
+    const day = date.getDate();
+    const year = date.getFullYear();
+
+    return `${month} ${day}, ${year}`;
 }
 
 export default function Index({ patients, filters }: Props) {
@@ -154,6 +183,9 @@ export default function Index({ patients, filters }: Props) {
                                     Name
                                 </TableHead>
                                 <TableHead className="font-bold tracking-wide text-blue-700">
+                                    Date of Birth
+                                </TableHead>
+                                <TableHead className="font-bold tracking-wide text-blue-700">
                                     Age
                                 </TableHead>
                                 <TableHead className="font-bold tracking-wide text-blue-700">
@@ -161,9 +193,6 @@ export default function Index({ patients, filters }: Props) {
                                 </TableHead>
                                 <TableHead className="font-bold tracking-wide text-blue-700">
                                     Email
-                                </TableHead>
-                                <TableHead className="font-bold tracking-wide text-blue-700">
-                                    Last Visit
                                 </TableHead>
                                 <TableHead className="text-right font-bold tracking-wide text-blue-700">
                                     Actions
@@ -173,7 +202,7 @@ export default function Index({ patients, filters }: Props) {
                         <TableBody>
                             {patients.data.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="py-10 text-center text-sm text-subtle">
+                                    <TableCell colSpan={6} className="py-10 text-center text-sm text-subtle">
                                         No patients found.
                                     </TableCell>
                                 </TableRow>
@@ -187,12 +216,14 @@ export default function Index({ patients, filters }: Props) {
                                     <TableCell className="font-medium text-blue-700">
                                         {patient.full_name}
                                     </TableCell>
-                                    <TableCell className="text-gray-700">{patient.age ?? '—'}</TableCell>
+                                    <TableCell className="text-gray-700">
+                                        {formatDate(patient.date_of_birth)}
+                                    </TableCell>
+                                    <TableCell className="text-gray-700">
+                                        {calculateAge(patient.date_of_birth) ?? '—'}
+                                    </TableCell>
                                     <TableCell className="text-gray-700">{patient.contact_number ?? '—'}</TableCell>
                                     <TableCell className="text-gray-700">{patient.email}</TableCell>
-                                    <TableCell className="text-gray-500">
-                                        {patient.last_visit ?? '—'}
-                                    </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex items-center justify-end gap-2">
                                             <Link

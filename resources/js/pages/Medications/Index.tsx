@@ -28,13 +28,15 @@ interface PaginatedMedications {
     links: { url: string | null; label: string; active: boolean }[];
 }
 
-interface MedicationsPageProps {
+interface MedicationsPageProps extends Record<string, unknown> {
     flash: {
         message?: string;
         error?: string;
     };
     medications: PaginatedMedications;
-    filters: { search?: string };
+    filters: {
+        search?: string;
+    };
 }
 
 function paginationLabel(label: string) {
@@ -44,9 +46,7 @@ function paginationLabel(label: string) {
 }
 
 export default function Index() {
-    const { flash, medications, filters } = usePage<
-        MedicationsPageProps & Record<string, unknown>
-    >().props as unknown as MedicationsPageProps;
+    const { flash, medications, filters } = usePage<MedicationsPageProps>().props;
 
     // Guards against React 18 Strict Mode (createInertiaApp's `strictMode: true`)
     // double-invoking this effect on mount in development, which would
@@ -68,15 +68,11 @@ export default function Index() {
 
     const { processing, delete: destroyForm } = useForm();
     const [search, setSearch] = useState(filters?.search ?? '');
-    const isFirstRender = useRef(true);
 
     const medicationRows = medications?.data ?? [];
 
     useEffect(() => {
-        if (isFirstRender.current) {
-            isFirstRender.current = false;
-            return;
-        }
+        if (search === (filters?.search ?? '')) return;
 
         const timeout = setTimeout(() => {
             router.get(
@@ -87,7 +83,7 @@ export default function Index() {
         }, 400);
 
         return () => clearTimeout(timeout);
-    }, [search]);
+    }, [search, filters?.search]);
 
     const handleDelete = (id: number, name: string) => {
         if (confirm(`Delete "${name}"? This can't be undone.`)) {

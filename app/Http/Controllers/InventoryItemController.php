@@ -99,7 +99,7 @@ class InventoryItemController extends Controller
         return Inertia::render('Items/Index', [
             'inventoryitems' => $items,
             'filters' => [
-                'search' => $search,
+                 'search' => $request->input('search'),
             ],
         ]);
     }

@@ -29,13 +29,15 @@ interface PaginatedProcedures {
     links: { url: string | null; label: string; active: boolean }[];
 }
 
-interface ProceduresPageProps {
+interface ProceduresPageProps extends Record<string, unknown> {
     flash: {
         message?: string;
         error?: string;
     };
     procedures: PaginatedProcedures;
-    filters: { search?: string };
+    filters: {
+        search?: string;
+    };
 }
 
 function paginationLabel(label: string) {
@@ -55,7 +57,7 @@ function formatDuration(duration: number | null) {
     return `${duration} min`;
 }
 export default function Index() {
-    const { flash, procedures, filters } = usePage< ProceduresPageProps & Record<string, unknown> >().props as unknown as ProceduresPageProps;
+    const { flash, procedures, filters } = usePage<ProceduresPageProps>().props;
 
     // Guards against React 18 Strict Mode (createInertiaApp's `strictMode: true`)
     // double-invoking this effect on mount in development, which would
@@ -77,16 +79,14 @@ export default function Index() {
 
     const { processing, delete: destroyForm } = useForm();
     const [search, setSearch] = useState(filters?.search ?? '');
-    const isFirstRender = useRef(true);
 
     const procedureRows = procedures?.data ?? [];
 
-    // Debounced search — same 400ms pattern as Users/Index.
+    // Debounced search — fires only when local `search` diverges from the
+    // server's current filter, so pagination clicks (which don't touch
+    // `search`) never trigger a stray request that drops `page` from the URL.
     useEffect(() => {
-        if (isFirstRender.current) {
-            isFirstRender.current = false;
-            return;
-        }
+        if (search === (filters?.search ?? '')) return;
 
         const timeout = setTimeout(() => {
             router.get(
@@ -97,7 +97,7 @@ export default function Index() {
         }, 400);
 
         return () => clearTimeout(timeout);
-    }, [search]);
+    }, [search, filters?.search]);
 
     const handleDelete = (id: number, name: string) => {
         if (confirm(`Delete "${name}"? This can't be undone.`)) {

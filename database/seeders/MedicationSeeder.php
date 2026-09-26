@@ -10,7 +10,7 @@ class MedicationSeeder extends Seeder
     public function run(): void
     {
         if (Medication::count() === 0) {
-            Medication::factory()->count(15)->create();
+            Medication::factory()->count(50)->create();
         }
     }
 }

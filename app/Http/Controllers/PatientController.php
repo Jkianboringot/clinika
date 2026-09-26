@@ -28,7 +28,7 @@ class PatientController extends Controller
             ->orderBy('created_at')
             ->paginate(15)
             ->withQueryString();
-
+                // dd($patients);
         return Inertia::render('Patients/Index', [
             'patients' => $patients,
             'filters' => [
