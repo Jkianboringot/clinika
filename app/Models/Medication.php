@@ -9,4 +9,10 @@ class Medication extends Model
 {
     use HasFactory;
     public $guarded = ['id'];
+
+    // TreatmentPrescriptionDetails.php — ALSO WRONG
+  function treatmentPrescriptions()
+    {
+        return $this->hasMany(TreatmentPrescriptionDetails::class, 'medication_id');
+    }
 }

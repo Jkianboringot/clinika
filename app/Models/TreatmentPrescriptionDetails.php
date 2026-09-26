@@ -18,4 +18,11 @@ public $timestamps = false;
     function treatment(){
         return $this->belongsTo(Treatment::class);
     }
+
+    function medication()
+    {
+        return $this->belongsTo(Medication::class, 'medication_id');
+    }
+    
+
 }
