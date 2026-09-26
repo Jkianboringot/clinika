@@ -23,7 +23,7 @@ class AppointmentRequest extends FormRequest
     public function rules(): array
     {
         return [
-           'staff_id' => ['required', 'exists:users,id'],
+        //    'staff_id' => ['required', 'exists:users,id'],
             'patient_id' => ['required', 'exists:patients,id'],
             'procedure_id' => ['required', 'exists:procedures,id'],
             'description' => ['nullable', 'string', 'max:300'],

@@ -23,7 +23,6 @@ interface Option {
 interface Appointment {
     id: number;
     patient_id: number;
-    staff_id: number;
     procedure_id: number;
     description: string | null;
     appointment_date: string; // "YYYY-MM-DD"
@@ -32,7 +31,6 @@ interface Appointment {
 
 interface AppointmentForm {
     patient_id: string;
-    staff_id: string;
     procedure_id: string;
     description: string;
     appointment_date: string;
@@ -42,14 +40,12 @@ interface AppointmentForm {
 interface Props {
     appointment: Appointment;
     patients: Option[];
-    staff: Option[];
     procedures: Option[];
 }
 
-export default function Edit({ appointment, patients, staff, procedures }: Props) {
+export default function Edit({ appointment, patients, procedures }: Props) {
     const { data, setData, put, processing, errors } = useForm<AppointmentForm>({
         patient_id: String(appointment.patient_id),
-        staff_id: String(appointment.staff_id),
         procedure_id: String(appointment.procedure_id),
         description: appointment.description ?? '',
         appointment_date: appointment.appointment_date,
@@ -89,31 +85,31 @@ export default function Edit({ appointment, patients, staff, procedures }: Props
                         </Alert>
                     )}
 
-                    <div className="space-y-1">
-                        <Label htmlFor="patient_id" className="font-semibold text-ink">
-                            Patient
-                        </Label>
-                        <Select
-                            value={data.patient_id}
-                            onValueChange={(value) => setData('patient_id', value)}
-                        >
-                            <SelectTrigger id="patient_id" className="border-gray-200">
-                                <SelectValue placeholder="Select a patient" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {patients.map((p) => (
-                                    <SelectItem key={p.id} value={String(p.id)}>
-                                        {p.full_name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        {errors.patient_id && (
-                            <p className="mt-1.5 text-sm text-danger">{errors.patient_id}</p>
-                        )}
-                    </div>
-
                     <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                            <Label htmlFor="patient_id" className="font-semibold text-ink">
+                                Patient
+                            </Label>
+                            <Select
+                                value={data.patient_id}
+                                onValueChange={(value) => setData('patient_id', value)}
+                            >
+                                <SelectTrigger id="patient_id" className="border-gray-200">
+                                    <SelectValue placeholder="Select a patient" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {patients.map((p) => (
+                                        <SelectItem key={p.id} value={String(p.id)}>
+                                            {p.full_name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {errors.patient_id && (
+                                <p className="mt-1.5 text-sm text-danger">{errors.patient_id}</p>
+                            )}
+                        </div>
+
                         <div className="space-y-1">
                             <Label htmlFor="procedure_id" className="font-semibold text-ink">
                                 Procedure
@@ -135,30 +131,6 @@ export default function Edit({ appointment, patients, staff, procedures }: Props
                             </Select>
                             {errors.procedure_id && (
                                 <p className="mt-1.5 text-sm text-danger">{errors.procedure_id}</p>
-                            )}
-                        </div>
-
-                        <div className="space-y-1">
-                            <Label htmlFor="staff_id" className="font-semibold text-ink">
-                                Staff
-                            </Label>
-                            <Select
-                                value={data.staff_id}
-                                onValueChange={(value) => setData('staff_id', value)}
-                            >
-                                <SelectTrigger id="staff_id" className="border-gray-200">
-                                    <SelectValue placeholder="Select staff" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {staff.map((s) => (
-                                        <SelectItem key={s.id} value={String(s.id)}>
-                                            {s.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {errors.staff_id && (
-                                <p className="mt-1.5 text-sm text-danger">{errors.staff_id}</p>
                             )}
                         </div>
                     </div>

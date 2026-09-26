@@ -102,7 +102,7 @@ class AppointmentController extends Controller
                     $query->whereHas('patient', fn($q) => $q->where('full_name', 'like', "{$search}%"))
             )
             // ->orderBy('appointment_date')
-            ->orderBy('created_at','desc')
+            ->orderBy('created_at', 'desc')
             ->paginate(15)
             ->withQueryString();
 
@@ -126,7 +126,11 @@ class AppointmentController extends Controller
     {
         // dd($request);
         try {
-            Appointment::create($request->validated());
+
+            Appointment::create([
+                ...$request->validated(),
+                'staff_id' => auth()->id(),
+            ]);
         } catch (\Throwable $e) {
             return redirect()
                 ->route('appointments.index')
@@ -151,7 +155,11 @@ class AppointmentController extends Controller
     public function update(AppointmentRequest $request, Appointment $appointment): RedirectResponse
     {
         try {
-            $appointment->update($request->validated());
+            $appointment->update([
+                ...$request->validated(),
+                'staff_id' => auth()->id(),
+            ]);
+
         } catch (\Throwable $e) {
             return redirect()
                 ->route('appointments.index')
