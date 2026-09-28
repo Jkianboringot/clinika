@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\GenderEnum;
+use App\Enums\IsActiveEnum;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -24,6 +25,7 @@ return new class extends Migration {
             //honestly i want it seperate table but dont need to seperate this since i dont care or it was specify that it needs to have like severity not my problem, just follow the shit done make it harder than it needs to be
             $table->text('medical_history')->nullable();
             $table->text('allergies')->nullable();
+            $table->string('is_active')->default(IsActiveEnum::ACTIVE->value);
 
             //all of this are prime target for seperate table but how often do people here will honestly use this system, if alot then i would take it seroustly but its fucking capstone project so probably not
             $table->string('emergency_contact_number',25)->nullable();

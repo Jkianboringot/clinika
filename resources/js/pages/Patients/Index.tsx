@@ -11,8 +11,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { ChevronLeft, ChevronRight, Eye, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
-import { create, destroy, edit, index, show } from '@/routes/patients';
+import { ChevronLeft, ChevronRight, Eye, Pencil, Plus, Search, UserX, X } from 'lucide-react';
+import { create, deactivate, edit, index, show } from '@/routes/patients';
 
 interface PatientRow {
     id: number;
@@ -20,6 +20,7 @@ interface PatientRow {
     date_of_birth: string | null;
     contact_number: string | null;
     email: string;
+    is_active: string;
 }
 
 interface PaginationLink {
@@ -123,9 +124,14 @@ export default function Index({ patients, filters }: Props) {
         router.get(index().url, {}, { preserveState: true, replace: true });
     }
 
-    function handleDelete(patient: PatientRow) {
-        if (confirm(`Delete ${patient.full_name}'s record? This can't be undone.`)) {
-            router.delete(destroy(patient.id).url, { preserveScroll: true });
+    // Patients are soft-deactivated, never deleted.
+    function handleDeactivate(patient: PatientRow) {
+        if (
+            confirm(
+                `Deactivate ${patient.full_name}? They will no longer be able to log in.`,
+            )
+        ) {
+            router.put(deactivate(patient.id).url, {}, { preserveScroll: true });
         }
     }
 
@@ -141,7 +147,6 @@ export default function Index({ patients, filters }: Props) {
                         <h1 className="text-3xl font-extrabold tracking-tight text-ink">
                             Patient Records
                         </h1>
-                      
                     </div>
                     <Link href={create().url}>
                         <Button className="bg-brand-orange font-bold text-white hover:bg-brand-orange-hover">
@@ -178,7 +183,6 @@ export default function Index({ patients, filters }: Props) {
                     <Table>
                         <TableHeader>
                             <TableRow className="border-b border-gray-200 hover:bg-transparent">
-                               
                                 <TableHead className="font-bold tracking-wide text-blue-700">
                                     Name
                                 </TableHead>
@@ -194,6 +198,9 @@ export default function Index({ patients, filters }: Props) {
                                 <TableHead className="font-bold tracking-wide text-blue-700">
                                     Email
                                 </TableHead>
+                                <TableHead className="font-bold tracking-wide text-blue-700">
+                                    Status
+                                </TableHead>
                                 <TableHead className="text-right font-bold tracking-wide text-blue-700">
                                     Actions
                                 </TableHead>
@@ -202,56 +209,70 @@ export default function Index({ patients, filters }: Props) {
                         <TableBody>
                             {patients.data.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="py-10 text-center text-sm text-subtle">
+                                    <TableCell colSpan={7} className="py-10 text-center text-sm text-subtle">
                                         No patients found.
                                     </TableCell>
                                 </TableRow>
                             )}
-                            {patients.data.map((patient) => (
-                                <TableRow
-                                    key={patient.id}
-                                    className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
-                                >
-                                  
-                                    <TableCell className="font-medium text-blue-700">
-                                        {patient.full_name}
-                                    </TableCell>
-                                    <TableCell className="text-gray-700">
-                                        {formatDate(patient.date_of_birth)}
-                                    </TableCell>
-                                    <TableCell className="text-gray-700">
-                                        {calculateAge(patient.date_of_birth) ?? '—'}
-                                    </TableCell>
-                                    <TableCell className="text-gray-700">{patient.contact_number ?? '—'}</TableCell>
-                                    <TableCell className="text-gray-700">{patient.email}</TableCell>
-                                    <TableCell className="text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <Link
-                                                href={show(patient.id).url}
-                                                className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                            {patients.data.map((patient) => {
+                                const isActive = patient.is_active === 'active';
+
+                                return (
+                                    <TableRow
+                                        key={patient.id}
+                                        className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
+                                    >
+                                        <TableCell className="font-medium text-blue-700">
+                                            {patient.full_name}
+                                        </TableCell>
+                                        <TableCell className="text-gray-700">
+                                            {formatDate(patient.date_of_birth)}
+                                        </TableCell>
+                                        <TableCell className="text-gray-700">
+                                            {calculateAge(patient.date_of_birth) ?? '—'}
+                                        </TableCell>
+                                        <TableCell className="text-gray-700">{patient.contact_number ?? '—'}</TableCell>
+                                        <TableCell className="text-gray-700">{patient.email}</TableCell>
+                                        <TableCell>
+                                            <span
+                                                className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium capitalize text-white ${
+                                                    isActive ? 'bg-emerald-600' : 'bg-red-600'
+                                                }`}
                                             >
-                                                <Eye className="h-3.5 w-3.5" />
-                                                View
-                                            </Link>
-                                            <Link
-                                                href={edit(patient.id).url}
-                                                className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                                            >
-                                                <Pencil className="h-3.5 w-3.5" />
-                                                Edit
-                                            </Link>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleDelete(patient)}
-                                                className="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
-                                            >
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                                Delete
-                                            </button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                                                {patient.is_active}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <Link
+                                                    href={show(patient.id).url}
+                                                    className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                                >
+                                                    <Eye className="h-3.5 w-3.5" />
+                                                    View
+                                                </Link>
+                                                <Link
+                                                    href={edit(patient.id).url}
+                                                    className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                                >
+                                                    <Pencil className="h-3.5 w-3.5" />
+                                                    Edit
+                                                </Link>
+                                                {isActive && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDeactivate(patient)}
+                                                        className="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
+                                                    >
+                                                        <UserX className="h-3.5 w-3.5" />
+                                                        Deactivate
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
                         </TableBody>
                     </Table>
 

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\IsActiveEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -11,6 +12,23 @@ class Patient extends Model
     // app/Models/Patient.php
     protected $hidden = ['password'];
     use HasFactory;
+
+    
+
+
+
+
+
+
+
+    protected function casts(): array
+{
+    return [
+        // ...your existing casts
+        'is_active' => IsActiveEnum::class,
+    ];
+}
+
 
     public function appointments()
     {

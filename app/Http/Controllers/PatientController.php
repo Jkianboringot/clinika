@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\IsActiveEnum;
 use App\Http\Requests\SearchRequest;
 use App\Http\Requests\PatientRequest;
 use App\Models\Patient;
@@ -9,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 
 class PatientController extends Controller
@@ -91,25 +93,27 @@ class PatientController extends Controller
 
 
 
- public function destroy(Patient $patient): RedirectResponse
-    {
 
-        if ($patient->appointments()->exists()) {
+        public function deactivate(Patient $patient): RedirectResponse
+    {
+        // $this->authorize('patients.delete');
+ 
+        try {
+            // Assign directly so it works even if is_active isn't in $fillable.
+            $patient->is_active = IsActiveEnum::DEACTIVED;
+            $patient->save();
+ 
+            // Only matters if patients log in through the default web guard
+            // with the database session driver.
+            DB::table('sessions')->where('user_id', $patient->id)->delete();
+        } catch (\Throwable $e) {
             return redirect()
                 ->route('patients.index')
-                ->with('error', 'This patient has appointment assigned and cannot be deleted.');
+                ->with('error', 'Failed to deactivate patient.');
         }
-        try {
-            $patient->deleteOrFail();
-
-        } catch (\Throwable $e) {
-            return redirect()->route('patients.index')->with('error', 'Failed to delete, already has with treatment');
-        }
-
-        return redirect()->route('patients.index')->with('message', 'Patients deleted successfully.');
+ 
+        return redirect()->route('patients.index')->with('message', 'Patient deactivated successfully.');
     }
-
-    
 
 
     public function show(Patient $patient): Response
@@ -121,3 +125,23 @@ class PatientController extends Controller
         ]);
     }
 }
+
+
+
+//  public function destroy(Patient $patient): RedirectResponse
+//     {
+
+//         if ($patient->appointments()->exists()) {
+//             return redirect()
+//                 ->route('patients.index')
+//                 ->with('error', 'This patient has appointment assigned and cannot be deleted.');
+//         }
+//         try {
+//             $patient->deleteOrFail();
+
+//         } catch (\Throwable $e) {
+//             return redirect()->route('patients.index')->with('error', 'Failed to delete, already has with treatment');
+//         }
+
+//         return redirect()->route('patients.index')->with('message', 'Patients deleted successfully.');
+//     }

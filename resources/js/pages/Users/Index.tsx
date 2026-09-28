@@ -8,7 +8,6 @@ import {
     ChevronRight,
     Pencil,
     Search,
-    Trash2,
     UserX,
 } from 'lucide-react';
 import {
@@ -20,7 +19,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { create, edit, deactivate, index as usersIndex } from '@/routes/users';
-import { destroy as destroyPatient, edit as editPatient } from '@/routes/patients';
+import { edit as editPatient } from '@/routes/patients';
 
 interface UserRow {
     id: number;
@@ -32,13 +31,14 @@ interface UserRow {
 
 // Patients are their own model/table (see Patient.php), not a User with a
 // "patient" role. The backend aliases `full_name as name` so this shape
-// lines up with UserRow on `name`/`email`/`created_at` — the only real
-// difference is contact_number instead of is_active.
+// lines up with UserRow on `name`/`email`/`is_active`/`created_at` — the only
+// real difference is the extra contact_number.
 interface PatientRow {
     id: number;
     name: string;
     email: string;
     contact_number: string | null;
+    is_active: string;
     created_at: string;
 }
 
@@ -105,7 +105,7 @@ export default function Index() {
     const page = usePage<PageProps & Record<string, unknown>>();
     const { flash, users, filters, roleCounts, activeRole } = page.props as unknown as PageProps;
 
-    // `put` is used to deactivate users (PUT /users/{user}/deactivate).
+    // `put` deactivates users (PUT /users/{user}/deactivate).
     const { processing, put } = useForm();
     const [search, setSearch] = useState(filters?.search ?? '');
     const isFirstRender = useRef(true);
@@ -128,6 +128,8 @@ export default function Index() {
     }, [flash?.message, flash?.error]);
 
     const userRows = users?.data ?? [];
+    const isPatientTab = activeRole === 'patient';
+    const columnCount = isPatientTab ? 6 : 5;
 
     // Debounced: typing only updates local state immediately. The actual
     // request waits until 400ms after the user stops typing.
@@ -176,16 +178,12 @@ export default function Index() {
         );
     };
 
-    const handleRemove = (row: Row) => {
-        // Patients live in a separate table/resource with their own destroy route.
-        if (isPatientRow(row)) {
-            if (!confirm(`Delete "${row.name}"? This can't be undone.`)) return;
-            router.delete(destroyPatient(row.id).url);
-            return;
-        }
-
-        // Users are soft-deactivated, never deleted.
+    // Users are soft-deactivated, never deleted. Patients are read-only
+    // here (status badge only); they're managed from the Patients module.
+    const handleDeactivate = (row: Row) => {
+        if (isPatientRow(row)) return;
         if (!confirm(`Deactivate "${row.name}"? They will no longer be able to log in.`)) return;
+
         put(deactivate(row.id).url);
     };
 
@@ -246,9 +244,10 @@ export default function Index() {
                             <TableRow className="border-b border-[#c9c0b7]">
                                 <TableHead className="font-bold text-brand-orange-hover">Name</TableHead>
                                 <TableHead className="font-bold text-brand-orange-hover">Email</TableHead>
-                                <TableHead className="font-bold text-brand-orange-hover">
-                                    {activeRole === 'patient' ? 'Contact' : 'Status'}
-                                </TableHead>
+                                {isPatientTab && (
+                                    <TableHead className="font-bold text-brand-orange-hover">Contact</TableHead>
+                                )}
+                                <TableHead className="font-bold text-brand-orange-hover">Status</TableHead>
                                 <TableHead className="font-bold text-brand-orange-hover">Joined</TableHead>
                                 <TableHead className="text-right font-bold text-brand-orange-hover">Actions</TableHead>
                             </TableRow>
@@ -256,13 +255,14 @@ export default function Index() {
                         <TableBody>
                             {userRows.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="py-10 text-center text-sm text-subtle">
+                                    <TableCell colSpan={columnCount} className="py-10 text-center text-sm text-subtle">
                                         No users found.
                                     </TableCell>
                                 </TableRow>
                             )}
                             {userRows.map((row) => {
                                 const patientRow = isPatientRow(row);
+                                const isActive = row.is_active === 'active';
 
                                 return (
                                     <TableRow
@@ -271,20 +271,17 @@ export default function Index() {
                                     >
                                         <TableCell>{row.name}</TableCell>
                                         <TableCell>{row.email}</TableCell>
+                                        {patientRow && (
+                                            <TableCell>{row.contact_number ?? '—'}</TableCell>
+                                        )}
                                         <TableCell>
-                                            {patientRow ? (
-                                                row.contact_number ?? '—'
-                                            ) : (
-                                                <span
-                                                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium capitalize text-white ${
-                                                        row.is_active === 'active'
-                                                            ? 'bg-emerald-600'
-                                                            : 'bg-red-600'
-                                                    }`}
-                                                >
-                                                    {row.is_active}
-                                                </span>
-                                            )}
+                                            <span
+                                                className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium capitalize text-white ${
+                                                    isActive ? 'bg-emerald-600' : 'bg-red-600'
+                                                }`}
+                                            >
+                                                {row.is_active}
+                                            </span>
                                         </TableCell>
                                         <TableCell>{formatDate(row.created_at)}</TableCell>
                                         <TableCell>
@@ -296,24 +293,15 @@ export default function Index() {
                                                     <Pencil className="h-4 w-4" />
                                                     Edit
                                                 </Link>
-                                                {(patientRow || row.is_active === 'active') && (
+                                                {!patientRow && isActive && (
                                                     <button
                                                         type="button"
                                                         disabled={processing}
-                                                        onClick={() => handleRemove(row)}
+                                                        onClick={() => handleDeactivate(row)}
                                                         className="flex items-center gap-1 text-sm font-medium text-ink hover:text-danger disabled:opacity-50"
                                                     >
-                                                        {patientRow ? (
-                                                            <>
-                                                                <Trash2 className="h-4 w-4" />
-                                                                Delete
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <UserX className="h-4 w-4" />
-                                                                Deactivate
-                                                            </>
-                                                        )}
+                                                        <UserX className="h-4 w-4" />
+                                                        Deactivate
                                                     </button>
                                                 )}
                                             </div>

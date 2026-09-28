@@ -62,7 +62,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/', [PatientController::class, 'store'])->name('store');
             Route::get('/{patient}/edit', [PatientController::class, 'edit'])->name('edit');
 
-            Route::delete('/{patient}', [PatientController::class, 'destroy'])->name('destroy');
+     Route::put('/{patient}/deactivate', [PatientController::class, 'deactivate'])->name('deactivate');
             Route::put('/{patient}', [PatientController::class, 'update'])->name('update');
             Route::get('/{patient}', [PatientController::class, 'show'])->name('show');
         }

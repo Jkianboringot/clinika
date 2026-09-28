@@ -97,7 +97,7 @@ class UserController extends Controller
             // `full_name as name` aliases the column so the frontend can
             // read `row.name` the same way it does for users.
             $users = Patient::query()
-                ->select(['id', 'full_name as name', 'email', 'contact_number', 'created_at'])
+                ->select(['id', 'full_name as name', 'email', 'contact_number', 'created_at','is_active'])
                 ->when(
                     $validated['search'] ?? null,
                     fn($query, $search) =>
