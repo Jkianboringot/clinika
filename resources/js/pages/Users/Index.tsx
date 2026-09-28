@@ -9,6 +9,7 @@ import {
     Pencil,
     Search,
     Trash2,
+    UserX,
 } from 'lucide-react';
 import {
     Table,
@@ -18,7 +19,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { create, destroy, edit, index as usersIndex } from '@/routes/users';
+import { create, edit, deactivate, index as usersIndex } from '@/routes/users';
 import { destroy as destroyPatient, edit as editPatient } from '@/routes/patients';
 
 interface UserRow {
@@ -52,7 +53,6 @@ interface PaginatedRows<T> {
     links: { url: string | null; label: string; active: boolean }[];
 }
 
-// Keys must match the role slugs used by self::MANAGEABLE_ROLES on the backend.
 type Role = 'dentist' | 'staff' | 'patient';
 
 interface PageProps {
@@ -78,19 +78,15 @@ const TAB_TITLES: Record<Role, string> = {
     patient: 'Patient Accounts',
 };
 
-function formatId(id: number) {
-    return `D${String(id).padStart(3, '0')}`;
-}
-
 function formatDate(value: string | null) {
     if (!value) return '—';
 
     const date = new Date(value);
     if (isNaN(date.getTime())) return value;
 
-    const month = date.toLocaleString('en-US', { month: 'short' }); // "Sep"
-    const day = date.getDate();                                     // 25
-    const year = date.getFullYear();                                // 2026
+    const month = date.toLocaleString('en-US', { month: 'short' });
+    const day = date.getDate();
+    const year = date.getFullYear();
 
     return `${month} ${day}, ${year}`; // e.g. "Sep 25, 2026"
 }
@@ -104,23 +100,18 @@ function paginationLabel(label: string) {
 }
 
 export default function Index() {
-    // NOTE: split from the previous single-statement
-    //   `usePage<PageProps & Record<string, unknown>>().props as unknown as PageProps`
-    // because some @babel/parser TSX versions fail to parse a multi-line
-    // generic argument list immediately followed by `()` (ambiguous with
-    // JSX). Splitting into two statements avoids the parser ambiguity.
+    // Split into two statements to avoid a @babel/parser TSX ambiguity with
+    // multi-line generics followed by `()`.
     const page = usePage<PageProps & Record<string, unknown>>();
     const { flash, users, filters, roleCounts, activeRole } = page.props as unknown as PageProps;
 
-    const { processing, delete: destroyForm } = useForm();
+    // `put` is used to deactivate users (PUT /users/{user}/deactivate).
+    const { processing, put } = useForm();
     const [search, setSearch] = useState(filters?.search ?? '');
     const isFirstRender = useRef(true);
 
-    // Guards against React 18 Strict Mode (enabled via createInertiaApp's
-    // `strictMode: true`) double-invoking this effect on mount in
-    // development, which was firing the toast twice. Tracking the last
-    // flash value we actually showed makes the second invocation a no-op.
-    // Doesn't affect production, where effects only run once anyway.
+    // Guards against React Strict Mode double-invoking this effect on mount
+    // in development, which would fire the toast twice.
     const lastFlashRef = useRef<string | null>(null);
 
     useEffect(() => {
@@ -139,15 +130,11 @@ export default function Index() {
     const userRows = users?.data ?? [];
 
     // Debounced: typing only updates local state immediately. The actual
-    // request to the server waits until 400ms after the user stops typing,
-    // so it doesn't fire on every keystroke — only once they pause.
+    // request waits until 400ms after the user stops typing.
     const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // When a tab switch also clears `search` (see handleTabChange), we don't
-    // want the debounce effect below to fire a *second*, stale request for
-    // the OLD role a moment later — that race was clobbering tab switches
-    // and made clicking Staff/Patient look broken/reverted. This flag tells
-    // the effect to skip once when the reset came from a tab change.
+    // When a tab switch also clears `search`, skip the debounce effect once
+    // so a stale request for the OLD role can't clobber the tab switch.
     const skipNextSearchEffect = useRef(false);
 
     useEffect(() => {
@@ -174,14 +161,10 @@ export default function Index() {
         };
     }, [search, activeRole]);
 
-    // Tab switches are immediate, not debounced, and reset the search box
-    // since "Dr." matches from the Dentists tab don't mean much on Staff.
+    // Tab switches are immediate, not debounced, and reset the search box.
     const handleTabChange = (role: Role) => {
         if (role === activeRole) return;
 
-        // Cancel any pending debounced search request and suppress the
-        // effect that setSearch('') below would otherwise trigger, so the
-        // tab switch can't be overwritten by a stale request for the old role.
         if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
         skipNextSearchEffect.current = true;
 
@@ -193,16 +176,17 @@ export default function Index() {
         );
     };
 
-    const handleDelete = (row: Row) => {
-        if (!confirm(`Delete "${row.name}"? This can't be undone.`)) return;
-
-        // Patients live in a separate table/resource, so they need their own
-        // destroy route rather than the users one.
+    const handleRemove = (row: Row) => {
+        // Patients live in a separate table/resource with their own destroy route.
         if (isPatientRow(row)) {
-            destroyForm(destroyPatient(row.id).url);
-        } else {
-            destroyForm(destroy(row.id).url);
+            if (!confirm(`Delete "${row.name}"? This can't be undone.`)) return;
+            router.delete(destroyPatient(row.id).url);
+            return;
         }
+
+        // Users are soft-deactivated, never deleted.
+        if (!confirm(`Deactivate "${row.name}"? They will no longer be able to log in.`)) return;
+        put(deactivate(row.id).url);
     };
 
     return (
@@ -217,7 +201,6 @@ export default function Index() {
                         <h1 className="text-3xl font-extrabold tracking-tight text-ink">
                             Users
                         </h1>
-                      
                     </div>
                     <Link href={create().url}>
                         <Button className="bg-brand-orange font-bold text-white hover:bg-brand-orange-hover">
@@ -232,17 +215,18 @@ export default function Index() {
                             key={tab.key}
                             type="button"
                             onClick={() => handleTabChange(tab.key)}
-                            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${activeRole === tab.key
+                            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                                activeRole === tab.key
                                     ? 'bg-white text-ink shadow-sm'
                                     : 'text-subtle hover:text-ink'
-                                }`}
+                            }`}
                         >
                             {tab.label} ({roleCounts?.[tab.key] ?? 0})
                         </button>
                     ))}
                 </div>
 
-                <div className="overflow-hidden rounded-xl border border-[#c9c0b7]  bg-white">
+                <div className="overflow-hidden rounded-xl border border-[#c9c0b7] bg-white">
                     <div className="flex items-center justify-between border-b border-[#c9c0b7] px-5 py-3">
                         <h2 className="font-bold text-ink">{TAB_TITLES[activeRole]}</h2>
                         <div className="relative">
@@ -272,7 +256,7 @@ export default function Index() {
                         <TableBody>
                             {userRows.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="py-10 text-center text-sm text-subtle">
+                                    <TableCell colSpan={5} className="py-10 text-center text-sm text-subtle">
                                         No users found.
                                     </TableCell>
                                 </TableRow>
@@ -285,27 +269,24 @@ export default function Index() {
                                         key={row.id}
                                         className="border-b border-[#c9c0b7] last:border-0"
                                     >
-                                        <TableCell>
-                                            {row.name}
-                                        </TableCell>
+                                        <TableCell>{row.name}</TableCell>
                                         <TableCell>{row.email}</TableCell>
                                         <TableCell>
                                             {patientRow ? (
                                                 row.contact_number ?? '—'
                                             ) : (
                                                 <span
-                                                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white ${row.is_active === 'Active'
-                                                        ? 'bg-emerald-600'
-                                                        : 'bg-slate-400'
-                                                        }`}
+                                                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium capitalize text-white ${
+                                                        row.is_active === 'active'
+                                                            ? 'bg-emerald-600'
+                                                            : 'bg-red-600'
+                                                    }`}
                                                 >
                                                     {row.is_active}
                                                 </span>
                                             )}
                                         </TableCell>
-                                        <TableCell>
-                                            {formatDate(row.created_at)}
-                                        </TableCell>
+                                        <TableCell>{formatDate(row.created_at)}</TableCell>
                                         <TableCell>
                                             <div className="flex items-center justify-end gap-4">
                                                 <Link
@@ -315,15 +296,26 @@ export default function Index() {
                                                     <Pencil className="h-4 w-4" />
                                                     Edit
                                                 </Link>
-                                                <button
-                                                    type="button"
-                                                    disabled={processing}
-                                                    onClick={() => handleDelete(row)}
-                                                    className="flex items-center gap-1 text-sm font-medium text-ink hover:text-danger disabled:opacity-50"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                    Delete
-                                                </button>
+                                                {(patientRow || row.is_active === 'active') && (
+                                                    <button
+                                                        type="button"
+                                                        disabled={processing}
+                                                        onClick={() => handleRemove(row)}
+                                                        className="flex items-center gap-1 text-sm font-medium text-ink hover:text-danger disabled:opacity-50"
+                                                    >
+                                                        {patientRow ? (
+                                                            <>
+                                                                <Trash2 className="h-4 w-4" />
+                                                                Delete
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <UserX className="h-4 w-4" />
+                                                                Deactivate
+                                                            </>
+                                                        )}
+                                                    </button>
+                                                )}
                                             </div>
                                         </TableCell>
                                     </TableRow>
@@ -338,10 +330,11 @@ export default function Index() {
                                 <Link
                                     key={i}
                                     href={link.url ?? '#'}
-                                    className={`flex items-center rounded-md px-3 py-1 text-sm ${link.active
-                                        ? 'bg-brand-orange text-white'
-                                        : 'text-brand-orange-hover hover:bg-[#fbead9]'
-                                        } ${!link.url ? 'pointer-events-none opacity-40' : ''}`}
+                                    className={`flex items-center rounded-md px-3 py-1 text-sm ${
+                                        link.active
+                                            ? 'bg-brand-orange text-white'
+                                            : 'text-brand-orange-hover hover:bg-[#fbead9]'
+                                    } ${!link.url ? 'pointer-events-none opacity-40' : ''}`}
                                 >
                                     {paginationLabel(link.label)}
                                 </Link>

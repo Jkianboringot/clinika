@@ -74,7 +74,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/', [UserController::class, 'store'])->name('store');
             Route::get('/{user}/edit', [UserController::class, 'edit'])->name('edit');
 
-            Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
+          Route::put('/{user}/deactivate', [UserController::class, 'deactivate'])->name('deactivate');
             Route::put('/{user}', [UserController::class, 'update'])->name('update');
         }
     );

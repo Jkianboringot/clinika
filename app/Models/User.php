@@ -3,6 +3,8 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+
+use App\Enums\IsActiveEnum;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -43,6 +45,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => IsActiveEnum::class
         ];
     }
 
@@ -50,7 +53,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'branch_id'
+        'branch_id',
+        'is_active'
     ];
 
    public function appointments(){

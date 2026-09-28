@@ -10,100 +10,74 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+
 /**
  * =====================================================================
  * USER MANAGEMENT MODULE — Controller Notes
  * =====================================================================
  * Type   : Product — Backend Logic
  * Purpose: Manages system users — Admin, Staff, and Dentist accounts.
- *          Patient accounts are technically a "user" type too, but
- *          will live in a SEPARATE controller/file (noted here only
- *          for reference — see Patient module).
+ *          Patient accounts live in a SEPARATE controller/file
+ *          (see Patient module).
  * =====================================================================
  *
  * ACCESS / ROLES
  * ---------------
  * - Accessible by ADMIN and STAFF, but permissions differ by role:
- *   - ADMIN  : can create/edit/delete Dentist & Staff accounts.
- *   - STAFF  : cannot create Dentist or Staff — staff can only
- *              manage (create/edit/delete) PATIENT accounts.
- *
- * NATURE OF THIS MODULE
- * ----------------------
- * - Could be a simple Controller or a Service — not heavily decided yet.
- * - Requires HEAVY authorization checks on Create, given role sensitivity.
+ *   - ADMIN  : can create/edit/deactivate Dentist & Staff accounts.
+ *   - STAFF  : view only in this module (Patient management lives
+ *              in the Patient module).
  *
  * DATA FIELDS
  * -----------
  * - name       : string, min 3 / max 75 chars
- * - email      : string, min 3 / max 75–150 chars (TBD)
- *                - must be UNIQUE (used for login — patients log in via email)
- *                - uniqueness check must be IGNORED on update (self-email)
- * - is_active  : enum -> active | deactivated
- * - password   : must be hashed before storage
- * - role       : assigned role (admin | dentist | staff | patient)
+ * - email      : unique (used for login); ignored on self-update
+ * - is_active  : enum -> active | inactive
+ * - password   : hashed before storage
+ * - role       : admin | dentist | staff
  *
  * ARCHITECTURE FLOW
  * ------------------
- *   UI -> Route -> Controller -> Custom Request Form (validation) -> (Service?)
+ *   UI -> Route -> Controller -> Custom Request Form (validation)
  *
  * BUSINESS LOGIC
  * ---------------
- * 1. Creation restriction by role
- *    - STAFF cannot create Dentist or Staff accounts.
- *    - STAFF can only create/manage Patient accounts.
- *    - ADMIN can create/edit/delete, but only within their responsibility scope.
+ * 1. Role assignment safeguard
+ *    - Only roles returned by assignableRoles() can be assigned.
+ *    - Admin accounts cannot be reassigned to another role.
  *
- * 2. Role assignment safeguard
- *    - When assigning a role, system must NOT allow:
- *        - Staff being assigned "Admin" permission.
- *        - Dentist being assigned "Admin" or "Staff" permission.
- *    - [REMINDER] This is meant to guard against human error during
- *      role assignment (e.g. accidentally setting wrong role).
- *      Permissions themselves are already tied to role — this is
- *      more of a safety net than a core system responsibility.
+ * 2. Delete = DEACTIVATE (soft)
+ *    - Users are never removed from the database. "Delete" sets
+ *      is_active to INACTIVE, invalidates remember-me token, and
+ *      wipes their sessions so they are logged out immediately.
+ *    - Deactivated users are hidden from the index and tab counts.
+ *    - Deactivated users cannot log in (see LoginRequest check and
+ *      EnsureUserIsActive middleware).
+ *    - ADMIN accounts can NEVER be deactivated.
+ *    - No user can deactivate THEMSELVES.
+ *    - Related records (appointments, inventory, treatment) stay
+ *      intact, so no relation checks are needed anymore.
  *
- * 3. Delete restrictions
- *    - ADMIN accounts can NEVER be deleted (not even by another admin).
- *    - No user can delete THEMSELVES — self-deletion is blocked for
- *      Admin, Dentist, Staff, and Patient alike.
- *    - Only ADMIN can delete other users (Dentist/Staff/Patient).
- *    - Must check existence/validity before delete.
+ * 3. Self-editing
+ *    - Users edit their own info via their profile page, not here.
  *
- * 4. Self-editing allowance
- *    - Dentist, Staff, and Patient CANNOT delete themselves,
- *      but CAN edit their own information via their profile.
- *
- * 5. Update safeguard
+ * 4. Update safeguard
  *    - All edits go through Custom Request Form validation.
  *    - Email uniqueness check excludes the current user's own record.
  *
- * =====================================================================
- * REVIEW (implementation note, not part of the original spec above):
- * Rule 1 and rule 3 read as mildly contradictory once Patient accounts
- * are pulled out into their own controller — if Staff's only write
- * access is to Patients, and Patients aren't managed here, Staff ends
- * up with NO create/update/delete rights in this module at all (view
- * only). That's the reading this controller and UserPolicy are built
- * on. Flag me if Staff was actually meant to retain some write access
- * here.
- * =====================================================================
- *
- * FIX NOTE (role filter):
+ * NOTE (role filter):
  * The frontend's index tabs only cover 'dentist' | 'staff' | 'patient'
- * (no Admin tab exists in Users/Index.tsx). Defaulting the role filter
- * to 'admin' when no ?role= is present meant a fresh page load showed
- * Admin accounts with no tab highlighted as active, and TAB_TITLES had
- * no 'admin' entry on the frontend. Default now matches the first tab.
+ * (no Admin tab), so the default role filter is 'dentist'.
  * =====================================================================
  */
 
 class UserController extends Controller
 {
-
     public function index(SearchRequest $request): Response
     {
         $this->authorize('users.view');
@@ -111,7 +85,6 @@ class UserController extends Controller
         $validated = $request->validated();
 
         // Default to 'dentist' — the first tab the frontend actually renders.
-        // (Frontend TABS = dentist | staff | patient; there is no Admin tab.)
         $activeRole = $validated['role'] ?? 'dentist';
 
         abort_unless(
@@ -120,11 +93,9 @@ class UserController extends Controller
         );
 
         if ($activeRole === 'patient') {
-            // Patients live in their own table/model (see Patient.php), not
-            // in `users` with a "patient" role — so this branch queries
-            // Patient directly. `full_name as name` aliases the column so
-            // the frontend can read `row.name` the same way it does for
-            // users, without needing to know the underlying column differs.
+            // Patients live in their own table/model (see Patient.php).
+            // `full_name as name` aliases the column so the frontend can
+            // read `row.name` the same way it does for users.
             $users = Patient::query()
                 ->select(['id', 'full_name as name', 'email', 'contact_number', 'created_at'])
                 ->when(
@@ -148,9 +119,12 @@ class UserController extends Controller
                 ->withQueryString();
         }
 
-        $roleCounts = collect(['admin', 'dentist', 'staff'])
+        $roleCounts = collect(['dentist', 'staff'])
             ->mapWithKeys(
-                fn($role) => [$role => User::role($role)->count()]
+                fn($role) => [
+                    $role => User::role($role)
+                        ->count(),
+                ]
             )
             ->merge(['patient' => Patient::count()]);
 
@@ -164,7 +138,6 @@ class UserController extends Controller
             'activeRole' => $activeRole,
         ]);
     }
-
 
     public function create(): Response
     {
@@ -182,20 +155,14 @@ class UserController extends Controller
         $validated = $request->validated();
         $this->guardRoleAssignment($validated['role']);
 
-        try {
-            $user = User::create([
-                'name' => $validated['name'],
-                'email' => $validated['email'],
-                'password' => Hash::make($validated['password']),
-                'is_active' => IsActiveEnum::ACTIVE->value,
-            ]);
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'is_active' => IsActiveEnum::ACTIVE->value,
+        ]);
 
-            $user->syncRoles([$validated['role']]);
-        } catch (\Throwable $e) {
-            return redirect()
-                ->route('users.index')
-                ->with('error', 'Failed to create User.');
-        }
+        $user->syncRoles([$validated['role']]);
 
         return redirect()->route('users.index')->with('message', 'User created successfully.');
     }
@@ -223,70 +190,45 @@ class UserController extends Controller
         $validated = $request->validated();
         $this->guardRoleAssignment($validated['role'], $user);
 
-        try {
-            $user->update([
-                'name' => $validated['name'],
-                'email' => $validated['email'],
-                'is_active' => $validated['is_active'] ?? $user->is_active,
-            ]);
+        $user->update([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'is_active' => $validated['is_active'] ?? $user->is_active,
+        ]);
 
-            if (!empty($validated['password'])) {
-                $user->update(['password' => Hash::make($validated['password'])]);
-            }
-
-            $user->syncRoles([$validated['role']]);
-        } catch (\Throwable $e) {
-            return redirect()
-                ->route('users.index')
-                ->with('error', 'Failed to update User.');
+        if (!empty($validated['password'])) {
+            $user->update(['password' => Hash::make($validated['password'])]);
         }
+
+        $user->syncRoles([$validated['role']]);
 
         return redirect()->route('users.index')->with('message', 'User updated successfully.');
     }
 
-    public function destroy(Request $request, User $user): RedirectResponse
+    /**
+     * "Delete" is a soft deactivation: the row stays, is_active flips to
+     * INACTIVE, and the user is logged out everywhere.
+     */
+    public function deactivate(Request $request, User $user): RedirectResponse
     {
         $this->authorize('users.delete');
 
         if ($user->hasRole('admin')) {
-            abort(403, 'Admin accounts cannot be deleted.');
+            abort(403, 'Admin accounts cannot be deactivated.');
         }
 
         if ($user->id === Auth::id()) {
-            abort(403, "You can't delete your own account.");
+            abort(403, "You can't deactivate your own account.");
         }
 
-        //for staff
-        if ($user->appointments()->exists()) {
-            return redirect()
-                ->route('users.index')
-                ->with('error', 'This user has appointments assigned and cannot be deleted.');
-        }
+        $user->update([
+            'is_active' => IsActiveEnum::DEACTIVED->value,
+            'remember_token' => Str::random(60), // invalidate "remember me" cookies
+        ]);
+        // Kill active sessions (requires SESSION_DRIVER=database)
+        DB::table('sessions')->where('user_id', $user->id)->delete();
 
-        // for staff
-        if ($user->inventory()->exists()) {
-            return redirect()
-                ->route('users.index')
-                ->with('error', 'This user has inventory assigned and cannot be deleted.');
-        }
-
-         // for doctor
-        if ($user->treatment()->exists()) {
-            return redirect()
-                ->route('users.index')
-                ->with('error', 'This user has treatment assigned and cannot be deleted.');
-        }
-
-        try {
-            //
-            $user->deleteOrFail();
-        } catch (\Illuminate\Database\QueryException $e) {
-            return redirect()
-                ->route('users.index')
-                ->with('error', 'This user cannot be deleted because related records exist.');
-        }
-
-        return redirect()->route('users.index')->with('message', 'User deleted successfully.');
+        return redirect()->route('users.index')->with('message', 'User deactivated successfully.');
     }
 
     private function assignableRoles(): array
@@ -296,7 +238,8 @@ class UserController extends Controller
             : ['dentist'];
     }
 
-    //ok this already ensure that we cannot assign just some random role it must be   ['admin', 'dentist', 'staff'], if not it throw error good
+    // Ensures only roles in assignableRoles() can be assigned, and admins
+    // can't be moved to another role.
     private function guardRoleAssignment(string $role, ?User $target = null): void
     {
         if (!in_array($role, $this->assignableRoles(), true)) {
