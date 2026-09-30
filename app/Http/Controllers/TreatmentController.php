@@ -3,19 +3,22 @@
 namespace App\Http\Controllers;
 
 use App\Enums\AppointmentStatusEnum as EnumsAppointmentStatusEnum;
+use App\Exceptions\TreatmentLimitExceededException;
 use App\Http\Requests\TreatmentRequest;
+use App\Mail\TreatmentSummaryMail;
 use App\Models\Appointment;
 use App\Models\InventoryItem;
+use App\Models\Medication;
 use App\Models\Procedure;
 use App\Models\Treatment;
 use App\Services\TreatmentService;
-use AppointmentStatusEnum;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 
-//process of this is it cant be created without appointment or item attach to it both must be true before it could be create, patient will be taken from appointment and this treatment will be yhe one to initiate the reduction of stock
-
+// A treatment can't be created without an appointment; the patient comes from the
+// appointment, and the treatment is what triggers the stock reduction.
 
 class TreatmentController extends Controller
 {
@@ -23,103 +26,95 @@ class TreatmentController extends Controller
     {
     }
 
-  public function index(Request $request)
-{
-    $search = $request->string('search')->toString();
+    public function index(Request $request)
+    {
+        $search = $request->string('search')->toString();
 
-    $treatments = Treatment::with('appointment.patient')
-        ->when($search, fn($q) => $q->whereHas(
-            'appointment.patient',
-            fn($p) => $p->where('full_name', 'like', "%{$search}%")
-        ))
-        ->latest()
-        ->paginate(10)
-        ->withQueryString()
-        ->through(fn($t) => [
-            'id' => $t->id,
-            'patient_name' => $t->appointment?->patient?->full_name,
-            'appointment_id' => $t->appointment_id,
-            'follow_up_schedule' => $t->follow_up_schedule,
-            'duration_minutes' => $t->duration_minutes,
-            'summary' => $t->summary,
-            'created_at' => $t->created_at?->format('M d, Y'),
+        $treatments = Treatment::with('appointment.patient')
+            ->when($search, fn($q) => $q->whereHas(
+                'appointment.patient',
+                fn($p) => $p->where('full_name', 'like', "%{$search}%")
+            ))
+            ->latest()
+            ->paginate(10)
+            ->withQueryString()
+            ->through(fn($t) => [
+                'id' => $t->id,
+                'patient_name' => $t->appointment?->patient?->full_name,
+                'appointment_id' => $t->appointment_id,
+                'follow_up_schedule' => $t->follow_up_schedule,
+                'duration_minutes' => $t->duration_minutes,
+                'summary' => $t->summary,
+                'created_at' => $t->created_at?->format('M d, Y'),
+            ]);
+
+        return Inertia::render('Treatments/Index', [
+            'treatments' => $treatments,
+            'filters' => ['search' => $search],
         ]);
+    }
 
-    return Inertia::render('Treatments/Index', [
-        'treatments' => $treatments,
-        'filters' => ['search' => $search],
-    ]);
-}
-
-
-
-    //this needs to start from appointment and all we need to do is click it and put as in create of treatment or we could just show it in drop-down 
-
-    //this needs the appointment info such as patient and id of appointment,procedure, item, the treatment description is not needed since we dont need to show data on that,
     public function create(Appointment $appointment)
     {
-
-
         return Inertia::render('Treatments/Create', [
             'appointment' => $appointment->load('patient'),
             'items' => InventoryItem::selectRaw('id, item_name as name')->orderBy('item_name')->get(),
             'procedures' => Procedure::all(),
-            'medications' => \App\Models\Medication::all()->map(fn($m) => [
+            'medications' => Medication::all()->map(fn($m) => [
                 'id' => $m->id,
                 'name' => $m->name ?? $m->medication_name ?? $m->generic_name ?? "Medication #{$m->id}",
             ]),
-            'followUpEnum' => collect(EnumsAppointmentStatusEnum::cases())->map(fn($a) =>
-                [
-                    'value' => $a->value,
-                    'label' => $a->value
-                ])
+            'followUpEnum' => collect(EnumsAppointmentStatusEnum::cases())->map(fn($a) => [
+                'value' => $a->value,
+                'label' => $a->value,
+            ]),
         ]);
-
     }
-
-
-
-    //just summaries it am not stupid,just check the migration
-//data=[treatment:...$treatment,
-//prescriptionlist:...$treatment_description,//the medicine is just the id
-//appoitment:...$appointment
-//treatmentItemList:...$items,
-
-
-    //]
 
     // Route::post('{appointment}/create')
     public function store(Appointment $appointment, TreatmentRequest $request)
     {
-
         $data = $request->validated();
-        $tr = $this->treatmentService->treatmentStore(
-            $appointment,
-            [
-                'treatment' => [
-                    'follow_up_schedule' => $data['follow_up_schedule'],
-                    'duration_minutes' => $data['duration_minutes'],
-                    'summary' => $data['summary'],
-                ],
-                'prescriptionlist' => $data['prescriptionlist'],//will already be return asan array, and its not like treatment where it will be givin one by one this one needs to come in as an array since it can be multiple, we could do tha same for treatment but that hard to understand
-                'itemList' => $data['itemList'],
-            ]
 
-        );
-
-        if (!$tr) {
-            return back()->with('error', 'Failed to created treatment');
+        try {
+            $tr = $this->treatmentService->treatmentStore(
+                $appointment,
+                [
+                    'treatment' => [
+                        'follow_up_schedule' => $data['follow_up_schedule'],
+                        'duration_minutes' => $data['duration_minutes'],
+                        'summary' => $data['summary'],
+                    ],
+                    'prescriptionlist' => $data['prescriptionlist'],
+                    'itemList' => $data['itemList'],
+                ]
+            );
+        } catch (TreatmentLimitExceededException | \RuntimeException $e) {
+            // Expected business-rule failures (insufficient stock, 1:1 rule, ...)
+            return back()->withInput()->with('error', $e->getMessage());
         }
 
-        return redirect()->route('treatments.index')->with('message', 'Sucessfully created treatment');
+        if (!$tr) {
+            return back()->with('error', 'Failed to create treatment');
+        }
 
+        // Runs AFTER the transaction has committed. A mail failure must never
+        // undo the treatment, so it's caught and logged.
+        $this->sendSummaryEmail($appointment, $tr);
+
+        $redirect = redirect()->route('treatments.index')->with('message', 'Successfully created treatment');
+
+        if (!empty($tr->low_stock_warnings)) {
+            $redirect->with('warning', $tr->low_stock_warnings);
+        }
+
+        return $redirect;
     }
 
     public function edit(Treatment $treatment)
     {
         $treatment->load(['treatmentInventories', 'perscriptions']);
 
-        // lets do it like this so that appointment can only be true to one treatment
         $appointment = Appointment::with('patient')->findOrFail($treatment->appointment_id);
 
         return Inertia::render('Treatments/Edit', [
@@ -140,61 +135,101 @@ class TreatmentController extends Controller
                 ]),
             ],
             'appointment' => $appointment,
-            'items' => \App\Models\InventoryItem::all()->map(fn($i) => [
+            'items' => InventoryItem::all()->map(fn($i) => [
                 'id' => $i->id,
                 'name' => $i->item_name,
             ]),
-            'procedures' => \App\Models\Procedure::all()->map(fn($p) => [
+            'procedures' => Procedure::all()->map(fn($p) => [
                 'id' => $p->id,
                 'name' => $p->name,
             ]),
-            'medications' => \App\Models\Medication::all()->map(fn($m) => [
+            'medications' => Medication::all()->map(fn($m) => [
                 'id' => $m->id,
                 'name' => $m->name ?? $m->medication_name ?? $m->generic_name ?? "Medication #{$m->id}",
             ]),
         ]);
     }
 
-
-
     public function update(Treatment $treatment, TreatmentRequest $request)
     {
-
         $data = $request->validated();
-        $tr = $this->treatmentService->treatmentUpdate(
-            $treatment,
-            [
-                'treatment' => [
-                    'follow_up_schedule' => $data['follow_up_schedule'],//need to keep this since it needs outside data, not really i can remove it and it will work fine since we are doing model-binding
-                ],
-                'prescriptionlist' => $data['prescriptionlist'],//will already be return asan array, and its not like treatment where it will be givin one by one this one needs to come in as an array since it can be multiple, we could do tha same for treatment but that hard to understand
-                'itemList' => $data['itemList'],
-            ]
-
-        );
-
-        if (!$tr) {
-            return back()->with('error', 'Failed to udpated treatment');
-        }
-
-        return redirect()->route('treatments.index')->with('message', 'Sucessfully udpated treatment');
-
-    }
-
-    public function destroy(Treatment $treatment): RedirectResponse
-    {
 
         try {
-            $treatment->deleteOrFail();
-
-        } catch (\Throwable $e) {
-            return redirect()->route('treatments.index')->with('error', 'Failed to delete, already has with treatment');
+            $tr = $this->treatmentService->treatmentUpdate(
+                $treatment,
+                [
+                    // FIX: was only passing follow_up_schedule, so summary and
+                    // duration_minutes were silently never updated.
+                    'treatment' => [
+                        'follow_up_schedule' => $data['follow_up_schedule'],
+                        'duration_minutes' => $data['duration_minutes'],
+                        'summary' => $data['summary'],
+                    ],
+                    'prescriptionlist' => $data['prescriptionlist'],
+                    'itemList' => $data['itemList'],
+                ]
+            );
+        } catch (\RuntimeException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
         }
 
-        return redirect()->route('treatments.index')->with('message', 'Treatment deleted successfully.');
+        if (!$tr) {
+            return back()->with('error', 'Failed to update treatment');
+        }
+
+        $redirect = redirect()->route('treatments.index')->with('message', 'Successfully updated treatment');
+
+        if (!empty($tr->low_stock_warnings)) {
+            $redirect->with('warning', $tr->low_stock_warnings);
+        }
+
+        return $redirect;
     }
 
+    // FIX: service now has treatmentDeletePreview().
+    public function deletePreview(Treatment $treatment)
+    {
+        return response()->json($this->treatmentService->treatmentDeletePreview($treatment));
+    }
 
+    public function destroy(Treatment $treatment)
+    {
+        try {
+            // FIX: service now returns an impact array (with 'warnings'), not `true`.
+            $impact = $this->treatmentService->treatmentDelete($treatment);
+        } catch (\Throwable $e) {
+            return redirect()->route('treatments.index')->with('error', 'Failed to delete treatment.');
+        }
 
+        $redirect = redirect()->route('treatments.index')
+            ->with('success', 'Treatment deleted and stock returned.');
 
+        if (!empty($impact['warnings'])) {
+            $redirect->with('warning', $impact['warnings']);
+        }
+
+        return $redirect;
+    }
+
+    /**
+     * Emails the patient their treatment summary (Mailtrap in dev via .env).
+     * Never throws.
+     */
+    private function sendSummaryEmail(Appointment $appointment, Treatment $tr): void
+    {
+        $patient = $appointment->patient;
+
+        if (!$patient?->email) {
+            return;
+        }
+
+        try {
+            Mail::to($patient->email)->send(new TreatmentSummaryMail($tr));
+        } catch (\Throwable $e) {
+            Log::warning('Treatment summary email failed', [
+                'treatment_id' => $tr->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
 }

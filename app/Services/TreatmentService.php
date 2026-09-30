@@ -3,42 +3,30 @@
 namespace App\Services;
 
 use App\Exceptions\TreatmentLimitExceededException;
-use App\Enums\InOutType;
 use App\Models\Appointment;
-use App\Models\Branch;
-use App\Models\Inventory;
 use App\Models\InventoryItem;
-use App\Models\Sale;
 use App\Models\Treatment;
 use App\Models\TreatmentPrescriptionDetails;
 use App\Enums\AppointmentStatusEnum;
-use Error;
-use ErrorException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-use function Laravel\Prompts\error;
-
-
 class TreatmentService
 {
-    // 1.reference the appointment✅
-    // 2.save Treatment✅
-    // 3.save treatment_prescription_details
-    // 4.reduce stock 
-    // 5.after all this are done , we edit appointment status to complete
+    /**
+     * Create a treatment for an appointment.
+     * 1. lock appointment  2. save treatment  3. save prescriptions
+     * 4. reserve/reduce stock  5. mark appointment completed
+     */
     function treatmentStore(Appointment $ap, array $data)
     {
-
         try {
 
             return DB::transaction(
                 function () use ($ap, $data) {
 
-                    // Lock the appointment row first. This serializes any
-                    // concurrent "create a treatment for this appointment"
-                    // requests, so two simultaneous requests can't both read
-                    // "0 existing treatments" and both proceed.
+                    // Lock the appointment row first so two simultaneous requests
+                    // can't both read "0 existing treatments" and both proceed.
                     $lockedAppointment = Appointment::where('id', $ap->id)
                         ->lockForUpdate()
                         ->firstOrFail();
@@ -46,28 +34,20 @@ class TreatmentService
                     // Business rule: one Appointment has exactly one Treatment.
                     $this->assertTreatmentAllowed($lockedAppointment->id);
 
-
                     $tr = new Treatment();
                     $tr->fill($data['treatment']);
                     $tr->appointment_id = $lockedAppointment->id;
                     $tr->user_id = auth()->id();
                     $tr->save();
 
-
-
-                    // TODO(later): added check if medicine even exist, no harm in double security even if validation should already catch this
                     foreach ($data['prescriptionlist'] as $pl) {
-                        // $m=$pl->findOrfial('medication_id');
                         $tpdl = new TreatmentPrescriptionDetails();
                         $tpdl->fill($pl);
                         $tpdl->treatment_id = $tr->id;
                         $tpdl->save();
                     }
 
-
-                    // Stock check + reservation. Locks each InventoryItem row
-                    // (SELECT ... FOR UPDATE) so concurrent treatments can't both
-                    // read the same "current stock" and both pass the check.
+                    // Stock check + reservation (row locks on each InventoryItem).
                     $lowStockWarnings = $this->reserveStockOrFail($data['itemList']);
 
                     foreach ($data['itemList'] as $listItem) {
@@ -77,18 +57,14 @@ class TreatmentService
                         ]);
                     }
 
-
-                    //why does this work here but not inmigration?
                     $lockedAppointment->status = AppointmentStatusEnum::Completed->value;
                     $lockedAppointment->save();
 
-                    // Attach warnings so the controller can flash them without
-                    // aborting the transaction — treatment still saves.
+                    // Warnings ride along on the model so the controller can flash
+                    // them without aborting the transaction.
                     $tr->setAttribute('low_stock_warnings', $lowStockWarnings);
 
                     return $tr;
-
-
                 }
             );
 
@@ -97,9 +73,7 @@ class TreatmentService
                 DB::rollBack();
             }
 
-            // Business-rule and validation failures are expected, user-facing
-            // outcomes — not bugs. Don't spam the error log for them; only
-            // log genuinely unexpected failures.
+            // Business-rule / validation failures are expected, not bugs.
             if (
                 !($th instanceof \Illuminate\Validation\ValidationException) &&
                 !($th instanceof \Illuminate\Auth\Access\AuthorizationException) &&
@@ -112,44 +86,53 @@ class TreatmentService
                 ]);
             }
 
-            // Always re-throw. Swallowing here means the controller (and the
-            // user) never finds out the operation actually failed.
             throw $th;
         }
-
-
-
     }
 
 
-
+    /**
+     * Update a treatment.
+     * FIX: prescriptions are now replaced (delete + recreate) instead of the old
+     *      TreatmentPrescriptionDetails::findOrFail($tr->id), which looked up by the
+     *      TREATMENT id and hit the wrong row (or none).
+     * FIX: items removed from the list are now deleted so their stock is returned.
+     */
     function treatmentUpdate(Treatment $tr, array $data)
     {
-
         try {
 
             return DB::transaction(
                 function () use ($tr, $data) {
 
+                    // Lock the parent appointment so an update can't race a delete.
+                    Appointment::where('id', $tr->appointment_id)
+                        ->lockForUpdate()
+                        ->firstOrFail();
 
                     $tr->fill($data['treatment']);
                     $tr->user_id = auth()->id();
                     $tr->save();
 
-
-
-                    // TODO(later): added check if medicine even exist, no harm in double security even if validation should already catch this
+                    // The edit form sends the full prescription list without row ids,
+                    // so replace the whole set.
+                    $tr->perscriptions()->delete();
                     foreach ($data['prescriptionlist'] as $pl) {
-                        // $m=$pl->findOrfial('medication_id');
-                        $tpdl = TreatmentPrescriptionDetails::findOrFail($tr->id);
+                        $tpdl = new TreatmentPrescriptionDetails();
                         $tpdl->fill($pl);
+                        $tpdl->treatment_id = $tr->id;
                         $tpdl->save();
                     }
 
-
-                    // Stock check against the DELTA between old and new quantity
-                    // per item — not the new quantity alone.
+                    // Stock check against the DELTA between old and new quantity.
                     $lowStockWarnings = $this->reserveStockDeltaOrFail($tr, $data['itemList']);
+
+                    $keepItemIds = collect($data['itemList'])->pluck('item_id')->unique()->all();
+
+                    // Items no longer in the list -> remove the row, which returns stock.
+                    $tr->treatmentInventories()
+                        ->whereNotIn('inventory_item_id', $keepItemIds)
+                        ->delete();
 
                     foreach ($data['itemList'] as $listItem) {
                         $tr->treatmentInventories()->updateOrCreate(
@@ -157,15 +140,10 @@ class TreatmentService
                             ['quantity' => $listItem['quantity']]
                         );
                     }
-                    //why does this work here but not inmigration?
-                        // $ap->status = AppointmentStatusEnum::Completed->value;
-                        // $ap->save();
 
                     $tr->setAttribute('low_stock_warnings', $lowStockWarnings);
 
                     return $tr;
-
-
                 }
             );
 
@@ -187,18 +165,12 @@ class TreatmentService
 
             throw $th;
         }
-
-
-
     }
 
 
     /**
-     * Enforces the 1 Appointment : 1 Treatment business rule at the
-     * application level. Call ONLY after the appointment row has already
-     * been locked with lockForUpdate() in the surrounding transaction —
-     * otherwise this count is subject to the same race condition it exists
-     * to prevent.
+     * Enforces the 1 Appointment : 1 Treatment rule. Call ONLY after the
+     * appointment row is locked in the surrounding transaction.
      *
      * @throws TreatmentLimitExceededException
      */
@@ -213,16 +185,11 @@ class TreatmentService
 
 
     /**
-     * Same locking strategy as reserveStockOrFail(), but checks the CHANGE
-     * in quantity per item rather than the new quantity outright — since an
-     * update replaces an existing treatment_inventories row rather than
-     * adding a fresh deduction.
+     * Like reserveStockOrFail(), but checks the CHANGE in quantity per item.
      *
-     * delta > 0  => treatment now needs MORE of this item => must fit in stock
-     * delta <= 0 => treatment now needs LESS (or the same) => always fine,
-     *               frees stock up, never rejected
+     * delta > 0  => needs MORE of this item => must fit in stock
+     * delta <= 0 => needs LESS/same => always fine
      *
-     * @param array<int, array{item_id: int, quantity: float|int|string}> $itemList
      * @return string[] low-stock warning messages
      */
     private function reserveStockDeltaOrFail(Treatment $tr, array $itemList): array
@@ -236,7 +203,7 @@ class TreatmentService
             ->get()
             ->keyBy('id');
 
-        // Existing quantities already reserved by THIS treatment, keyed by item id.
+        // Quantities already reserved by THIS treatment, keyed by item id.
         $existingQuantities = $tr->treatmentInventories()
             ->whereIn('inventory_item_id', $itemIds)
             ->pluck('quantity', 'inventory_item_id');
@@ -256,22 +223,20 @@ class TreatmentService
 
             $stockAdditionTotal = (float) $item->inventoryStock()->sum('quantity');
             $treatmentTotal = (float) $item->treatmentInventories()->sum('quantity');
-            // Current true balance, INCLUDING this treatment's own old
-            // reservation (since it's already subtracted in $treatmentTotal).
+            // Balance already INCLUDES this treatment's old reservation.
             $currentStock = round($stockAdditionTotal - $treatmentTotal, 2);
 
-            // Only an increase in usage can push stock negative.
             $resultingStock = round($currentStock - $delta, 2);
 
             if ($delta > 0 && $resultingStock < 0) {
                 throw new \RuntimeException(
-                    "Insufficient stock for \"{$item->item_name}\": ".
+                    "Insufficient stock for \"{$item->item_name}\": " .
                     "needs {$delta} more, but only {$currentStock} available."
                 );
             }
 
             if ($item->minimum_stock !== null && $resultingStock < (float) $item->minimum_stock) {
-                $warnings[] = "\"{$item->item_name}\" will drop to {$resultingStock}, ".
+                $warnings[] = "\"{$item->item_name}\" will drop to {$resultingStock}, " .
                     "below its minimum stock of {$item->minimum_stock}.";
             }
         }
@@ -281,25 +246,19 @@ class TreatmentService
 
 
     /**
-     * Locks each involved InventoryItem row, recomputes its real (unclamped)
-     * stock, and validates the deduction. Must be called from inside an
-     * existing DB::transaction() — lockForUpdate() only holds its lock for
-     * the lifetime of the surrounding transaction.
+     * Locks each involved InventoryItem row, recomputes real (unclamped) stock,
+     * and validates the deduction. Must run inside a DB::transaction().
      *
-     * - Resulting stock < 0  => throws, which rolls back the whole transaction.
-     * - Resulting stock < minimum_stock (but still >= 0) => collected as a
-     *   warning string and returned, operation still proceeds.
+     * - Resulting stock < 0 => throws (rolls back the whole transaction).
+     * - Resulting stock < minimum_stock (but >= 0) => returned as a warning.
      *
-     * @param array<int, array{item_id: int, quantity: float|int|string}> $itemList
      * @return string[] low-stock warning messages
      */
     private function reserveStockOrFail(array $itemList): array
     {
         $warnings = [];
 
-        // Sort item IDs before locking so concurrent requests always acquire
-        // row locks in the same order — avoids a deadlock where two
-        // transactions lock different rows first then wait on each other.
+        // Sorted IDs => consistent lock order => no deadlocks.
         $itemIds = collect($itemList)->pluck('item_id')->unique()->sort()->values();
 
         $lockedItems = InventoryItem::whereIn('id', $itemIds)
@@ -317,9 +276,7 @@ class TreatmentService
                 throw new \RuntimeException("Inventory item #{$itemId} was not found.");
             }
 
-            // Raw balance, NOT the model's ->stock() (which clamps to 0 via
-            // max(0, ...) — we need the unclamped number to detect the
-            // resulting stock going negative).
+            // Raw balance, NOT ->stock() (which clamps to 0).
             $stockAdditionTotal = (float) $item->inventoryStock()->sum('quantity');
             $treatmentTotal = (float) $item->treatmentInventories()->sum('quantity');
             $currentStock = round($stockAdditionTotal - $treatmentTotal, 2);
@@ -328,13 +285,13 @@ class TreatmentService
 
             if ($resultingStock < 0) {
                 throw new \RuntimeException(
-                    "Insufficient stock for \"{$item->item_name}\": ".
+                    "Insufficient stock for \"{$item->item_name}\": " .
                     "available {$currentStock}, requested {$requestedQty}."
                 );
             }
 
             if ($item->minimum_stock !== null && $resultingStock < (float) $item->minimum_stock) {
-                $warnings[] = "\"{$item->item_name}\" will drop to {$resultingStock}, ".
+                $warnings[] = "\"{$item->item_name}\" will drop to {$resultingStock}, " .
                     "below its minimum stock of {$item->minimum_stock}.";
             }
         }
@@ -343,49 +300,56 @@ class TreatmentService
     }
 
 
-    // when delte happens:
-    // 1.reverse the reduction on stock by deleting the record of invnetoryItem or setting them to is_deleted, just let this auto since we are doing pattern 1 or live data
-    // 2.appointment status cancelled
-    // 3.prescriptionlist and treatment needs to be delete
+    /**
+     * FIX: this method was called by the controller but didn't exist.
+     * Read-only: describes what deleting this treatment would do.
+     *
+     * @return array{
+     *   treatment_id:int, appointment_id:int, prescriptions_removed:int,
+     *   items_returned: array<int, array{item_id:int, name:string|null, quantity:float}>,
+     *   appointment_status_after:string, warnings:string[]
+     * }
+     */
+    function treatmentDeletePreview(Treatment $treatment): array
+    {
+        return $this->buildDeleteImpact($treatment);
+    }
 
-    // test:
-    // 1.when deleting we need to do db check if prescriptionlist is actually gone along with Treatment
-    // 2.check current stock if it return, or in this case just check if inventoryItem is delete, since we have no way to know how many it is or rather is not needed 
-    // 3.check if appointment status is updated properly
-    function treatmentDelete(Treatment $treatment)
+
+    /**
+     * Delete flow:
+     * 1. treatment_inventories rows ARE the stock deduction; deleting them returns stock
+     * 2. prescriptions + treatment are deleted
+     * 3. appointment status -> Cancelled
+     *
+     * FIX: now returns the impact array (with a 'warnings' key) instead of `true`,
+     *      so the controller's $impact['warnings'] works.
+     *
+     * @return array same shape as treatmentDeletePreview()
+     */
+    function treatmentDelete(Treatment $treatment): array
     {
         try {
 
             return DB::transaction(function () use ($treatment) {
 
-                // Lock the appointment first, same reasoning as in
-                // treatmentStore() — avoid racing another request touching
-                // this appointment's treatment state at the same time.
                 $appointment = Appointment::where('id', $treatment->appointment_id)
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                // treatment_prescription_details has cascadeOnDelete() on
-                // treatment_id per the migration, so this is automatic —
-                // but delete explicitly anyway rather than relying only on
-                // the FK, so the outcome doesn't silently depend on whether
-                // someone later changes the migration's cascade behavior.
+                // Build the impact BEFORE deleting anything.
+                $impact = $this->buildDeleteImpact($treatment);
+
+                // Explicit delete even though the FK cascades, so the outcome
+                // doesn't silently depend on the migration.
                 $treatment->perscriptions()->delete();
-
-                // treatment_inventories rows ARE the stock deduction. Deleting
-                // them is what "returns" the stock — stock() sums live rows,
-                // so removing these rows is sufficient; nothing else to undo.
                 $treatment->treatmentInventories()->delete();
-
                 $treatment->delete();
 
-                // With strict 1:1, deleting this treatment always leaves the
-                // appointment with zero treatments, so it's no longer completed.
                 $appointment->status = AppointmentStatusEnum::Cancelled->value;
                 $appointment->save();
 
-                return true;
-
+                return $impact;
             });
 
         } catch (\Throwable $th) {
@@ -405,5 +369,31 @@ class TreatmentService
 
             throw $th;
         }
+    }
+
+
+    /**
+     * Shared by preview + delete so they can never disagree.
+     */
+    private function buildDeleteImpact(Treatment $treatment): array
+    {
+        $inventories = $treatment->treatmentInventories()->get();
+
+        $names = InventoryItem::whereIn('id', $inventories->pluck('inventory_item_id'))
+            ->pluck('item_name', 'id');
+
+        return [
+            'treatment_id' => $treatment->id,
+            'appointment_id' => $treatment->appointment_id,
+            'prescriptions_removed' => $treatment->perscriptions()->count(),
+            'items_returned' => $inventories->map(fn($ti) => [
+                'item_id' => $ti->inventory_item_id,
+                'name' => $names[$ti->inventory_item_id] ?? null,
+                'quantity' => (float) $ti->quantity,
+            ])->values()->all(),
+            'appointment_status_after' => AppointmentStatusEnum::Cancelled->value,
+            // Returning stock can't cause low-stock problems, so this is normally empty.
+            'warnings' => [],
+        ];
     }
 }

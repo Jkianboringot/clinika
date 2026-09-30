@@ -139,7 +139,7 @@ export default function Create({ items }: Props) {
                                     <Input
                                         type="number"
                                         min={1}
-                                        max={999}
+                                        max={9999}
                                         placeholder="Qty"
                                         value={row.quantity}
                                         onChange={(e) => updateItem(i, 'quantity', e.target.value)}
