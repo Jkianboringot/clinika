@@ -4,6 +4,7 @@ import {
     LineChart, Line, PieChart, Pie, Cell,
     XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
+import LowStockAlert, { type LowStockItem } from '@/components/low-stock-alert';
 
 interface Stats {
     totalUsers: number;
@@ -35,6 +36,7 @@ interface DashboardProps {
     userDistribution: UserDistribution;
     systemStats: SystemStats;
     userTrends: TrendPoint[];
+    lowStockItems?: LowStockItem[];
 }
 
 const PIE_COLORS = ['#3b82f6', '#14b8a6', '#f97316', '#a855f7'];
@@ -44,6 +46,7 @@ export default function Dashboard({
     userDistribution,
     systemStats,
     userTrends,
+    lowStockItems = [],
 }: DashboardProps) {
     const pieData = [
         { name: 'Patients', value: userDistribution.patients },
@@ -58,6 +61,9 @@ export default function Dashboard({
         <>
             <Head title="Dashboard" />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+
+                {/* Low stock alert: items below their minimum stock */}
+                <LowStockAlert items={lowStockItems} showLink />
 
                 {/* Summary card */}
                 <div className="grid auto-rows-min gap-4 md:grid-cols-3">

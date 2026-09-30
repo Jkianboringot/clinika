@@ -3,7 +3,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast, Toaster } from 'sonner';
-import { ChevronLeft, ChevronRight, Pencil, Search, Trash2 } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, Pencil, Search, Trash2 } from 'lucide-react';
 import {
     Table,
     TableBody,
@@ -13,6 +13,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { create, destroy, edit, index as inventoryitemsIndex } from '@/routes/inventory_items';
+import LowStockAlert, { type LowStockItem } from '@/components/low-stock-alert';
 
 interface InventoryItem {
     id: number;
@@ -32,6 +33,7 @@ interface InventoryItemsPageProps extends Record<string, unknown> {
         error?: string;
     };
     inventoryitems: PaginatedInventoryItems;
+    lowStockItems: LowStockItem[];
     filters: {
         search?: string;
     };
@@ -44,9 +46,9 @@ function paginationLabel(label: string) {
 }
 
 export default function Index() {
-  const { flash, inventoryitems, filters } =
+    const { flash, inventoryitems, lowStockItems, filters } =
         usePage<InventoryItemsPageProps>().props;
-   
+
     const lastFlashRef = useRef<string | null>(null);
 
     useEffect(() => {
@@ -107,6 +109,11 @@ export default function Index() {
                     </Link>
                 </div>
 
+                {/* Low stock alert: every item whose stock is below its minimum stock */}
+                <div className="mb-6">
+                    <LowStockAlert items={lowStockItems} />
+                </div>
+
                 <div className="overflow-hidden rounded-xl border border-[#c9c0b7]  bg-white">
                     <div className="flex items-center justify-between border-b border-[#c9c0b7] px-5 py-3">
                         <h2 className="font-bold text-ink">All InventoryItems</h2>
@@ -139,44 +146,50 @@ export default function Index() {
                                     </TableCell>
                                 </TableRow>
                             )}
-                            {inventoryitemRows.map((item) => (
-                                <TableRow
-                                    key={item.id}
-                                    className="border-b border-[#c9c0b7] last:border-0"
-                                >
-                                    <TableCell>{item.item_name}</TableCell>
-                                    <TableCell
-                                        className={
-                                            item.minimum_stock != null && item.stock < item.minimum_stock
-                                                ? 'font-semibold text-danger'
-                                                : ''
-                                        }
+                            {inventoryitemRows.map((item) => {
+                                const isLow =
+                                    item.minimum_stock != null &&
+                                    Number(item.stock) < Number(item.minimum_stock);
+
+                                return (
+                                    <TableRow
+                                        key={item.id}
+                                        className="border-b border-[#c9c0b7] last:border-0"
                                     >
-                                        {item.stock}
-                                    </TableCell>
-                                    <TableCell>{item.minimum_stock ?? '—'}</TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center justify-end gap-4">
-                                            <Link
-                                                href={edit(item.id).url}
-                                                className="flex items-center gap-1 text-sm font-medium text-ink hover:text-brand-orange"
-                                            >
-                                                <Pencil className="h-4 w-4" />
-                                                Edit
-                                            </Link>
-                                            <button
-                                                type="button"
-                                                disabled={processing}
-                                                onClick={() => handleDelete(item.id, item.item_name)}
-                                                className="flex items-center gap-1 text-sm font-medium text-ink hover:text-danger disabled:opacity-50"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                                Delete
-                                            </button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                                        <TableCell>{item.item_name}</TableCell>
+                                        <TableCell className={isLow ? 'font-semibold text-danger' : ''}>
+                                            {item.stock}
+                                            {isLow && (
+                                                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-danger">
+                                                    <AlertTriangle className="h-3 w-3" />
+                                                    Low stock
+                                                </span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>{item.minimum_stock ?? '—'}</TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center justify-end gap-4">
+                                                <Link
+                                                    href={edit(item.id).url}
+                                                    className="flex items-center gap-1 text-sm font-medium text-ink hover:text-brand-orange"
+                                                >
+                                                    <Pencil className="h-4 w-4" />
+                                                    Edit
+                                                </Link>
+                                                <button
+                                                    type="button"
+                                                    disabled={processing}
+                                                    onClick={() => handleDelete(item.id, item.item_name)}
+                                                    className="flex items-center gap-1 text-sm font-medium text-ink hover:text-danger disabled:opacity-50"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
                         </TableBody>
                     </Table>
 
