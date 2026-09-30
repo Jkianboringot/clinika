@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { LayoutGrid, House, Syringe, Pill, ListPlus, UsersRound, FileUser, TicketCheck, Stethoscope } from 'lucide-react';
+import { LayoutGrid, House, Syringe, Pill, ListPlus, UsersRound, FileUser, TicketCheck, Stethoscope, PackagePlus, FileChartColumn } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -92,7 +92,7 @@ export function AppSidebar() {
         {
             title: 'Inventory',
             href: '/inventories',
-            icon: Stethoscope,
+            icon: PackagePlus ,
             // permission: 'inventory.view',
         },
         
@@ -108,7 +108,7 @@ export function AppSidebar() {
              {
             title: 'Report',
             href: '/reports',
-            icon: Stethoscope,
+            icon: FileChartColumn ,
             // permission: 'inventory.view',
         },
         // Replacement for the block above when permission-based nav is enabled:
