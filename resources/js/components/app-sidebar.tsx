@@ -13,8 +13,20 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+// import { useCan } from '@/hooks/use-can';
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
+
+// --- PERMISSION-BASED NAV (disabled for now) ---------------------------------
+// To enable:
+//   1. uncomment the useCan import above, the type below, `const can`, and `visibleNavItems`
+//   2. change `const mainNavItems: NavItem[]` to `const mainNavItems: PermissionNavItem[]`
+//   3. uncomment every `permission:` line in the items
+//   4. replace the `...(canManageUsers ? [...] : [])` block with the plain "User" item below
+//   5. pass `visibleNavItems` to <NavMain />
+//
+// `permission` = the permission the user needs to see this link
+// type PermissionNavItem = NavItem & { permission: string };
 
 // const footerNavItems: NavItem[] = [
 //     {
@@ -32,47 +44,56 @@ import type { NavItem } from '@/types';
 export function AppSidebar() {
     const { permission } = usePage<{ permission?: { canManageUsers?: boolean } }>().props;
     const canManageUsers = permission?.canManageUsers ?? false;
+    // const can = useCan();
 
     const mainNavItems: NavItem[] = [
         {
             title: 'Dashboard',
             href: dashboard(),
             icon: LayoutGrid,
+            // permission: 'dashboard.view',
         },
         {
             title: 'Procedures',
             href: '/procedures',
             icon: Syringe,
+            // permission: 'procedures.view',
         },
         {
             title: 'Medication',
             href: '/medications',
             icon: Pill,
+            // permission: 'medications.view',
         },
         {
             title: 'Items',
             href: '/inventory_items',
             icon: ListPlus,
+            // permission: 'inventory.view',
         },
         {
             title: 'Patient',
             href: '/patients',
             icon: UsersRound,
+            // permission: 'patients.view',
         },
         {
             title: 'Appointment',
             href: '/appointments',
             icon: TicketCheck,
+            // permission: 'appointments.view',
         },
         {
             title: 'Treatment',
             href: '/treatments',
             icon: Stethoscope,
+            // permission: 'treatments.view',
         },
         {
             title: 'Inventory',
             href: '/inventories',
             icon: Stethoscope,
+            // permission: 'inventory.view',
         },
         ...(canManageUsers
             ? [
@@ -83,7 +104,16 @@ export function AppSidebar() {
                 },
             ]
             : []),
+        // Replacement for the block above when permission-based nav is enabled:
+        // {
+        //     title: 'User',
+        //     href: '/users',
+        //     icon: FileUser,
+        //     permission: 'users.route',
+        // },
     ];
+
+    // const visibleNavItems = mainNavItems.filter((item) => can(item.permission));
 
     return (
         <Sidebar collapsible="icon" variant="sidebar">
@@ -101,6 +131,7 @@ export function AppSidebar() {
 
             <SidebarContent>
                 <NavMain items={mainNavItems} />
+                {/* <NavMain items={visibleNavItems} /> */}
             </SidebarContent>
 
             <SidebarFooter>

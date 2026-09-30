@@ -17,25 +17,40 @@ class RolePermissionSeeder extends Seeder
         */
 
         $permissions = [
+            // Dashboard  // ADDED
+            'dashboard.view',
+
             // Users
             'users.route',
 
             'users.view',
             'users.create',
             'users.update',
-            'users.delete',
+            'users.delete', // also used by users.deactivate route
 
             // Patients
             'patients.view',
             'patients.create',
             'patients.update',
-            'patients.delete',
+            'patients.delete', // also used by patients.deactivate route
 
-            // Inventory
+            // Inventory (covers /inventories and /inventory_items routes)
             'inventory.view',
             'inventory.create',
             'inventory.update',
             'inventory.delete',
+
+            // Procedures  // ADDED
+            'procedures.view',
+            'procedures.create',
+            'procedures.update',
+            'procedures.delete',
+
+            // Medications  // ADDED
+            'medications.view',
+            'medications.create',
+            'medications.update',
+            'medications.delete',
 
             // Scheduling / Appointments
             'appointments.view',
@@ -55,10 +70,14 @@ class RolePermissionSeeder extends Seeder
             'treatments.update',
             'treatments.delete',
 
+            // Reports  // ADDED
+            'reports.view',
+
             // Patient-specific
             'profile.view',
             'profile.update',
             'appointments.view_own',
+            'treatments.view_own', // ADDED
         ];
 
         foreach ($permissions as $permission) {
@@ -101,11 +120,17 @@ class RolePermissionSeeder extends Seeder
         */
 
         $admin->syncPermissions([
+            // Dashboard // ADDED
+            'dashboard.view',
+
             'users.route',
             'users.view',
             'users.create',
             'users.update',
             'users.delete',
+
+            // Reports // ADDED
+            'reports.view',
         ]);
 
         /*
@@ -126,6 +151,30 @@ class RolePermissionSeeder extends Seeder
             'inventory.create',
             'inventory.update',
             'inventory.delete',
+
+            // Appointments // ADDED
+            'appointments.view',
+            'appointments.create',
+            'appointments.update',
+            'appointments.delete',
+
+            // Treatments (Table 4: Staff records treatments) // ADDED
+            'treatments.view',
+            'treatments.create',
+            'treatments.update',
+
+            // Procedures & medications // ADDED
+            'procedures.view',
+            'procedures.create',
+            'procedures.update',
+            'procedures.delete',
+            'medications.view',
+            'medications.create',
+            'medications.update',
+            'medications.delete',
+
+            // Reports // ADDED
+            'reports.view',
         ]);
 
         /*
@@ -135,11 +184,13 @@ class RolePermissionSeeder extends Seeder
         */
 
         $dentist->syncPermissions([
-            // Scheduling
+            // Patients (add, update, view) // ADDED
+            'patients.view',
+            'patients.create',
+            'patients.update',
+
+            // Scheduling (view own schedule only) // CHANGED: was full CRUD
             'appointments.view',
-            'appointments.create',
-            'appointments.update',
-            'appointments.delete',
 
             // Follow-ups
             'followups.view',
@@ -152,6 +203,10 @@ class RolePermissionSeeder extends Seeder
             'treatments.create',
             'treatments.update',
             'treatments.delete',
+
+            // Reference data (read-only) // ADDED
+            'procedures.view',
+            'medications.view',
         ]);
 
         /*
@@ -164,6 +219,8 @@ class RolePermissionSeeder extends Seeder
             'profile.view',
             'profile.update',
             'appointments.view_own',
+            'appointments.create',  // ADDED: patients book their own appointments
+            'treatments.view_own',  // ADDED: view own treatment summaries
         ]);
     }
 }
