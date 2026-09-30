@@ -111,18 +111,7 @@ export default function Login({ status }: { status?: string }) {
                         </button>
                     </form>
 
-                    <div className="mt-6 flex items-center gap-3">
-                        <div className="h-px flex-1 bg-gray-200" />
-                        <span className="text-xs font-medium text-subtle">New to Klinika?</span>
-                        <div className="h-px flex-1 bg-gray-200" />
-                    </div>
-
-                    <a
-                        href="/register"
-                        className="mt-4 block w-full rounded-md border-[1.5px] border-gray-200 py-3 text-center text-sm font-bold text-ink transition hover:border-gray-400 hover:text-brand-orange"
-                    >
-                        Register as New Patient
-                    </a>
+               
                 </div>
             </div>
         </div>
