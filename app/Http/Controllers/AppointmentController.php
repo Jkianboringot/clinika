@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AppointmentStatusEnum;
 use App\Enums\IsActiveEnum;
 use App\Http\Requests\AppointmentRequest;
 use App\Http\Requests\SearchRequest;
@@ -10,7 +11,8 @@ use App\Models\Patient;
 use App\Models\Procedure;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -18,77 +20,31 @@ use Inertia\Response;
  * =====================================================================
  * APPOINTMENT MODULE — Controller Notes
  * =====================================================================
- * Type   : Appiontment — Backend Logic
- * Purpose: Handles creation, update, and deletion of patient appointments
- *          by clinic staff. Patients cannot manage appointments directly.
- * =====================================================================
+ * Only STAFF create/manage appointments. Controller stays thin.
  *
- * ACCESS
- * ------
- * - Only STAFF can create/manage appointments.
- * - Used to schedule a patient's visit (e.g. extraction, cleaning).
+ * STATUS LIFECYCLE (all automatic — the client never sets status)
+ * ---------------------------------------------------------------
+ * - Create                       -> scheduled
+ * - Date or time changed (edit)  -> rescheduled
+ * - Treatment created            -> completed   (done in TreatmentService)
+ * - Treatment deleted            -> cancelled   (done in TreatmentService)
+ * - "Delete" on the UI           -> cancelled   (row is NEVER deleted)
  *
- * DATA FIELDS
- * -----------
- * - patient_id
- * - user_id          (staff who created it)
- * - appointment_time
- * - status           : cancelled | rescheduled | completed | follow_up
- *
- * ARCHITECTURE FLOW
- * ------------------
- *   UI (sends validated input)
- *     -> Route
- *       -> Controller (this file)
- *         -> Custom Request (validation)
- *           -> Appointment Service
- *             -> returns result + error handling
- *
- *   NOTE: Controller stays thin. Business logic lives in the Service layer.
- *
- * VALIDATION RULES
- * -----------------
- * - Appointment date cannot be before today.
- * - Appointment time should fall within reasonable clinic hours
- *   (not strictly enforced yet — flexible for now).
- * - Status must match the defined enum above.
- *
- * BUSINESS LOGIC
+ * TREATMENT GUARD
  * ---------------
- * 1. No duplicate same-day appointments
- *    - A patient cannot book twice in one day.
- *    - Additional visits must be booked on a different day.
- *
- * 2. [REMINDER] Daily booking limit
- *    - Idea: cap appointments per day based on available time slots.
- *    - NOT required yet — not specified, decision deferred.
- *
- * 3. Reschedule approval rule
- *    - [REMINDER] Check phone notes for more detail.
- *    - Current approach: patient contacts staff -> staff manually updates
- *      the appointment -> staff's action itself serves as approval.
- *      (No separate approval flag needed.)
- *
- * DELETE RULES
- * -------------
- * - Allowed only if:
- *     - status is "cancelled", OR
- *     - it's the same day and still pending/unchanged.
- * - NOT allowed if status is "completed" or "follow_up"
- *   (preserve historical data).
- * - Must warn user: "This will delete the data permanently —
- *   you are responsible."
- *
- * UPDATE RULES
- * -------------
- * - Same flow as Create.
- * - Must check if appointment exists first -> return 404 if not.
- *
+ * An appointment that already has a treatment is proof a service was
+ * delivered (income), so it can't be cancelled, "deleted" or edited.
+ * The check runs inside a transaction with the row locked, and
+ * TreatmentService locks the same row first — so a treatment can't sneak
+ * in between the check and the status change.
  * =====================================================================
  */
 
 class AppointmentController extends Controller
 {
+    /** Changing any of these on update flips the status to "rescheduled". */
+    private const SCHEDULE_FIELDS = ['appointment_date', 'appointment_time'];
+
     public function index(SearchRequest $request): Response
     {
         // $this->authorize('viewAny', Appointment::class);
@@ -102,7 +58,6 @@ class AppointmentController extends Controller
                 fn($query, $search) =>
                     $query->whereHas('patient', fn($q) => $q->where('full_name', 'like', "{$search}%"))
             )
-            // ->orderBy('appointment_date')
             ->orderBy('created_at', 'desc')
             ->paginate(15)
             ->withQueryString();
@@ -115,7 +70,6 @@ class AppointmentController extends Controller
 
     public function create(): Response
     {
-
         return Inertia::render('Appointments/Create', [
             'patients' => Patient::where('is_active', IsActiveEnum::ACTIVE->value)->select('id', 'full_name')->orderBy('full_name')->get(),
             'staff' => User::select('id', 'name')->orderBy('name')->get(),
@@ -125,14 +79,16 @@ class AppointmentController extends Controller
 
     public function store(AppointmentRequest $request): RedirectResponse
     {
-        // dd($request);
         try {
-
             Appointment::create([
-                ...$request->validated(),
+                // status is never taken from the request
+                ...Arr::except($request->validated(), ['status']),
                 'staff_id' => auth()->id(),
+                'status' => AppointmentStatusEnum::Scheduled->value,
             ]);
         } catch (\Throwable $e) {
+            report($e);
+
             return redirect()
                 ->route('appointments.index')
                 ->with('error', 'Failed to create appointment.');
@@ -147,7 +103,7 @@ class AppointmentController extends Controller
 
         return Inertia::render('Appointments/Edit', [
             'appointment' => $appointment,
-            'patients' =>Patient::where('is_active', IsActiveEnum::ACTIVE->value)->select('id', 'full_name')->orderBy('full_name')->get(),
+            'patients' => Patient::where('is_active', IsActiveEnum::ACTIVE->value)->select('id', 'full_name')->orderBy('full_name')->get(),
             'staff' => User::select('id', 'name')->orderBy('name')->get(),
             'procedures' => Procedure::select('id', 'name')->orderBy('name')->get(),
         ]);
@@ -156,38 +112,89 @@ class AppointmentController extends Controller
     public function update(AppointmentRequest $request, Appointment $appointment): RedirectResponse
     {
         try {
-            $appointment->update([
-                ...$request->validated(),
-                'staff_id' => auth()->id(),
-            ]);
+            $refusal = DB::transaction(function () use ($request, $appointment) {
+                $locked = Appointment::whereKey($appointment->id)->lockForUpdate()->firstOrFail();
 
+                if ($this->hasTreatment($locked)) {
+                    return 'This appointment already has a treatment and can no longer be edited.';
+                }
+
+                $locked->fill([
+                    ...Arr::except($request->validated(), ['status']),
+                    'staff_id' => auth()->id(),
+                ]);
+
+                // Date or time moved -> rescheduled. Anything else keeps its status.
+                if ($locked->isDirty(self::SCHEDULE_FIELDS)) {
+                    $locked->status = AppointmentStatusEnum::Rescheduled->value;
+                }
+
+                $locked->save();
+
+                return null;
+            });
         } catch (\Throwable $e) {
+            report($e);
+
             return redirect()
                 ->route('appointments.index')
                 ->with('error', 'Failed to update appointment.');
         }
 
+        if ($refusal) {
+            return redirect()->route('appointments.index')->with('error', $refusal);
+        }
+
         return redirect()->route('appointments.index')->with('message', 'Appointment updated successfully.');
     }
 
+    /**
+     * "Delete" = cancel. The row is kept for history; only the status changes.
+     * Blocked entirely if a treatment is attached.
+     */
     public function destroy(Appointment $appointment): RedirectResponse
     {
         // $this->authorize('delete', $appointment);
 
-        // its good that this is not allowed to be delete becuase it is ilegal to allow delete
-        //  of something that prove service has been completely delivered that is hiding income
-        if ($appointment->treatment()->exists()) {
-            return redirect()
-                ->route('appointments.index')
-                ->with('error', 'This appointment has treatment assigned and cannot be deleted.');
-        }
         try {
-            $appointment->deleteOrFail();
+            $result = DB::transaction(function () use ($appointment) {
+                $locked = Appointment::whereKey($appointment->id)->lockForUpdate()->firstOrFail();
 
+                // Proof a service was delivered — hiding it would hide income.
+                if ($this->hasTreatment($locked)) {
+                    return ['error', 'This appointment has a treatment assigned and cannot be cancelled.'];
+                }
+
+                if ($this->statusValue($locked) === AppointmentStatusEnum::Cancelled->value) {
+                    return ['message', 'Appointment is already cancelled.'];
+                }
+
+                $locked->status = AppointmentStatusEnum::Cancelled->value;
+                $locked->save();
+
+                return ['message', 'Appointment cancelled successfully.'];
+            });
         } catch (\Throwable $e) {
-            return redirect()->route('appointments.index')->with('error', 'Failed to delete, already has with treatment');
+            report($e);
+
+            return redirect()->route('appointments.index')->with('error', 'Failed to cancel appointment.');
         }
 
-        return redirect()->route('appointments.index')->with('message', 'Appointment deleted successfully.');
+        return redirect()->route('appointments.index')->with($result[0], $result[1]);
+    }
+
+    /** A treatment row OR a completed status both mean "service delivered". */
+    private function hasTreatment(Appointment $appointment): bool
+    {
+        return $appointment->treatment()->exists()
+            || $this->statusValue($appointment) === AppointmentStatusEnum::Completed->value;
+    }
+
+    /** Works whether or not the model casts status to the enum. */
+    private function statusValue(Appointment $appointment): ?string
+    {
+        $status = $appointment->status;
+
+        return $status instanceof \BackedEnum ? $status->value : $status;
     }
 }

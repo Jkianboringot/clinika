@@ -21,6 +21,7 @@ interface AppointmentRow {
     appointment_date: string;
     appointment_time: string;
     description: string | null;
+    status: string;
     patient: { id: number; full_name: string } | null;
     staff: { id: number; name: string } | null;
     procedure: { id: number; name: string } | null;
@@ -76,6 +77,42 @@ function formatDate(value: string | null) {
     return `${month} ${day}, ${year}`; // e.g. "Sep 25, 2026"
 }
 
+
+function StatusBadge({ status }: { status: string | null }) {
+    const normalized = status?.toLowerCase() ?? '';
+
+    const styles =
+        normalized === 'scheduled'
+            ? 'bg-blue-50 text-blue-700 ring-blue-200'
+            : normalized === 'completed'
+                ? 'bg-green-50 text-green-700 ring-green-200'
+                : normalized === 'cancelled'
+                    ? 'bg-red-50 text-red-700 ring-red-200'
+                    : normalized === 'pending'
+                        ? 'bg-yellow-50 text-yellow-700 ring-yellow-200'
+                        : 'bg-gray-50 text-gray-600 ring-gray-200';
+
+    const dot =
+        normalized === 'scheduled'
+            ? 'bg-blue-500'
+            : normalized === 'completed'
+                ? 'bg-green-500'
+                : normalized === 'cancelled'
+                    ? 'bg-red-500'
+                    : normalized === 'pending'
+                        ? 'bg-yellow-500'
+                        : 'bg-gray-400';
+
+    return (
+        <span
+            className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold capitalize ring-1 ring-inset ${styles}`}
+        >
+            <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${dot}`} />
+            {status ?? 'Unknown'}
+        </span>
+    );
+}
+
 export default function Index({ appointments, filters }: Props) {
     const { flash } = usePage<FlashProps & Record<string, unknown>>().props as unknown as FlashProps;
 
@@ -125,6 +162,12 @@ export default function Index({ appointments, filters }: Props) {
         }
     };
 
+
+
+
+
+
+
     return (
         <>
             <Head title="Appointments" />
@@ -137,7 +180,7 @@ export default function Index({ appointments, filters }: Props) {
                         <h1 className="text-3xl font-extrabold tracking-tight text-ink">
                             Appointments
                         </h1>
-                      
+
                     </div>
                     <Link href={create().url}>
                         <Button className="bg-blue-600 font-bold text-white hover:bg-blue-700">
@@ -174,7 +217,7 @@ export default function Index({ appointments, filters }: Props) {
                     <Table>
                         <TableHeader>
                             <TableRow className="border-b border-gray-200 hover:bg-transparent">
-                                  <TableHead className="font-bold tracking-wide text-blue-700">
+                                <TableHead className="font-bold tracking-wide text-blue-700">
                                     ID
                                 </TableHead>
                                 <TableHead className="font-bold tracking-wide text-blue-700">
@@ -191,6 +234,9 @@ export default function Index({ appointments, filters }: Props) {
                                 </TableHead>
                                 <TableHead className="font-bold tracking-wide text-blue-700">
                                     Time
+                                </TableHead>
+                                <TableHead className="font-bold tracking-wide text-blue-700">
+                                    Status
                                 </TableHead>
                                 <TableHead className="text-right font-bold tracking-wide text-blue-700">
                                     Actions
@@ -210,7 +256,7 @@ export default function Index({ appointments, filters }: Props) {
                                     key={appt.id}
                                     className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
                                 >
-                                      <TableCell className="font-medium text-blue-700">
+                                    <TableCell className="font-medium text-blue-700">
                                         {appt.id}
                                     </TableCell>
                                     <TableCell className="font-medium text-blue-700">
@@ -227,6 +273,9 @@ export default function Index({ appointments, filters }: Props) {
                                     </TableCell>
                                     <TableCell className="text-gray-700">
                                         {formatTime(appt.appointment_time)}
+                                    </TableCell>
+                                    <TableCell className="text-gray-700">
+                                        <StatusBadge status={appt.status} />
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center justify-end gap-4">
@@ -266,11 +315,10 @@ export default function Index({ appointments, filters }: Props) {
                                 <Link
                                     key={i}
                                     href={link.url ?? '#'}
-                                    className={`flex items-center rounded-md px-3 py-1 text-sm ${
-                                        link.active
-                                            ? 'bg-blue-600 text-white'
-                                            : 'text-blue-700 hover:bg-gray-50'
-                                    } ${!link.url ? 'pointer-events-none opacity-40' : ''}`}
+                                    className={`flex items-center rounded-md px-3 py-1 text-sm ${link.active
+                                        ? 'bg-blue-600 text-white'
+                                        : 'text-blue-700 hover:bg-gray-50'
+                                        } ${!link.url ? 'pointer-events-none opacity-40' : ''}`}
                                 >
                                     {paginationLabel(link.label)}
                                 </Link>

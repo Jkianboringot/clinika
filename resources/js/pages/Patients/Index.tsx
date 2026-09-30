@@ -235,10 +235,15 @@ export default function Index({ patients, filters }: Props) {
                                         <TableCell className="text-gray-700">{patient.email}</TableCell>
                                         <TableCell>
                                             <span
-                                                className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium capitalize text-white ${
-                                                    isActive ? 'bg-emerald-600' : 'bg-red-600'
-                                                }`}
+                                                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold capitalize ring-1 ring-inset ${isActive
+                                                        ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                                                        : 'bg-red-50 text-red-700 ring-red-200'
+                                                    }`}
                                             >
+                                                <span
+                                                    className={`h-1.5 w-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-red-500'
+                                                        }`}
+                                                />
                                                 {patient.is_active}
                                             </span>
                                         </TableCell>
@@ -282,11 +287,10 @@ export default function Index({ patients, filters }: Props) {
                                 <Link
                                     key={i}
                                     href={link.url ?? '#'}
-                                    className={`flex items-center rounded-md px-3 py-1 text-sm ${
-                                        link.active
+                                    className={`flex items-center rounded-md px-3 py-1 text-sm ${link.active
                                             ? 'bg-blue-600 text-white'
                                             : 'text-blue-700 hover:bg-gray-50'
-                                    } ${!link.url ? 'pointer-events-none opacity-40' : ''}`}
+                                        } ${!link.url ? 'pointer-events-none opacity-40' : ''}`}
                                 >
                                     {paginationLabel(link.label)}
                                 </Link>

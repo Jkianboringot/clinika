@@ -49,7 +49,7 @@ export default function Edit({ appointment, patients, procedures }: Props) {
         procedure_id: String(appointment.procedure_id),
         description: appointment.description ?? '',
         appointment_date: appointment.appointment_date,
-        appointment_time: appointment.appointment_time,
+      appointment_time: appointment.appointment_time?.slice(0, 5) ?? '',
     });
 
     const handleSubmit = (e: React.FormEvent) => {
