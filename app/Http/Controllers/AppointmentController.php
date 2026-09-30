@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\IsActiveEnum;
 use App\Http\Requests\AppointmentRequest;
 use App\Http\Requests\SearchRequest;
 use App\Models\Appointment;
@@ -116,7 +117,7 @@ class AppointmentController extends Controller
     {
 
         return Inertia::render('Appointments/Create', [
-            'patients' => Patient::select('id', 'full_name')->orderBy('full_name')->get(),
+            'patients' => Patient::where('is_active', IsActiveEnum::ACTIVE->value)->select('id', 'full_name')->orderBy('full_name')->get(),
             'staff' => User::select('id', 'name')->orderBy('name')->get(),
             'procedures' => Procedure::select('id', 'name')->orderBy('name')->get(),
         ]);
@@ -146,7 +147,7 @@ class AppointmentController extends Controller
 
         return Inertia::render('Appointments/Edit', [
             'appointment' => $appointment,
-            'patients' => Patient::select('id', 'full_name')->orderBy('full_name')->get(),
+            'patients' =>Patient::where('is_active', IsActiveEnum::ACTIVE->value)->select('id', 'full_name')->orderBy('full_name')->get(),
             'staff' => User::select('id', 'name')->orderBy('name')->get(),
             'procedures' => Procedure::select('id', 'name')->orderBy('name')->get(),
         ]);
