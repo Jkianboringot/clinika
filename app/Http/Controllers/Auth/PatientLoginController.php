@@ -37,11 +37,11 @@ class PatientLoginController extends Controller
             ]);
         }
 
-        Auth::guard('patient')->login($patient, $request->boolean('remember'));
+     Auth::guard('patient')->login($patient, $request->boolean('remember'));
 
-        $request->session()->regenerate();
-// dd('login');
-              return redirect()->route('dashboard')->with('message', 'User created successfully.');
+$request->session()->regenerate();
+        // dd('dd');
+return redirect()->route('patient.appointments.index');
 
     }
 

@@ -2,7 +2,6 @@ import { Head, useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
     Select,
@@ -12,29 +11,11 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { CircleAlert, Plus, Trash2 } from 'lucide-react';
-import { index, update } from '@/routes/treatments';
-
-interface Appointment {
-    id: number;
-    procedure_id?: number | null;
-    patient?: { id: number; full_name: string } | null;
-}
+import { index, update } from '@/routes/inventories';
 
 interface Item {
     id: number;
     name: string;
-}
-
-interface Procedure {
-    id: number;
-    name: string;
-}
-
-interface PrescriptionRow {
-    medication_id: string;
-    dosage: string;
-    frequency: string;
-    duration_days: string;
 }
 
 interface ItemRow {
@@ -42,82 +23,43 @@ interface ItemRow {
     quantity: string;
 }
 
-interface TreatmentData {
-    id: number;
-    follow_up_schedule: string | null;
-    duration_minutes: number | string | null;
-    summary: string | null;
-    prescriptionlist: Partial<PrescriptionRow>[];
-    itemList: { item_id: number | string; quantity: number | string }[];
-}
-
-interface TreatmentForm {
-    follow_up_schedule: string;
-    duration_minutes: string;
-    summary: string;
-    prescriptionlist: PrescriptionRow[];
+interface InventoryForm {
     itemList: ItemRow[];
 }
 
-interface Props {
-    treatment: TreatmentData;
-    appointment: Appointment | null;
-    items: Item[];
-    medications: Item[];
-    procedures: Procedure[];
+interface InventoryPayload {
+    id: number;
+    staff_id: number;
+    created_at: string;
+    itemList: { item_id: number | string; quantity: number | string }[];
 }
 
-const emptyPrescription: PrescriptionRow = {
-    medication_id: '',
-    dosage: '',
-    frequency: '',
-    duration_days: '',
-};
+interface Props {
+    inventory: InventoryPayload;
+    items: Item[];
+}
 
 const emptyItem: ItemRow = { item_id: '', quantity: '1' };
 
-export default function Edit({ treatment, appointment, items, medications = [], procedures }: Props) {
-    const { data, setData, put, processing, errors } = useForm<TreatmentForm>({
-        follow_up_schedule: treatment.follow_up_schedule?.slice(0, 10) ?? '',
-        duration_minutes: treatment.duration_minutes != null ? String(treatment.duration_minutes) : '',
-        summary: treatment.summary ?? '',
-        prescriptionlist: (treatment.prescriptionlist ?? []).map((p) => ({
-            medication_id: p.medication_id != null ? String(p.medication_id) : '',
-            dosage: p.dosage ?? '',
-            frequency: p.frequency ?? '',
-            duration_days: p.duration_days != null ? String(p.duration_days) : '',
-        })),
-        itemList: (treatment.itemList ?? []).map((i) => ({
-            item_id: String(i.item_id),
-            quantity: String(i.quantity),
-        })),
+export default function Edit({ inventory, items }: Props) {
+    const { data, setData, put, processing, errors } = useForm<InventoryForm>({
+        // server sends numbers; the Select and Input work with strings
+        itemList:
+            inventory.itemList.length > 0
+                ? inventory.itemList.map((row) => ({
+                      item_id: String(row.item_id),
+                      quantity: String(row.quantity),
+                  }))
+                : [{ ...emptyItem }],
     });
 
     // nested errors come back keyed like "itemList.0.item_id"
     const fieldError = (key: string) => (errors as Record<string, string>)[key];
 
-    const procedure = procedures.find((p) => p.id === appointment?.procedure_id);
-
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        put(update(treatment.id).url);
+        put(update(inventory.id).url);
     };
-
-    // ---- prescription rows ----
-    const addPrescription = () =>
-        setData('prescriptionlist', [...data.prescriptionlist, { ...emptyPrescription }]);
-
-    const updatePrescription = (i: number, field: keyof PrescriptionRow, value: string) =>
-        setData(
-            'prescriptionlist',
-            data.prescriptionlist.map((row, idx) => (idx === i ? { ...row, [field]: value } : row)),
-        );
-
-    const removePrescription = (i: number) =>
-        setData(
-            'prescriptionlist',
-            data.prescriptionlist.filter((_, idx) => idx !== i),
-        );
 
     // ---- item rows ----
     const addItem = () => setData('itemList', [...data.itemList, { ...emptyItem }]);
@@ -136,11 +78,11 @@ export default function Edit({ treatment, appointment, items, medications = [], 
 
     return (
         <>
-            <Head title="Edit Treatment" />
+            <Head title={`Edit Stock #${inventory.id}`} />
 
             <div className="mx-auto w-full max-w-4xl p-6">
                 <div className="mb-4">
-                    <h1 className="text-2xl font-bold text-ink">Edit Treatment</h1>
+                    <h1 className="text-2xl font-bold text-ink">Edit Stock</h1>
                 </div>
 
                 <form
@@ -161,84 +103,10 @@ export default function Edit({ treatment, appointment, items, medications = [], 
                         </Alert>
                     )}
 
-                    {/* Appointment (read-only) */}
-                    <div className="grid grid-cols-3 gap-3 rounded-lg border border-[#f0ddc8] bg-[#fffaf4] p-3">
-                        <div className="space-y-1">
-                            <Label className="font-semibold text-ink">Patient</Label>
-                            <p className="text-sm text-gray-700">
-                                {appointment?.patient?.full_name ?? '—'}
-                            </p>
-                        </div>
-                        <div className="space-y-1">
-                            <Label className="font-semibold text-ink">Appointment</Label>
-                            <p className="text-sm text-gray-700">
-                                {appointment ? `#${appointment.id}` : '—'}
-                            </p>
-                        </div>
-                        <div className="space-y-1">
-                            <Label className="font-semibold text-ink">Procedure</Label>
-                            <p className="text-sm text-gray-700">{procedure?.name ?? '—'}</p>
-                        </div>
-                    </div>
-
-                    {/* Treatment */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                            <Label htmlFor="duration_minutes" className="font-semibold text-ink">
-                                Duration (minutes)
-                            </Label>
-                            <Input
-                                id="duration_minutes"
-                                type="number"
-                                min={1}
-                                placeholder="30"
-                                value={data.duration_minutes}
-                                onChange={(e) => setData('duration_minutes', e.target.value)}
-                                className="border-[#e0d0c0]"
-                            />
-                            {errors.duration_minutes && (
-                                <p className="mt-1.5 text-sm text-danger">{errors.duration_minutes}</p>
-                            )}
-                        </div>
-
-                        <div className="space-y-1">
-                            <Label htmlFor="follow_up_schedule" className="font-semibold text-ink">
-                                Follow-up schedule
-                            </Label>
-                            <Input
-                                id="follow_up_schedule"
-                                type="date"
-                                value={data.follow_up_schedule}
-                                onChange={(e) => setData('follow_up_schedule', e.target.value)}
-                                className="border-[#e0d0c0]"
-                            />
-                            {errors.follow_up_schedule && (
-                                <p className="mt-1.5 text-sm text-danger">{errors.follow_up_schedule}</p>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="space-y-1">
-                        <Label htmlFor="summary" className="font-semibold text-ink">
-                            Summary
-                        </Label>
-                        <Textarea
-                            id="summary"
-                            placeholder="What was done during this treatment"
-                            value={data.summary}
-                            maxLength={300}
-                            onChange={(e) => setData('summary', e.target.value)}
-                            className="border-[#e0d0c0]"
-                        />
-                        {errors.summary && (
-                            <p className="mt-1.5 text-sm text-danger">{errors.summary}</p>
-                        )}
-                    </div>
-
-                    {/* Items used (reduces stock) */}
-                    <div className="space-y-2 border-t border-[#f0ddc8] pt-3">
+                    {/* Items (increases stock) */}
+                    <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                            <Label className="font-semibold text-ink">Items used</Label>
+                            <Label className="font-semibold text-ink">Items</Label>
                             <Button
                                 type="button"
                                 variant="outline"
@@ -253,7 +121,7 @@ export default function Edit({ treatment, appointment, items, medications = [], 
 
                         {data.itemList.length === 0 && (
                             <p className="text-sm text-subtle">
-                                No items yet. A treatment needs at least one item.
+                                No items yet. An inventory entry needs at least one item.
                             </p>
                         )}
 
@@ -316,98 +184,13 @@ export default function Edit({ treatment, appointment, items, medications = [], 
                         )}
                     </div>
 
-                    {/* Prescription */}
-                    <div className="space-y-2 border-t border-[#f0ddc8] pt-3">
-                        <div className="flex items-center justify-between">
-                            <Label className="font-semibold text-ink">Prescription</Label>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={addPrescription}
-                                className="border-[#e0d0c0]"
-                            >
-                                <Plus className="h-4 w-4" />
-                                Add medication
-                            </Button>
-                        </div>
-
-                        {data.prescriptionlist.length === 0 && (
-                            <p className="text-sm text-subtle">No medication prescribed.</p>
-                        )}
-
-                        {data.prescriptionlist.map((row, i) => (
-                            <div
-                                key={i}
-                                className="grid grid-cols-[1.5fr_1fr_1fr_1fr_auto] items-start gap-3"
-                            >
-                                <div className="space-y-1">
-                                    <Select
-                                        value={row.medication_id}
-                                        onValueChange={(value) =>
-                                            updatePrescription(i, 'medication_id', value)
-                                        }
-                                    >
-                                        <SelectTrigger className="border-[#e0d0c0]">
-                                            <SelectValue placeholder="Select medication" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {medications.map((item) => (
-                                                <SelectItem key={item.id} value={String(item.id)}>
-                                                    {item.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    {fieldError(`prescriptionlist.${i}.medication_id`) && (
-                                        <p className="mt-1.5 text-sm text-danger">
-                                            {fieldError(`prescriptionlist.${i}.medication_id`)}
-                                        </p>
-                                    )}
-                                </div>
-
-                                <Input
-                                    placeholder="Dosage"
-                                    value={row.dosage}
-                                    onChange={(e) => updatePrescription(i, 'dosage', e.target.value)}
-                                    className="border-[#e0d0c0]"
-                                />
-                                <Input
-                                    placeholder="Frequency"
-                                    value={row.frequency}
-                                    onChange={(e) => updatePrescription(i, 'frequency', e.target.value)}
-                                    className="border-[#e0d0c0]"
-                                />
-                                <Input
-                                    type="number"
-                                    min={1}
-                                    placeholder="Days"
-                                    value={row.duration_days}
-                                    onChange={(e) => updatePrescription(i, 'duration_days', e.target.value)}
-                                    className="border-[#e0d0c0]"
-                                />
-
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    aria-label="Remove medication"
-                                    onClick={() => removePrescription(i)}
-                                    className="border-red-200 text-red-600 hover:bg-red-50"
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="flex justify-end border-t border-[#f0ddc8] pt-3">
+                    <div className="flex justify-end gap-2 border-t border-[#f0ddc8] pt-3">
                         <Button
                             type="submit"
                             disabled={processing}
                             className="bg-brand-orange font-bold text-white hover:bg-brand-orange-hover disabled:opacity-60"
                         >
-                            Update Treatment
+                            Update Inventory
                         </Button>
                     </div>
                 </form>
@@ -419,11 +202,11 @@ export default function Edit({ treatment, appointment, items, medications = [], 
 Edit.layout = {
     breadcrumbs: [
         {
-            title: 'Treatments',
+            title: 'Inventory',
             href: index().url,
         },
         {
-            title: 'Edit Treatment',
+            title: 'Edit Stock',
             href: '#',
         },
     ],

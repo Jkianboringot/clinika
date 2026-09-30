@@ -45,10 +45,10 @@ class InventoryService
                         ]);
                         // dd($tr);
     
-                    }   
+                    }
 
                     // dd($tr, $tr->inventoryStock());
-
+    
                     return $tr;
 
 
@@ -86,10 +86,10 @@ class InventoryService
             return DB::transaction(
                 function () use ($inv, $data) {
 
-
-                    $inv->fill($data['inventory']);
-                    $inv->staff_id = auth()->id(); //i want this so that when it is edit it will tak the id of who ever edit
+                    // record who edited it
+                    $inv->staff_id = auth()->id();
                     $inv->save();
+
 
 
                     foreach ($data['itemList'] as $listItem) {

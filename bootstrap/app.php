@@ -22,18 +22,23 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
-            EnsureUserIsActive::class
+            EnsureUserIsActive::class,
         ]);
         $middleware->trustProxies(at: '*');
+
+        // Unauthenticated patients go to the patient login, everyone else to /login
+        $middleware->redirectGuestsTo(fn (Request $request) => $request->is('patient', 'patient/*')
+            ? route('patient.login')
+            : route('login'));
+
         $middleware->alias([
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
         ]);
-
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
-            fn(Request $request) => $request->is('api/*') || $request->expectsJson(),
+            fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
     })->create();

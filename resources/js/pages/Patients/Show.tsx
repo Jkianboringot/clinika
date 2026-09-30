@@ -1,6 +1,9 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { useEffect, useRef } from 'react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { toast, Toaster } from 'sonner';
+import { UserX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { edit, destroy, index } from '@/routes/patients';
+import { edit, deactivate, index } from '@/routes/patients';
 
 interface Patient {
     id: number;
@@ -14,10 +17,18 @@ interface Patient {
     emergency_contact_number: string | null;
     medical_history: string | null;
     allergies: string | null;
+    is_active: string;
 }
 
 interface ShowProps {
     patient: Patient;
+}
+
+interface FlashProps {
+    flash?: {
+        message?: string;
+        error?: string;
+    };
 }
 
 // keep in sync with GENDER_LABELS in Create.tsx
@@ -37,31 +48,76 @@ function Field({ label, value }: { label: string; value?: string | null }) {
 }
 
 export default function Show({ patient }: ShowProps) {
-    const handleDelete = () => {
-        router.delete(destroy(patient.id).url);
+    const { flash } = usePage<FlashProps & Record<string, unknown>>().props as unknown as FlashProps;
+
+    // Guards against React 18 Strict Mode double-invoking the effect in development.
+    const lastFlashRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        const current = flash?.error ?? flash?.message ?? null;
+        if (!current || current === lastFlashRef.current) return;
+
+        lastFlashRef.current = current;
+
+        if (flash?.error) {
+            toast.error(flash.error);
+        } else if (flash?.message) {
+            toast.success(flash.message);
+        }
+    }, [flash?.message, flash?.error]);
+
+    const isActive = patient.is_active === 'active';
+
+    // Patients are soft-deactivated, never deleted.
+    const handleDeactivate = () => {
+        if (
+            confirm(
+                `Deactivate ${patient.full_name}? They will no longer be able to log in.`,
+            )
+        ) {
+            router.put(deactivate(patient.id).url, {}, { preserveScroll: true });
+        }
     };
 
     return (
         <>
             <Head title={`Patient — ${patient.full_name}`} />
 
+            <Toaster richColors position="top-right" />
+
             <div className="mx-auto w-full max-w-4xl p-6">
                 <div className="mb-4 flex items-center justify-between">
-                    <h1 className="text-2xl font-bold text-ink">{patient.full_name}</h1>
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-2xl font-bold text-ink">{patient.full_name}</h1>
+                        <span
+                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold capitalize ring-1 ring-inset ${
+                                isActive
+                                    ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                                    : 'bg-red-50 text-red-700 ring-red-200'
+                            }`}
+                        >
+                            <span
+                                className={`h-1.5 w-1.5 rounded-full ${
+                                    isActive ? 'bg-emerald-500' : 'bg-red-500'
+                                }`}
+                            />
+                            {patient.is_active}
+                        </span>
+                    </div>
                     <div className="flex gap-2">
                         <Button asChild variant="outline" className="border-[#e0d0c0]">
                             <Link href={edit(patient.id).url}>Edit</Link>
                         </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={() => {
-                                if (confirm(`Delete ${patient.full_name}'s record? This can't be undone.`)) {
-                                    handleDelete();
-                                }
-                            }}
-                        >
-                            Delete
-                        </Button>
+                        {isActive && (
+                            <Button
+                                variant="outline"
+                                onClick={handleDeactivate}
+                                className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-600"
+                            >
+                                <UserX className="h-3.5 w-3.5" />
+                                Deactivate
+                            </Button>
+                        )}
                     </div>
                 </div>
 
