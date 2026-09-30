@@ -20,4 +20,9 @@ class Treatment extends Model
     public function perscriptions(){
         return $this->hasMany(TreatmentPrescriptionDetails::class);
     }
+
+    public function doctor()
+{
+    return $this->belongsTo(User::class, 'user_id');
+}
 }

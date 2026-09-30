@@ -8,7 +8,8 @@
     use App\Http\Controllers\MedicationController;
     use App\Http\Controllers\PatientController;
     use App\Http\Controllers\ProcedureController;
-    use App\Http\Controllers\UserController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\UserController;
     use App\Http\Controllers\SaleController;
     use App\Http\Controllers\TreatmentController;
     use App\Models\Branch;
@@ -189,7 +190,10 @@
         );
 
 
+// routes/web.php
 
+    Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/export', [ReportController::class, 'export'])->name('reports.export');
 
 
 

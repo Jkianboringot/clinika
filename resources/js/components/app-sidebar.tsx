@@ -95,6 +95,7 @@ export function AppSidebar() {
             icon: Stethoscope,
             // permission: 'inventory.view',
         },
+        
         ...(canManageUsers
             ? [
                 {
@@ -104,6 +105,12 @@ export function AppSidebar() {
                 },
             ]
             : []),
+             {
+            title: 'Report',
+            href: '/reports',
+            icon: Stethoscope,
+            // permission: 'inventory.view',
+        },
         // Replacement for the block above when permission-based nav is enabled:
         // {
         //     title: 'User',

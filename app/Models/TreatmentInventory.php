@@ -9,7 +9,7 @@ class TreatmentInventory extends Model
     public $guarded = ['id'];
     public function items()
     {
-        return $this->belongsTo(InventoryItem::class);
+        return $this->belongsTo(InventoryItem::class,'inventory_item_id');
     }
 
       public function treatments()
