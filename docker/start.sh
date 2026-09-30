@@ -5,7 +5,7 @@ cd /app
 
 echo "Running migrations..."
 
-# php artisan migrate --force
+php artisan migrate 
 # php artisan db:seed --force
 
 echo "Caching config, routes and views..."
