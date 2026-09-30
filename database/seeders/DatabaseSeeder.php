@@ -21,13 +21,13 @@ class DatabaseSeeder extends Seeder
             RolePermissionSeeder::class, 
 
              UserSeeder::class,           
-            PatientSeeder::class,
+            // PatientSeeder::class,
             ProcedureSeeder::class,
             MedicationSeeder::class,
-            AppointmentSeeder::class,
+            // AppointmentSeeder::class,
             InventoryItemSeeder::class,
-              InventoryStockAdditionSeeder::class,
-  TreatmentSeeder::class, 
+            //   InventoryStockAdditionSeeder::class,
+//   TreatmentSeeder::class, 
             ]
         );
         User::factory(10)->create();
