@@ -14,12 +14,8 @@ import { useCan } from '@/hooks/use-can';
 
 // ============================================================
 // ROLE & PERMISSION TOGGLE
-// ============================================================
-// false = permissions DISABLED
+// false = permissions DISABLED (development/testing)
 // true  = permissions ENABLED
-//
-// Set this to false while you are developing/testing.
-// Set it to true when you want role/permission restrictions back.
 // ============================================================
 const ENABLE_PERMISSIONS = false;
 
@@ -50,6 +46,12 @@ interface PageProps {
 const fieldClass =
     'h-9 rounded-md border border-[#d1d5db] bg-white px-3 text-sm text-ink focus:border-brand-orange focus:outline-none';
 
+// Highlight for the inventory "Status" column (values come from StockStatusEnum::label()).
+const stockStatusClass: Record<string, string> = {
+    'Low Stock': 'font-bold text-yellow-700',
+    Critical: 'font-bold text-red-600',
+};
+
 const emptyFilters: Filters = {
     from: null,
     to: null,
@@ -70,39 +72,19 @@ function buildQuery(type: string, f: Filters) {
 }
 
 export default function Index() {
-    // ============================================================
-    // ROLE & PERMISSION
-    // ============================================================
-    // useCan() is only used when ENABLE_PERMISSIONS is true.
-    //
-    // Even though the hook exists, it will not restrict anything
-    // while ENABLE_PERMISSIONS is false.
-    // ============================================================
     const can = useCan();
 
     const props = usePage<PageProps & Record<string, unknown>>()
         .props as unknown as PageProps;
 
-    const {
-        types,
-        type,
-        columns,
-        rows,
-        summary,
-        statuses,
-        generatedAt,
-    } = props;
+    const { types, type, columns, rows, summary, statuses, generatedAt } = props;
 
     const [filters, setFilters] = useState<Filters>(props.filters);
 
     const apply = (nextType = type, next = filters) => {
         router.get(
             '/reports',
-            Object.fromEntries(
-                new URLSearchParams(
-                    buildQuery(nextType, next),
-                ),
-            ),
+            Object.fromEntries(new URLSearchParams(buildQuery(nextType, next))),
             {
                 preserveScroll: true,
                 preserveState: true,
@@ -115,37 +97,19 @@ export default function Index() {
         apply(type, emptyFilters);
     };
 
-    const typeLabel =
-        types.find((t) => t.value === type)?.label ?? 'Report';
+    const typeLabel = types.find((t) => t.value === type)?.label ?? 'Report';
 
-    // ============================================================
-    // ROLE & PERMISSION
-    // ============================================================
-    // If permissions are disabled:
-    //     ALL report types are visible.
-    //
-    // If permissions are enabled:
-    //     inventory requires inventory.view permission.
-    // ============================================================
+    // Permissions disabled: all report types visible.
+    // Permissions enabled: inventory requires inventory.view.
     const visibleTypes = ENABLE_PERMISSIONS
-        ? types.filter(
-              (t) =>
-                  t.value !== 'inventory' ||
-                  can('inventory.view'),
-          )
+        ? types.filter((t) => t.value !== 'inventory' || can('inventory.view'))
         : types;
 
     const showStatus =
-        type === 'appointments' ||
-        type === 'treatments' ||
-        type === 'patients';
+        type === 'appointments' || type === 'treatments' || type === 'patients';
 
-    const formatCell = (
-        value: string | number | undefined,
-    ) =>
-        typeof value === 'number'
-            ? value.toLocaleString()
-            : (value ?? '—');
+    const formatCell = (value: string | number | undefined) =>
+        typeof value === 'number' ? value.toLocaleString() : (value ?? '—');
 
     return (
         <>
@@ -174,28 +138,12 @@ export default function Index() {
                         Reports
                     </h1>
 
-                    {/* ====================================================
-                        ROLE & PERMISSION
-                        
-                        Permissions ENABLED:
-                            reports.download is required.
-
-                        Permissions DISABLED:
-                            Export and Print are always visible.
-                    ==================================================== */}
-                    {(!ENABLE_PERMISSIONS ||
-                        can('reports.download')) && (
+                    {/* Permissions ENABLED: reports.download required.
+                        Permissions DISABLED: always visible. */}
+                    {(!ENABLE_PERMISSIONS || can('reports.download')) && (
                         <div className="flex items-center gap-3">
-                            <a
-                                href={`/reports/export?${buildQuery(
-                                    type,
-                                    props.filters,
-                                )}`}
-                            >
-                                <Button
-                                    variant="outline"
-                                    className="gap-2"
-                                >
+                            <a href={`/reports/export?${buildQuery(type, props.filters)}`}>
+                                <Button variant="outline" className="gap-2">
                                     <Download className="h-4 w-4" />
                                     Export CSV (Excel)
                                 </Button>
@@ -212,9 +160,7 @@ export default function Index() {
                     )}
                 </div>
 
-                {/* ========================================================
-                    REPORT TYPE TABS
-                ======================================================== */}
+                {/* REPORT TYPE TABS */}
                 <div className="mb-4 flex flex-wrap gap-2 print:hidden">
                     {visibleTypes.map((t) => (
                         <button
@@ -232,74 +178,45 @@ export default function Index() {
                     ))}
                 </div>
 
-                {/* ========================================================
-                    FILTERS
-                ======================================================== */}
+                {/* FILTERS */}
                 <div className="mb-6 flex flex-wrap items-end gap-3 rounded-xl border border-[#d1d5db] bg-white p-4 print:hidden">
-                    {/* FROM */}
                     <label className="flex flex-col gap-1 text-xs font-medium text-subtle">
                         From
-
                         <input
                             type="date"
                             className={fieldClass}
                             value={filters.from ?? ''}
                             onChange={(e) =>
-                                setFilters({
-                                    ...filters,
-                                    from:
-                                        e.target.value ||
-                                        null,
-                                })
+                                setFilters({ ...filters, from: e.target.value || null })
                             }
                         />
                     </label>
 
-                    {/* TO */}
                     <label className="flex flex-col gap-1 text-xs font-medium text-subtle">
                         To
-
                         <input
                             type="date"
                             className={fieldClass}
                             value={filters.to ?? ''}
                             onChange={(e) =>
-                                setFilters({
-                                    ...filters,
-                                    to:
-                                        e.target.value ||
-                                        null,
-                                })
+                                setFilters({ ...filters, to: e.target.value || null })
                             }
                         />
                     </label>
 
-                    {/* STATUS */}
                     {showStatus && (
                         <label className="flex flex-col gap-1 text-xs font-medium text-subtle">
                             Appointment status
-
                             <select
                                 className={fieldClass}
                                 value={filters.status ?? ''}
                                 onChange={(e) =>
-                                    setFilters({
-                                        ...filters,
-                                        status:
-                                            e.target.value ||
-                                            null,
-                                    })
+                                    setFilters({ ...filters, status: e.target.value || null })
                                 }
                             >
-                                <option value="">
-                                    All statuses
-                                </option>
-
+                                <option value="">All statuses</option>
                                 {statuses.map((s) => (
-                                    <option
-                                        key={s.value}
-                                        value={s.value}
-                                    >
+                                    <option key={s.value} value={s.value}>
                                         {s.label}
                                     </option>
                                 ))}
@@ -307,33 +224,20 @@ export default function Index() {
                         </label>
                     )}
 
-                    {/* SEARCH */}
                     <label className="flex flex-col gap-1 text-xs font-medium text-subtle">
-                        {type === 'inventory'
-                            ? 'Item name'
-                            : 'Patient name'}
-
+                        {type === 'inventory' ? 'Item name' : 'Patient name'}
                         <input
                             type="text"
                             placeholder="Search…"
                             className={fieldClass}
                             value={filters.search ?? ''}
                             onChange={(e) =>
-                                setFilters({
-                                    ...filters,
-                                    search:
-                                        e.target.value ||
-                                        null,
-                                })
+                                setFilters({ ...filters, search: e.target.value || null })
                             }
-                            onKeyDown={(e) =>
-                                e.key === 'Enter' &&
-                                apply()
-                            }
+                            onKeyDown={(e) => e.key === 'Enter' && apply()}
                         />
                     </label>
 
-                    {/* APPLY */}
                     <Button
                         onClick={() => apply()}
                         className="bg-brand-orange font-bold text-white hover:bg-brand-orange-hover"
@@ -341,67 +245,39 @@ export default function Index() {
                         Apply
                     </Button>
 
-                    {/* RESET */}
-                    <Button
-                        variant="outline"
-                        onClick={reset}
-                    >
+                    <Button variant="outline" onClick={reset}>
                         Reset
                     </Button>
 
-                    {/* INVENTORY INFO */}
                     {type === 'inventory' && (
                         <p className="w-full text-xs text-subtle">
-                            Added and Used follow the selected
-                            date range. Remaining is always the
-                            current all-time stock (total added −
-                            total used).
+                            Added and Used follow the selected date range. Remaining is
+                            always the current all-time stock (total added − total used).
                         </p>
                     )}
                 </div>
 
-                {/* ========================================================
-                    PRINT-ONLY HEADER
-                ======================================================== */}
+                {/* PRINT-ONLY HEADER */}
                 <div className="mb-4 hidden print:block">
-                    <h1 className="text-xl font-bold">
-                        Clinic Management System
-                    </h1>
-
-                    <h2 className="text-lg font-semibold">
-                        {typeLabel}
-                    </h2>
-
+                    <h1 className="text-xl font-bold">Clinic Management System</h1>
+                    <h2 className="text-lg font-semibold">{typeLabel}</h2>
                     <p className="text-xs">
                         Generated: {generatedAt}
-
-                        {props.filters.from &&
-                            ` • From: ${props.filters.from}`}
-
-                        {props.filters.to &&
-                            ` • To: ${props.filters.to}`}
-
-                        {props.filters.status &&
-                            ` • Status: ${props.filters.status}`}
-
-                        {props.filters.search &&
-                            ` • Search: ${props.filters.search}`}
+                        {props.filters.from && ` • From: ${props.filters.from}`}
+                        {props.filters.to && ` • To: ${props.filters.to}`}
+                        {props.filters.status && ` • Status: ${props.filters.status}`}
+                        {props.filters.search && ` • Search: ${props.filters.search}`}
                     </p>
                 </div>
 
-                {/* ========================================================
-                    SUMMARY
-                ======================================================== */}
+                {/* SUMMARY */}
                 <div className="mb-4 flex flex-wrap gap-3">
                     {summary.map((s) => (
                         <div
                             key={s.label}
                             className="min-w-[140px] rounded-xl border border-[#d1d5db] bg-white px-4 py-3"
                         >
-                            <p className="text-xs font-medium text-subtle">
-                                {s.label}
-                            </p>
-
+                            <p className="text-xs font-medium text-subtle">{s.label}</p>
                             <p className="text-2xl font-extrabold text-ink">
                                 {s.value.toLocaleString()}
                             </p>
@@ -409,9 +285,7 @@ export default function Index() {
                     ))}
                 </div>
 
-                {/* ========================================================
-                    TABLE
-                ======================================================== */}
+                {/* TABLE */}
                 <div className="overflow-hidden rounded-xl border border-[#d1d5db] bg-[#ffffff]">
                     <Table>
                         <TableHeader>
@@ -420,9 +294,7 @@ export default function Index() {
                                     <TableHead
                                         key={c.key}
                                         className={`font-bold tracking-wide text-brand-orange-hover ${
-                                            c.align === 'right'
-                                                ? 'text-right'
-                                                : ''
+                                            c.align === 'right' ? 'text-right' : ''
                                         }`}
                                     >
                                         {c.label}
@@ -432,20 +304,17 @@ export default function Index() {
                         </TableHeader>
 
                         <TableBody>
-                            {/* EMPTY STATE */}
                             {rows.length === 0 && (
                                 <TableRow>
                                     <TableCell
                                         colSpan={columns.length}
                                         className="py-10 text-center text-sm text-subtle"
                                     >
-                                        No records found for
-                                        the selected filters.
+                                        No records found for the selected filters.
                                     </TableCell>
                                 </TableRow>
                             )}
 
-                            {/* ROWS */}
                             {rows.map((row, i) => (
                                 <TableRow
                                     key={i}
@@ -455,19 +324,10 @@ export default function Index() {
                                         <TableCell
                                             key={c.key}
                                             className={`text-ink ${
-                                                c.align === 'right'
-                                                    ? 'text-right'
-                                                    : ''
-                                            } ${
-                                                row[c.key] ===
-                                                'LOW STOCK'
-                                                    ? 'font-bold text-red-600'
-                                                    : ''
-                                            }`}
+                                                c.align === 'right' ? 'text-right' : ''
+                                            } ${stockStatusClass[String(row[c.key])] ?? ''}`}
                                         >
-                                            {formatCell(
-                                                row[c.key],
-                                            )}
+                                            {formatCell(row[c.key])}
                                         </TableCell>
                                     ))}
                                 </TableRow>
@@ -481,10 +341,5 @@ export default function Index() {
 }
 
 Index.layout = {
-    breadcrumbs: [
-        {
-            title: 'Reports',
-            href: '/reports',
-        },
-    ],
+    breadcrumbs: [{ title: 'Reports', href: '/reports' }],
 };

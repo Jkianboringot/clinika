@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('inventory_items', function (Blueprint $table) {
             $table->id();
             $table->string('item_name',75)->unique();
+            $table->string('stock_status',75)->nullable();
              $table->text('description')->nullable();
             $table->decimal('minimum_stock')->nullable();
             $table->timestamps();

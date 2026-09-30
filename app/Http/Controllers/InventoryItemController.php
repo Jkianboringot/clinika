@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\StockStatusEnum;
 use App\Http\Requests\InventoryItemRequest;
 use App\Http\Requests\SearchRequest;
 use App\Models\InventoryItem;
@@ -78,32 +79,32 @@ use Illuminate\Http\RedirectResponse;
 
 class InventoryItemController extends Controller
 {
-    public function index(Request $request): Response
+
+    public function index(Request $request)
     {
-        $search = $request->string('search')->toString();
- 
-        $items = InventoryItem::query()
-            ->when($search, fn ($query) =>
-                $query->where('item_name', 'like', "%{$search}%")
-            )
+        $items = InventoryItem::withStockTotals()
+            ->when($request->search, fn($q, $s) => $q->where('item_name', 'like', "%{$s}%"))
+            // optional: ?status=low|critical|in_stock
+            ->when($request->status, fn($q, $s) => $q->whereStockStatus(StockStatusEnum::from($s)))
             ->orderBy('item_name')
             ->paginate(15)
             ->withQueryString()
-            ->through(fn (InventoryItem $item) => [
+            ->through(fn(InventoryItem $item) => [
                 'id' => $item->id,
                 'item_name' => $item->item_name,
                 'minimum_stock' => $item->minimum_stock,
-                'stock' => $item->stock(),
+                'stock' => $item->current_stock,
+                'stock_status' => $item->stock_status->value,
+                'stock_status_label' => $item->stock_status->label(),
             ]);
- 
+
         return Inertia::render('Items/Index', [
+
             'inventoryitems' => $items,
-            'filters' => [
-                 'search' => $request->input('search'),
-            ],
+            'lowStockItems' => InventoryItem::lowStockItems(),
+            'filters' => $request->only('search', 'status'),
         ]);
     }
-
     public function create(): Response
     {
         // $this->authorize('items.create');
@@ -163,9 +164,9 @@ class InventoryItemController extends Controller
         return redirect()->route('inventory_items.index')->with('message', 'Inventory Item deleted successfully.');
     }
 
-    
 
- public function destroy(InventoryItem $inventoryItem): RedirectResponse
+
+    public function destroy(InventoryItem $inventoryItem): RedirectResponse
     {
 
         if ($inventoryItem->inventoryStock()->exists()) {
@@ -174,7 +175,7 @@ class InventoryItemController extends Controller
                 ->with('error', 'This Inventory Item has stock and cannot be deleted.');
         }
 
-        
+
         if ($inventoryItem->treatmentInventories()->exists()) {
             return redirect()
                 ->route('inventory_items.index')
