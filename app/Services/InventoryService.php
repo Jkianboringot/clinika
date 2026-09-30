@@ -2,280 +2,227 @@
 
 namespace App\Services;
 
-use App\Models\TreatmentPrescriptionDetails;
-use App\Enums\AppointmentStatusEnum;
 use App\Models\Inventory;
+use App\Models\InventoryItem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-use function Laravel\Prompts\error;
-
-
-
-
 class InventoryService
 {
-
-
-
-
-
-
     function inventoryStore(array $data)
     {
-
         try {
+            return DB::transaction(function () use ($data) {
+                $tr = new Inventory();
+                $tr->staff_id = auth()->id();
+                $tr->save();
 
-            return DB::transaction(
-                function () use ($data) {
-
-                    // this is a service becuase it needs to have stock policy, it pretty much check stock at all times
-    
-                    $tr = new Inventory();
-                    //we dont really need the file since all the column inventory has is staff_id which i dont want the client-side to input
-                    $tr->staff_id = auth()->id();
-                    $tr->save();
-
-
-                    // so this is all we needed
-                    foreach ($data['itemList'] as $listItem) {
-                        $tr->inventoryStock()->create([
-                            'inventory_item_id' => $listItem['item_id'],
-                            'quantity' => $listItem['quantity'],
-                        ]);
-                        // dd($tr);
-    
-                    }
-
-                    // dd($tr, $tr->inventoryStock());
-    
-                    return $tr;
-
-
+                foreach ($data['itemList'] as $listItem) {
+                    $tr->inventoryStock()->create([
+                        'inventory_item_id' => $listItem['item_id'],
+                        'quantity' => $listItem['quantity'],
+                    ]);
                 }
-            );
 
-        } catch (\Throwable $th) {
-            if (DB::transactionLevel() > 0) {
-                DB::rollBack();
-            }
-
-            //   ask what is this for
-            if (
-                !($th instanceof \Illuminate\Validation\ValidationException) &&
-                !($th instanceof \Illuminate\Auth\Access\AuthorizationException)
-            ) {
-                Log::error($th);
-            }
-        }
-
-
-
-    }
-
-
-    // am honestly just using what i already have beucas ei cant be bother to type it out all over again adn i dont wnat to use ai to generate this since it just give me something wrong or annoying
-
-
-
-    function inventoryUpdate(Inventory $inv, array $data)
-    {
-
-        try {
-
-            return DB::transaction(
-                function () use ($inv, $data) {
-
-                    // record who edited it
-                    $inv->staff_id = auth()->id();
-                    $inv->save();
-
-
-
-                    foreach ($data['itemList'] as $listItem) {
-                        $inv->inventoryStock()->updateOrCreate([
-                            'inventory_item_id' => $listItem['item_id'],
-                            'quantity' => $listItem['quantity'],
-                        ]);
-                    }
-                    return $inv;
-
-
-                }
-            );
-
-        } catch (\Throwable $th) {
-            if (DB::transactionLevel() > 0) {
-                DB::rollBack();
-            }
-
-            //   ask what is this for
-            if (
-                !($th instanceof \Illuminate\Validation\ValidationException) &&
-                !($th instanceof \Illuminate\Auth\Access\AuthorizationException)
-            ) {
-                Log::error($th);
-            }
-        }
-
-
-
-    }
-
-
-
-
-
-
-
-
-    // when delte happens:
-// 1.reverse the reduction on stock by deleting the record of invnetoryItem or setting them to is_deleted, just let this auto since we are doing pattern 1 or live data
-// 2.appointment status cancelled
-// 3.prescriptionlist and treatment needs to be delete
-
-    // test:
-// 1.when deleting we need to do db check if prescriptionlist is actually gone along with Treatment
-// 2.check current stock if it return, or in this case just check if inventoryItem is delete, since we have no way to know how many it is or rather is not needed 
-// 3.check if appointment status is updated properly
-    function treatmentDelete(Treatment $treatment)
-    {
-
-
-
-        try {
-            return DB::transaction(function () use ($treatment) {
-
-
-
+                return $tr;
             });
         } catch (\Throwable $th) {
-            //throw $th;
+            $this->logUnexpected('Inventory store failed unexpectedly', $th);
+            throw $th;
         }
     }
 
 
+    /**
+     * Update = sync. Items removed from the list are deleted, quantities are
+     * changed, new items are added. The stock check runs on the DELTA per item.
+     */
+    function inventoryUpdate(Inventory $inv, array $data)
+    {
+        try {
+            return DB::transaction(function () use ($inv, $data) {
+
+                // Lock the parent row so two edits/deletes of the same entry are sequential.
+                Inventory::where('id', $inv->id)->lockForUpdate()->firstOrFail();
+
+                // Same behaviour as updateOrCreate: if an item is listed twice, last one wins.
+                $newQuantities = collect($data['itemList'])
+                    ->keyBy('item_id')
+                    ->map(fn($row) => round((float) $row['quantity'], 2));
+
+                $oldQuantities = $this->currentQuantities($inv);
+
+                // Check every item touched: old ones (maybe removed) + new ones.
+                $allItemIds = $oldQuantities->keys()->merge($newQuantities->keys())->unique();
+
+                $deltas = $allItemIds->mapWithKeys(fn($id) => [
+                    $id => round(($newQuantities[$id] ?? 0) - ($oldQuantities[$id] ?? 0), 2),
+                ]);
+
+                $warnings = $this->checkStockChangeOrFail($deltas);
+
+                $inv->staff_id = auth()->id();
+                $inv->save();
+
+                $inv->inventoryStock()
+                    ->whereNotIn('inventory_item_id', $newQuantities->keys()->all())
+                    ->delete();
+
+                foreach ($newQuantities as $itemId => $qty) {
+                    $inv->inventoryStock()->updateOrCreate(
+                        ['inventory_item_id' => $itemId],
+                        ['quantity' => $qty]
+                    );
+                }
+
+                $inv->setAttribute('low_stock_warnings', $warnings);
+
+                return $inv;
+            });
+        } catch (\Throwable $th) {
+            $this->logUnexpected('Inventory update failed unexpectedly', $th);
+            throw $th;
+        }
+    }
 
 
+    /**
+     * Read-only: what would deleting this entry do to stock?
+     */
+    function inventoryDeletePreview(Inventory $inv): array
+    {
+        return DB::transaction(function () use ($inv) {
+            $deltas = $this->currentQuantities($inv)->map(fn($qty) => round(-$qty, 2));
+
+            return $this->buildImpact($inv, $deltas, $this->checkStockChangeOrFail($deltas, false));
+        });
+    }
 
 
+    /**
+     * Delete the entry. Every row's quantity is removed from stock, so this
+     * throws if any item would go negative.
+     */
+    function inventoryDelete(Inventory $inv): array
+    {
+        try {
+            return DB::transaction(function () use ($inv) {
+
+                Inventory::where('id', $inv->id)->lockForUpdate()->firstOrFail();
+
+                $deltas = $this->currentQuantities($inv)->map(fn($qty) => round(-$qty, 2));
+
+                $warnings = $this->checkStockChangeOrFail($deltas);
+                $impact = $this->buildImpact($inv, $deltas, $warnings);
+
+                $inv->inventoryStock()->delete();
+                $inv->delete();
+
+                return $impact;
+            });
+        } catch (\Throwable $th) {
+            $this->logUnexpected('Inventory delete failed unexpectedly', $th);
+            throw $th;
+        }
+    }
 
 
+    /**
+     * Total quantity this entry currently holds, per item id.
+     * (Summed in case old bugs left duplicate rows for the same item.)
+     */
+    private function currentQuantities(Inventory $inv)
+    {
+        return $inv->inventoryStock()->get()
+            ->groupBy('inventory_item_id')
+            ->map(fn($rows) => round((float) $rows->sum('quantity'), 2));
+    }
 
 
+    /**
+     * Locks each involved InventoryItem, computes the real (unclamped) balance,
+     * and applies the stock change. Must run inside DB::transaction().
+     *
+     * @param  \Illuminate\Support\Collection $deltas item_id => change in stock
+     *         (negative = stock goes down, positive = stock goes up)
+     * @return string[] low-stock warnings (before/after included)
+     * @throws \RuntimeException when any item would end up below 0
+     */
+    private function checkStockChangeOrFail($deltas, bool $lock = true): array
+    {
+        $warnings = [];
+
+        // Sorted IDs => consistent lock order => no deadlocks.
+        $itemIds = $deltas->keys()->sort()->values();
+
+        $query = InventoryItem::whereIn('id', $itemIds);
+        if ($lock) {
+            $query->lockForUpdate();
+        }
+        $items = $query->get()->keyBy('id');
+
+        foreach ($itemIds as $itemId) {
+            $delta = $deltas[$itemId];
+            $item = $items->get($itemId);
+
+            if (!$item) {
+                throw new \RuntimeException("Inventory item #{$itemId} was not found.");
+            }
+
+            // Raw balance, NOT ->stock() (which clamps to 0).
+            $additions = (float) $item->inventoryStock()->sum('quantity');
+            $used = (float) $item->treatmentInventories()->sum('quantity');
+            $before = round($additions - $used, 2);
+            $after = round($before + $delta, 2);
+
+            if ($delta < 0 && $after < 0) {
+                $needed = abs($delta);
+                throw new \RuntimeException(
+                    "Cannot complete this change for \"{$item->item_name}\": " .
+                    "it would remove {$needed}, but only {$before} is available " .
+                    "(the rest has already been used)."
+                );
+            }
+
+            // Only warn when stock is going DOWN and lands under the minimum.
+            if (
+                $delta < 0 &&
+                $item->minimum_stock !== null &&
+                $after < (float) $item->minimum_stock
+            ) {
+                $warnings[] = "\"{$item->item_name}\" is below minimum stock: " .
+                    "before {$before}, after {$after} (minimum {$item->minimum_stock}).";
+            }
+        }
+
+        return $warnings;
+    }
 
 
+    private function buildImpact(Inventory $inv, $deltas, array $warnings): array
+    {
+        $names = InventoryItem::whereIn('id', $deltas->keys())->pluck('item_name', 'id');
+
+        return [
+            'inventory_id' => $inv->id,
+            'items_removed' => $deltas->map(fn($delta, $id) => [
+                'item_id' => $id,
+                'name' => $names[$id] ?? null,
+                'quantity' => abs($delta),
+            ])->values()->all(),
+            'warnings' => $warnings,
+        ];
+    }
 
 
-
-
-
-
-
-
-
-
-
-
-    //     // we need ot figure out what form of data will this recieve
-
-    //     // ok we will revice data in json form, or object, since it is better for scale an its
-//     // is more maintable since we have single source, but honestly thier is likely no choice
-//     // it grow to the point it will be a problem if we put it in different var but i like that 
-//     // object array we get to laern more, of course if i mess up i will just go back to what i know
-// // $data=[{
-// //     inventory=>[type=>IN,
-// //     encoder_id=>3,
-// //     inventory_type=>,
-// // ],
-// //     productList =>[product1QTY=>1,product2QTY=>1,,product3QTY=>1,],
-// //     sale=>[branch_id=>1,inventory_id=>id,shift=>openning,cash_amount=>50,gcash_amount=>50]
-// // }]
-//     function InventoryOUT(array $data)
-//     {
-//         // $data=['branch_id'=>1,'ingredient_id'=>1,'quantity'=>10]
-
-    //         try {
-
-    //             return DB::transaction(
-//                 function () use ($data) {
-
-    //                     //FAULT-TOLERANCE sicne this is here we might as will use it to check, if i fail whole thing should stop
-//                     //ASK-YOURSELF we will have validation for branch:exist and that is enough so we dont really need the find or fila
-//                     //we can use just fine, but it is  not bad to use findorfail but if it has performance added on top then we weill use find()
-//                     $branch = Branch::findOrFail($data['branch_id']);
-//                     $inv = new Inventory();
-//                     $inv->fill($data['inventory']);
-
-    //                     $inv->encoder_id = auth()->id();
-//                     $inv->inventory_type = InOutType::Out->value;
-//                     $inv->branch_id = $branch->id; //ensure only insert if it exist, instead fo data[branch_id] which has possiblity of not existing
-//                     $inv->save();
-
-    //                     $sale = new Sale();
-//                     $sale->fill($data['sale']);
-
-    //                     //ASK-YOURSELF i dont know if this will work since we are doing it in same transaction
-//                     $sale->branch_id = $branch->id; //ensure only insert if it exist, instead fo data[branch_id] which has possiblity of not existing, also becuase input is not validated;
-//                     $sale->inventory_id = $inv->id;
-//                     $sale->save();
-
-
-    //                     foreach ($data['productList'] as $listItem) {
-//                         $productID = $listItem['product_id'];
-//                         $qty = $listItem['quantity'];
-
-    //                         // FAULT-TOLERANCE - this just for safe check, can be remove, ask 
-//                         // ASK-YOURSELF later, because i suspect we dont need this , because we expect item to be already thier
-//                         //OPTIMIZE - seem redundant to get the whole model 
-//                         $existting = $branch->products()->where('product_id', $productID)->first();
-//                         if ($existting) {
-//                             $branch->products()->updateExistingPivot( //update to follow pattern 2
-//                                 $productID,
-//                                 [
-//                                     'quantity' => $existting->pivot->quantity - $qty,
-//                                     //with need ot add withpivot for model 
-//                                 ],
-//                             );
-
-    //                         } else {
-//                             dd($existting, 'bad');
-
-    //                             //we need to throw error here since , in here we expect that an item already exist in this branch
-//                             //if not then something is wrong, we should'nt even be able to make this request
-//                             throw new Error('development: this error is bad, INVENTORYOUT, unexpected error');
-//                         }
-
-    //                     }
-
-    //                     return $inv; //no reason to do this other than confirm operation ws successfull
-
-
-    //                 }
-//             );
-
-    //         } catch (\Throwable $th) {
-//             if (DB::transactionLevel() > 0) {
-//                 DB::rollBack();
-//             }
-
-    //             //   ask what is this for
-//             if (
-//                 !($th instanceof \Illuminate\Validation\ValidationException) &&
-//                 !($th instanceof \Illuminate\Auth\Access\AuthorizationException)
-//             ) {
-//                 Log::error($th);
-//             }
-//         }
-
-
-
-    //     }
-
-
+    private function logUnexpected(string $message, \Throwable $th): void
+    {
+        if (
+            !($th instanceof \Illuminate\Validation\ValidationException) &&
+            !($th instanceof \Illuminate\Auth\Access\AuthorizationException) &&
+            !($th instanceof \RuntimeException)
+        ) {
+            Log::error($message, ['exception' => $th]);
+        }
+    }
 }
-
-
-// finish this today so that we can move on to to pern which should be easier, learn isolation for it   
-
-// figure out how you will send data here first and fins the fucing pivot pk

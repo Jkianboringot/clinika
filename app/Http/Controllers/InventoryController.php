@@ -174,25 +174,16 @@ class InventoryController extends Controller
     }
 
 
-    public function store(InventoryRequest $request)
-    {
-
-        $data = $request->validated();
-        // dd($data);
-        $tr = $this->inventoryService->inventoryStore(
-            [
-                'itemList' => $data['itemList'],
-            ]
-        );
-
-        if (!$tr) {
-            return back()->with('error', 'Failed to created inventory');
-        }
-
-        return redirect()->route('inventories.index')->with('message', 'Sucessfully created inventory');
-
+  public function store(InventoryRequest $request)
+{
+    try {
+        $this->inventoryService->inventoryStore(['itemList' => $request->validated()['itemList']]);
+    } catch (\Throwable $e) {
+        return back()->with('error', 'Failed to create inventory');
     }
 
+    return redirect()->route('inventories.index')->with('message', 'Successfully created inventory');
+}
     public function edit(Inventory $inventory)
     {
         $inventory->load(['inventoryStock']);
@@ -221,40 +212,36 @@ class InventoryController extends Controller
 
 
 
-    public function update(Inventory $inventory, InventoryRequest $request)
-    {
-
-
-        // all good
-
-        $data = $request->validated();
-        $tr = $this->inventoryService->inventoryUpdate(
-            $inventory,//this is just to make sure that inventoury actually exist but we will check that in valdiation
-            [
-
-                'itemList' => $data['itemList'],
-            ]
-
-        );
-
-        if (!$tr) {
-            return back()->with('error', 'Failed to udpated inventory');
-        }
-
-        return redirect()->route('inventories.index')->with('message', 'Sucessfully udpated inventory');
-
+public function update(Inventory $inventory, InventoryRequest $request)
+{
+    try {
+        $inv = $this->inventoryService->inventoryUpdate($inventory, [
+            'itemList' => $request->validated()['itemList'],
+        ]);
+    } catch (\RuntimeException $e) {
+        return back()->with('error', $e->getMessage());   // stock would go negative
+    } catch (\Throwable $e) {
+        return back()->with('error', 'Failed to update inventory');
     }
 
+    return redirect()->route('inventories.index')
+        ->with('message', 'Successfully updated inventory')
+        ->with('warning', $inv->low_stock_warnings);
+}
 
-    public function destroy(Inventory $inventory): RedirectResponse
-    {
-        try {
-            //allowed delete, its fine
-            $inventory->deleteOrFail();
-        } catch (\Throwable $e) {
-            return redirect()->route('inventories.index')->with('error', 'Could not delete this inventory entry.');
-        }
-
-        return redirect()->route('inventories.index')->with('message', 'Inventory entry deleted successfully.');
+  
+public function destroy(Inventory $inventory): RedirectResponse
+{
+    try {
+        $impact = $this->inventoryService->inventoryDelete($inventory);
+    } catch (\RuntimeException $e) {
+        return redirect()->route('inventories.index')->with('error', $e->getMessage());
+    } catch (\Throwable $e) {
+        return redirect()->route('inventories.index')->with('error', 'Could not delete this inventory entry.');
     }
+
+    return redirect()->route('inventories.index')
+        ->with('message', 'Inventory entry deleted successfully.')
+        ->with('warning', $impact['warnings']);
+}
 }
