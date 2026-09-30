@@ -89,26 +89,19 @@ class TreatmentController extends Controller
                     'itemList' => $data['itemList'],
                 ]
             );
-        } catch (TreatmentLimitExceededException | \RuntimeException $e) {
-            // Expected business-rule failures (insufficient stock, 1:1 rule, ...)
-            return back()->withInput()->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            return $this->failToIndex($e);
         }
 
         if (!$tr) {
             return back()->with('error', 'Failed to create treatment');
         }
 
-        // Runs AFTER the transaction has committed. A mail failure must never
-        // undo the treatment, so it's caught and logged.
+        // After commit. A mail failure must never undo the treatment.
         $this->sendSummaryEmail($appointment, $tr);
 
-        $redirect = redirect()->route('treatments.index')->with('message', 'Successfully created treatment');
-
-        if (!empty($tr->low_stock_warnings)) {
-            $redirect->with('warning', $tr->low_stock_warnings);
-        }
-
-        return $redirect;
+        return redirect()->route('treatments.index')
+            ->with('message', $this->withWarnings('Successfully created treatment', $tr->low_stock_warnings ?? []));
     }
 
     public function edit(Treatment $treatment)
@@ -158,8 +151,6 @@ class TreatmentController extends Controller
             $tr = $this->treatmentService->treatmentUpdate(
                 $treatment,
                 [
-                    // FIX: was only passing follow_up_schedule, so summary and
-                    // duration_minutes were silently never updated.
                     'treatment' => [
                         'follow_up_schedule' => $data['follow_up_schedule'],
                         'duration_minutes' => $data['duration_minutes'],
@@ -169,24 +160,18 @@ class TreatmentController extends Controller
                     'itemList' => $data['itemList'],
                 ]
             );
-        } catch (\RuntimeException $e) {
-            return back()->withInput()->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            return $this->failToIndex($e);
         }
 
         if (!$tr) {
             return back()->with('error', 'Failed to update treatment');
         }
 
-        $redirect = redirect()->route('treatments.index')->with('message', 'Successfully updated treatment');
-
-        if (!empty($tr->low_stock_warnings)) {
-            $redirect->with('warning', $tr->low_stock_warnings);
-        }
-
-        return $redirect;
+        return redirect()->route('treatments.index')
+            ->with('message', $this->withWarnings('Successfully updated treatment', $tr->low_stock_warnings ?? []));
     }
 
-    // FIX: service now has treatmentDeletePreview().
     public function deletePreview(Treatment $treatment)
     {
         return response()->json($this->treatmentService->treatmentDeletePreview($treatment));
@@ -195,20 +180,40 @@ class TreatmentController extends Controller
     public function destroy(Treatment $treatment)
     {
         try {
-            // FIX: service now returns an impact array (with 'warnings'), not `true`.
             $impact = $this->treatmentService->treatmentDelete($treatment);
         } catch (\Throwable $e) {
             return redirect()->route('treatments.index')->with('error', 'Failed to delete treatment.');
         }
 
-        $redirect = redirect()->route('treatments.index')
-            ->with('success', 'Treatment deleted and stock returned.');
+        return redirect()->route('treatments.index')
+            ->with('message', $this->withWarnings('Treatment deleted and stock returned.', $impact['warnings'] ?? []));
+    }
 
-        if (!empty($impact['warnings'])) {
-            $redirect->with('warning', $impact['warnings']);
+    /**
+     * Turns a failed store/update into a redirect to the index page with an
+     * 'error' flash, which Index.tsx shows as a toast. The service already
+     * logs unexpected failures, so no logging here.
+     */
+    private function failToIndex(\Throwable $e)
+    {
+        // Expected, user-facing failures: 1-treatment-per-appointment rule,
+        // insufficient stock, missing inventory item.
+        if ($e instanceof TreatmentLimitExceededException || $e instanceof \RuntimeException) {
+            $message = $e->getMessage();
+        } else {
+            $message = 'Something went wrong while saving the treatment. Please try again.';
         }
 
-        return $redirect;
+        return redirect()->route('treatments.index')->with('error', $message);
+    }
+
+    /**
+     * Only 'message' and 'error' flash keys exist in the UI, so low-stock
+     * warnings are folded into the message text.
+     */
+    private function withWarnings(string $message, array $warnings): string
+    {
+        return $warnings ? $message . ' Note: ' . implode(' ', $warnings) : $message;
     }
 
     /**
