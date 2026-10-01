@@ -16,8 +16,9 @@ import { useCan } from '@/hooks/use-can';
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
 
-// `permission` = the permission the user needs to see this link
-type PermissionNavItem = NavItem & { permission: string };
+// `permission` = the permission(s) the user needs to see this link.
+// An array means "any one of these is enough".
+type PermissionNavItem = NavItem & { permission: string | string[] };
 
 export function AppSidebar() {
     const { auth } = usePage<{ auth: { guard: 'web' | 'patient' | null } }>().props;
@@ -27,7 +28,12 @@ export function AppSidebar() {
 
     const mainNavItems: PermissionNavItem[] = [
         // ---------- Staff / Admin / Dentist (web guard) ----------
-        { title: 'Dashboard', href: dashboard(), icon: LayoutGrid, permission: 'dashboard.view' },
+        {
+            title: 'Dashboard',
+            href: dashboard(),
+            icon: LayoutGrid,
+            permission: ['admin_dashboard.view', 'staff_dashboard.view', 'dentist_dashboard.view'],
+        },
         { title: 'Procedures', href: '/procedures', icon: Syringe, permission: 'procedures.view' },
         { title: 'Medication', href: '/medications', icon: Pill, permission: 'medications.view' },
         { title: 'Items', href: '/inventory_items', icon: ListPlus, permission: 'inventory.view' },
@@ -39,11 +45,16 @@ export function AppSidebar() {
         { title: 'Report', href: '/reports', icon: FileChartColumn, permission: 'reports.view' },
 
         // ---------- Patient (patient guard) ----------
+        { title: 'Dashboard', href: '/patient/dashboard', icon: LayoutGrid, permission: 'patient_dashboard.view' },
         { title: 'My Appointments', href: '/patient/appointments', icon: TicketCheck, permission: 'appointments.view_own' },
         { title: 'My Treatments', href: '/patient/treatments', icon: Stethoscope, permission: 'treatments.view_own' },
     ];
 
-    const visibleNavItems = mainNavItems.filter((item) => can(item.permission));
+    const visibleNavItems = mainNavItems.filter((item) => {
+        const required = Array.isArray(item.permission) ? item.permission : [item.permission];
+
+        return required.some((p) => can(p));
+    });
 
     return (
         <Sidebar collapsible="icon" variant="sidebar">
@@ -51,7 +62,7 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link href={isPatient ? '/patient/appointments' : dashboard()} prefetch>
+                            <Link href={isPatient ? '/patient/dashboard' : dashboard()} prefetch>
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>

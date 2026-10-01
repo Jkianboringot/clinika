@@ -20,7 +20,10 @@ class RolePermissionSeeder extends Seeder
         */
 
         $webPermissions = [
-            'dashboard.view',
+            'admin_dashboard.view',
+            'staff_dashboard.view',
+            'dentist_dashboard.view',
+            'patient_dashboard.view',
 
             'users.route',
             'users.view',
@@ -75,7 +78,8 @@ class RolePermissionSeeder extends Seeder
         $dentist = Role::firstOrCreate(['name' => 'dentist', 'guard_name' => 'web']);
 
         $admin->syncPermissions([
-            'dashboard.view',
+            'admin_dashboard.view',
+
             'users.route',
             'users.view',
             'users.create',
@@ -85,7 +89,7 @@ class RolePermissionSeeder extends Seeder
         ]);
 
         $staff->syncPermissions([
-            'dashboard.view', // ADDED so "/" -> dashboard doesn't 403 for staff (remove if unwanted)
+            'staff_dashboard.view',
 
             'patients.view',
             'patients.create',
@@ -121,7 +125,7 @@ class RolePermissionSeeder extends Seeder
         ]);
 
         $dentist->syncPermissions([
-            'dashboard.view', // ADDED (same reason as staff)
+             'dentist_dashboard.view',
 
             'patients.view',
             // 'patients.create',
@@ -150,6 +154,7 @@ class RolePermissionSeeder extends Seeder
         */
 
         $patientPermissions = [
+                        'patient_dashboard.view',
             'profile.view',
             'profile.update',
             'appointments.view_own',

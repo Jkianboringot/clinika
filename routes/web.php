@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\PatientLoginController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Dashboards\PatientDashboardController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\InventoryItemController;
 use App\Http\Controllers\MedicationController;
@@ -32,7 +33,7 @@ use Illuminate\Support\Facades\Route;
 // Redirect "/" depending on who is logged in
 Route::get('/', function () {
     if (Auth::guard('patient')->check()) {
-        return redirect()->route('patient.appointments.index');
+        return redirect()->route('patient.dashboard');
     }
 
     return redirect()->route('dashboard');
@@ -56,9 +57,12 @@ Route::post('/patient/logout', [PatientLoginController::class, 'destroy'])
 | Permission middleware needs the guard as 2nd argument: permission:name,patient
 */
 Route::middleware(['auth:patient'])->prefix('patient')->name('patient.')->group(function () {
+    Route::get('dashboard', [PatientDashboardController::class, 'index'])
+        ->middleware('permission:patient_dashboard.view,patient')->name('dashboard');
+
     Route::get('appointments', [PatientAppointmentController::class, 'index'])
         ->middleware('permission:appointments.view_own,patient')->name('appointments.index');
-  
+
     Route::get('treatments', [PatientTreatmentController::class, 'index'])
         ->middleware('permission:treatments.view_own,patient')->name('treatments.index');
 });
@@ -70,8 +74,8 @@ Route::middleware(['auth:patient'])->prefix('patient')->name('patient.')->group(
 */
 Route::middleware(['auth:web', 'verified'])->group(function () {
 
-    Route::get('dashboard', [DashboardController::class, 'index'])
-        ->middleware('permission:dashboard.view')->name('dashboard');
+    // One /dashboard route: DashboardController picks admin / dentist / staff by permission
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
 
     // ===== PROCEDURES =====
     Route::prefix('procedures')->name('procedures.')->group(function () {
