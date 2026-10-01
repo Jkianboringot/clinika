@@ -5,7 +5,15 @@
     <p>Your treatment is complete. Here's a summary:</p>
 
     <h3>Treatment Summary</h3>
-    <p>{{ $treatment->summary }}</p>
+    @if (filled($treatment->summary))
+        <p>{!! nl2br(e($treatment->summary)) !!}</p>
+    @else
+        <p>No summary provided.</p>
+    @endif
+
+    @if ($treatment->duration_minutes)
+        <p><strong>Duration:</strong> {{ $treatment->duration_minutes }} minutes</p>
+    @endif
 
     <h3>Prescription</h3>
     @if ($prescriptions->isEmpty())

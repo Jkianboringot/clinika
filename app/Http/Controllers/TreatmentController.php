@@ -220,21 +220,33 @@ class TreatmentController extends Controller
      * Emails the patient their treatment summary (Mailtrap in dev via .env).
      * Never throws.
      */
-    private function sendSummaryEmail(Appointment $appointment, Treatment $tr): void
-    {
-        $patient = $appointment->patient;
+  private function sendSummaryEmail(Appointment $appointment, Treatment $tr): void
+{
+    $patient = $appointment->patient;
 
-        if (!$patient?->email) {
-            return;
-        }
-
-        try {
-            Mail::to($patient->email)->send(new TreatmentSummaryMail($tr));
-        } catch (\Throwable $e) {
-            Log::warning('Treatment summary email failed', [
-                'treatment_id' => $tr->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
+    if (!$patient?->email) {
+        Log::info('Treatment summary email skipped: patient has no email', [
+            'treatment_id' => $tr->id,
+            'patient_id' => $patient?->id,
+        ]);
+        return;
     }
+
+    try {
+        Mail::to($patient->email)->send(new TreatmentSummaryMail($tr));
+
+        Log::info('Treatment summary email sent', [
+            'treatment_id' => $tr->id,
+            'patient_id' => $patient->id,
+            'to' => $patient->email,
+        ]);
+    } catch (\Throwable $e) {
+        Log::error('Treatment summary email failed', [
+            'treatment_id' => $tr->id,
+            'patient_id' => $patient->id,
+            'to' => $patient->email,
+            'error' => $e->getMessage(),
+        ]);
+    }
+}
 }
