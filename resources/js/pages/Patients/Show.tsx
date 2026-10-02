@@ -4,6 +4,7 @@ import { toast, Toaster } from 'sonner';
 import { UserX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { edit, deactivate, index } from '@/routes/patients';
+import { useCan } from '@/hooks/use-can';
 
 interface Patient {
     id: number;
@@ -49,6 +50,7 @@ function Field({ label, value }: { label: string; value?: string | null }) {
 
 export default function Show({ patient }: ShowProps) {
     const { flash } = usePage<FlashProps & Record<string, unknown>>().props as unknown as FlashProps;
+    const can = useCan();
 
     // Guards against React 18 Strict Mode double-invoking the effect in development.
     const lastFlashRef = useRef<string | null>(null);
@@ -90,25 +92,27 @@ export default function Show({ patient }: ShowProps) {
                     <div className="flex items-center gap-3">
                         <h1 className="text-2xl font-bold text-ink">{patient.full_name}</h1>
                         <span
-                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold capitalize ring-1 ring-inset ${
-                                isActive
+                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold capitalize ring-1 ring-inset ${isActive
                                     ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
                                     : 'bg-red-50 text-red-700 ring-red-200'
-                            }`}
+                                }`}
                         >
                             <span
-                                className={`h-1.5 w-1.5 rounded-full ${
-                                    isActive ? 'bg-emerald-500' : 'bg-red-500'
-                                }`}
+                                className={`h-1.5 w-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-red-500'
+                                    }`}
                             />
                             {patient.is_active}
                         </span>
                     </div>
                     <div className="flex gap-2">
-                        <Button asChild variant="outline" className="border-[#e0d0c0]">
-                            <Link href={edit(patient.id).url}>Edit</Link>
-                        </Button>
-                        {isActive && (
+                        {can('patients.update') && (
+
+                            <Button asChild variant="outline" className="border-[#e0d0c0]">
+                                <Link href={edit(patient.id).url}>Edit</Link>
+                            </Button>
+                        )}
+
+                        {can('patients.delete') && isActive && (
                             <Button
                                 variant="outline"
                                 onClick={handleDeactivate}
@@ -118,6 +122,8 @@ export default function Show({ patient }: ShowProps) {
                                 Deactivate
                             </Button>
                         )}
+                                                
+
                     </div>
                 </div>
 

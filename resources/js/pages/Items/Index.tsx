@@ -95,7 +95,7 @@ export default function Index() {
 
     return (
         <>
-            <Head title="InventoryItems" />
+            <Head title="Inventory Items" />
 
             <Toaster richColors position="top-right" />
 
@@ -114,9 +114,9 @@ export default function Index() {
                 </div>
 
                 {/* Low stock alert: every item whose stock is below its minimum stock */}
-                <div className="mb-6">
+                {/* <div className="mb-6">
                     <LowStockAlert items={lowStockItems} />
-                </div>
+                </div> */}
 
                 <div className="overflow-hidden rounded-xl border border-[#c9c0b7] bg-white">
                     <div className="flex items-center justify-between border-b border-[#c9c0b7] px-5 py-3">

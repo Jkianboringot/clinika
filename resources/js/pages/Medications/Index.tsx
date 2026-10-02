@@ -13,6 +13,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { create, destroy, edit, index as medicationsIndex } from '@/routes/medications';
+import { useCan } from '@/hooks/use-can';
 
 interface Medication {
     id: number;
@@ -47,6 +48,12 @@ function paginationLabel(label: string) {
 
 export default function Index() {
     const { flash, medications, filters } = usePage<MedicationsPageProps>().props;
+    const can = useCan();
+
+    // Show the Actions column only if the user can do at least one action.
+    const canEdit = can('medications.update');
+    const canDelete = can('medications.delete');
+    const showActions = canEdit || canDelete;
 
     // Guards against React 18 Strict Mode (createInertiaApp's `strictMode: true`)
     // double-invoking this effect on mount in development, which would
@@ -105,14 +112,16 @@ export default function Index() {
                         </h1>
                         
                     </div>
-                    <Link href={create().url}>
-                        <Button className="bg-brand-orange font-bold text-white hover:bg-brand-orange-hover">
-                            New medication
-                        </Button>
-                    </Link>
+                    {can('medications.create') && (
+                        <Link href={create().url}>
+                            <Button className="bg-brand-orange font-bold text-white hover:bg-brand-orange-hover">
+                                New medication
+                            </Button>
+                        </Link>
+                    )}
                 </div>
 
-                <div className="overflow-hidden rounded-xl border border-[#c9c0b7]  bg-white">
+                <div className="overflow-hidden rounded-xl border border-[#c9c0b7] bg-white">
                     <div className="flex items-center justify-between border-b border-[#c9c0b7] px-5 py-3">
                         <h2 className="font-bold text-ink">All Medications</h2>
                         <div className="relative">
@@ -134,13 +143,15 @@ export default function Index() {
                                 <TableHead className="font-bold text-brand-orange-hover">Generic name</TableHead>
                                 <TableHead className="font-bold text-brand-orange-hover">Form</TableHead>
                                 <TableHead className="font-bold text-brand-orange-hover">Strength</TableHead>
-                                <TableHead className="text-right font-bold text-brand-orange-hover">Actions</TableHead>
+                                {showActions && (
+                                    <TableHead className="text-right font-bold text-brand-orange-hover">Actions</TableHead>
+                                )}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {medicationRows.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="py-10 text-center text-sm text-subtle">
+                                    <TableCell colSpan={showActions ? 5 : 4} className="py-10 text-center text-sm text-subtle">
                                         No medications found.
                                     </TableCell>
                                 </TableRow>
@@ -154,26 +165,32 @@ export default function Index() {
                                     <TableCell>{medication.generic_name ?? '—'}</TableCell>
                                     <TableCell>{medication.dosage_form ?? '—'}</TableCell>
                                     <TableCell>{medication.strength ?? '—'}</TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center justify-end gap-4">
-                                            <Link
-                                                href={edit(medication.id).url}
-                                                className="flex items-center gap-1 text-sm font-medium text-ink hover:text-brand-orange"
-                                            >
-                                                <Pencil className="h-4 w-4" />
-                                                Edit
-                                            </Link>
-                                            <button
-                                                type="button"
-                                                disabled={processing}
-                                                onClick={() => handleDelete(medication.id, medication.name)}
-                                                className="flex items-center gap-1 text-sm font-medium text-ink hover:text-danger disabled:opacity-50"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                                Delete
-                                            </button>
-                                        </div>
-                                    </TableCell>
+                                    {showActions && (
+                                        <TableCell>
+                                            <div className="flex items-center justify-end gap-4">
+                                                {canEdit && (
+                                                    <Link
+                                                        href={edit(medication.id).url}
+                                                        className="flex items-center gap-1 text-sm font-medium text-ink hover:text-brand-orange"
+                                                    >
+                                                        <Pencil className="h-4 w-4" />
+                                                        Edit
+                                                    </Link>
+                                                )}
+                                                {canDelete && (
+                                                    <button
+                                                        type="button"
+                                                        disabled={processing}
+                                                        onClick={() => handleDelete(medication.id, medication.name)}
+                                                        className="flex items-center gap-1 text-sm font-medium text-ink hover:text-danger disabled:opacity-50"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                        Delete
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                    )}
                                 </TableRow>
                             ))}
                         </TableBody>

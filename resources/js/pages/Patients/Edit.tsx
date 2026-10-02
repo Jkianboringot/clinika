@@ -33,8 +33,6 @@ interface PatientForm {
     gender: string;
     date_of_birth: string;
     email: string;
-    password: string;
-    password_confirmation: string;
     contact_number: string;
     emergency_contact_name: string;
     emergency_contact_number: string;
@@ -60,8 +58,6 @@ export default function Edit({ patient }: Props) {
         gender: patient.gender ?? '',
         date_of_birth: patient.date_of_birth ?? '',
         email: patient.email ?? '',
-        password: '',
-        password_confirmation: '',
         contact_number: patient.contact_number ?? '',
         emergency_contact_name: patient.emergency_contact_name ?? '',
         emergency_contact_number: patient.emergency_contact_number ?? '',
@@ -183,44 +179,6 @@ export default function Edit({ patient }: Props) {
                             {errors.email && (
                                 <p className="mt-1.5 text-sm text-danger">{errors.email}</p>
                             )}
-                        </div>
-                    </div>
-
-                    {/* Credentials — optional on edit, only sent if filled in */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                            <Label htmlFor="password" className="font-semibold text-ink">
-                                New password
-                            </Label>
-                            <Input
-                                id="password"
-                                type="password"
-                                autoComplete="new-password"
-                                placeholder="Leave blank to keep current password"
-                                value={data.password}
-                                minLength={8}
-                                onChange={(e) => setData('password', e.target.value)}
-                                className="border-gray-200"
-                            />
-                            {errors.password && (
-                                <p className="mt-1.5 text-sm text-danger">{errors.password}</p>
-                            )}
-                        </div>
-
-                        <div className="space-y-1">
-                            <Label htmlFor="password_confirmation" className="font-semibold text-ink">
-                                Confirm new password
-                            </Label>
-                            <Input
-                                id="password_confirmation"
-                                type="password"
-                                autoComplete="new-password"
-                                placeholder="••••••••"
-                                value={data.password_confirmation}
-                                minLength={8}
-                                onChange={(e) => setData('password_confirmation', e.target.value)}
-                                className="border-gray-200"
-                            />
                         </div>
                     </div>
 

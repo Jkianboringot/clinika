@@ -97,7 +97,7 @@ class UserController extends Controller
             // `full_name as name` aliases the column so the frontend can
             // read `row.name` the same way it does for users.
             $users = Patient::query()
-                ->select(['id', 'full_name as name', 'email', 'contact_number', 'created_at','is_active'])
+                ->select(['id', 'full_name as name', 'email', 'contact_number', 'created_at', 'is_active'])
                 ->when(
                     $validated['search'] ?? null,
                     fn($query, $search) =>
@@ -231,10 +231,35 @@ class UserController extends Controller
         return redirect()->route('users.index')->with('message', 'User deactivated successfully.');
     }
 
+    /**
+     * Reactivate a previously deactivated user. Only works if the user is
+     * currently INACTIVE; the check is part of the UPDATE query, so two
+     * concurrent requests can't both pass it.
+     */
+    public function activate(Request $request, User $user): RedirectResponse
+    {
+        $this->authorize('users.update');
+
+        if ($user->id === Auth::id()) {
+            abort(403, "You can't change the status of your own account.");
+        }
+
+        $updated = User::whereKey($user->id)
+            ->where('is_active', IsActiveEnum::DEACTIVED->value)
+            ->update(['is_active' => IsActiveEnum::ACTIVE->value]);
+
+        if ($updated === 0) {
+            return redirect()
+                ->route('users.index')
+                ->with('error', 'Only deactivated users can be activated.');
+        }
+
+        return redirect()->route('users.index')->with('message', 'User activated successfully.');
+    }
     private function assignableRoles(): array
     {
         return Auth::user()->hasRole('admin')
-            ? ['admin', 'dentist', 'staff']
+            ? [ 'dentist', 'staff']
             : ['dentist'];
     }
 

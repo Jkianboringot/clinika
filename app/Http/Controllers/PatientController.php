@@ -11,6 +11,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 
 class PatientController extends Controller
@@ -50,8 +51,13 @@ class PatientController extends Controller
     {
         // $this->authorize('patients.create');
 
+        $data = $request->validated();
+
+        // Default password is the patient's contact number (hashed).
+        $data['password'] = Hash::make($data['contact_number']);
+
         try {
-            Patient::create($request->validated());
+            Patient::create($data);
         } catch (\Throwable $e) {
             return redirect()
                 ->route('patients.index')
@@ -73,12 +79,6 @@ class PatientController extends Controller
     public function update(PatientRequest $request, Patient $patient): RedirectResponse
     {
         $data = $request->validated();
-
-        if (empty($data['password'])) {
-            unset($data['password']);
-        } else {
-            $data['password'] = bcrypt($data['password']);
-        }
 
         try {
             $patient->update($data);
@@ -124,6 +124,31 @@ class PatientController extends Controller
             'patient' => $patient,
         ]);
     }
+
+    public function activate(Patient $patient): RedirectResponse
+{
+    // $this->authorize('patients.update');
+
+    try {
+        // The status check is part of the UPDATE query, so it only succeeds
+        // if the patient is currently deactivated.
+        $updated = Patient::whereKey($patient->id)
+            ->where('is_active', IsActiveEnum::DEACTIVED->value)
+            ->update(['is_active' => IsActiveEnum::ACTIVE->value]);
+    } catch (\Throwable $e) {
+        return redirect()
+            ->route('patients.index')
+            ->with('error', 'Failed to activate patient.');
+    }
+
+    if ($updated === 0) {
+        return redirect()
+            ->route('patients.index')
+            ->with('error', 'Only deactivated patients can be activated.');
+    }
+
+    return redirect()->route('patients.index')->with('message', 'Patient activated successfully.');
+}
 }
 
 

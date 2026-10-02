@@ -19,8 +19,6 @@ interface PatientForm {
     gender: string;
     date_of_birth: string;
     email: string;
-    password: string;
-    password_confirmation: string;
     contact_number: string;
     emergency_contact_name: string;
     emergency_contact_number: string;
@@ -37,13 +35,11 @@ const GENDER_LABELS: Record<string, string> = {
 };
 
 export default function Create() {
-    const { data, setData, post, processing, errors, reset } = useForm<PatientForm>({
+    const { data, setData, post, processing, errors } = useForm<PatientForm>({
         full_name: '',
         gender: '',
         date_of_birth: '',
         email: '',
-        password: '',
-        password_confirmation: '',
         contact_number: '',
         emergency_contact_name: '',
         emergency_contact_number: '',
@@ -54,9 +50,7 @@ export default function Create() {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        post(store().url, {
-            onSuccess: () => reset('password', 'password_confirmation'),
-        });
+        post(store().url);
     };
 
     return (
@@ -166,42 +160,6 @@ export default function Create() {
                             {errors.email && (
                                 <p className="mt-1.5 text-sm text-danger">{errors.email}</p>
                             )}
-                        </div>
-                    </div>
-
-                    {/* Credentials */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                            <Label htmlFor="password" className="font-semibold text-ink">
-                                Password
-                            </Label>
-                            <Input
-                                id="password"
-                                type="password"
-                                placeholder="••••••••"
-                                value={data.password}
-                                minLength={8}
-                                onChange={(e) => setData('password', e.target.value)}
-                                className="border-[#e0d0c0]"
-                            />
-                            {errors.password && (
-                                <p className="mt-1.5 text-sm text-danger">{errors.password}</p>
-                            )}
-                        </div>
-
-                        <div className="space-y-1">
-                            <Label htmlFor="password_confirmation" className="font-semibold text-ink">
-                                Confirm password
-                            </Label>
-                            <Input
-                                id="password_confirmation"
-                                type="password"
-                                placeholder="••••••••"
-                                value={data.password_confirmation}
-                                minLength={8}
-                                onChange={(e) => setData('password_confirmation', e.target.value)}
-                                className="border-[#e0d0c0]"
-                            />
                         </div>
                     </div>
 

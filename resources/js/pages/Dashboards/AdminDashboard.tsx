@@ -14,7 +14,6 @@ interface UserDistribution {
     patients: number;
     dentists: number;
     staff: number;
-    admins: number;
 }
 
 interface DashboardProps {
@@ -29,7 +28,6 @@ export default function Dashboard({ stats, userDistribution }: DashboardProps) {
         { name: 'Patients', value: userDistribution.patients },
         { name: 'Dentists', value: userDistribution.dentists },
         { name: 'Staff', value: userDistribution.staff },
-        { name: 'Admins', value: userDistribution.admins },
     ];
 
     return (

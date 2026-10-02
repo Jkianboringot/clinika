@@ -47,7 +47,7 @@ class UserSeeder extends Seeder
             [
                 'full_name' => 'Patient User',
                 'date_of_birth' => '2000-01-01',
-                'gender' => GenderEnum::OTHER->value,
+                'gender' => GenderEnum::MALE->value,
                 'contact_number' => '09123456789',
                 'address' => 'Naga City, Camarines Sur',
                 'medical_history' => null,

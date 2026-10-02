@@ -15,6 +15,7 @@ import { ChevronLeft, ChevronRight, Pencil, Plus, Search, Stethoscope, Trash2, X
 import { create, edit, index, destroy } from '@/routes/appointments';
 import { create as createTreatment } from '@/routes/treatments';
 import { useForm } from '@inertiajs/react';
+import { useCan } from '@/hooks/use-can';
 
 interface AppointmentRow {
     id: number;
@@ -115,6 +116,7 @@ function StatusBadge({ status }: { status: string | null }) {
 
 export default function Index({ appointments, filters }: Props) {
     const { flash } = usePage<FlashProps & Record<string, unknown>>().props as unknown as FlashProps;
+    const can = useCan();
 
     // Guards against React 18 Strict Mode (createInertiaApp's `strictMode: true`)
     // double-invoking this effect on mount in development, which would
@@ -162,12 +164,6 @@ export default function Index({ appointments, filters }: Props) {
         }
     };
 
-
-
-
-
-
-
     return (
         <>
             <Head title="Appointments" />
@@ -182,12 +178,14 @@ export default function Index({ appointments, filters }: Props) {
                         </h1>
 
                     </div>
-                    <Link href={create().url}>
-                        <Button className="bg-blue-600 font-bold text-white hover:bg-blue-700">
-                            <Plus className="h-4 w-4" />
-                            New Appointment
-                        </Button>
-                    </Link>
+                    {can('appointments.create') && (
+                        <Link href={create().url}>
+                            <Button className="bg-blue-600 font-bold text-white hover:bg-blue-700">
+                                <Plus className="h-4 w-4" />
+                                New Appointment
+                            </Button>
+                        </Link>
+                    )}
                 </div>
 
                 <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
@@ -246,7 +244,7 @@ export default function Index({ appointments, filters }: Props) {
                         <TableBody>
                             {appointments.data.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="py-10 text-center text-sm text-subtle">
+                                    <TableCell colSpan={8} className="py-10 text-center text-sm text-subtle">
                                         No appointments found.
                                     </TableCell>
                                 </TableRow>
@@ -279,29 +277,35 @@ export default function Index({ appointments, filters }: Props) {
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center justify-end gap-4">
-                                            <Link
-                                                href={createTreatment(appt.id).url}
-                                                className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-blue-700"
-                                            >
-                                                <Stethoscope className="h-4 w-4" />
-                                                Treat
-                                            </Link>
-                                            <Link
-                                                href={edit(appt.id).url}
-                                                className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-blue-700"
-                                            >
-                                                <Pencil className="h-4 w-4" />
-                                                Edit
-                                            </Link>
-                                            <button
-                                                type="button"
-                                                disabled={processing}
-                                                onClick={() => handleDelete(appt.id, appt.patient?.full_name ?? `#${appt.id}`)}
-                                                className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-danger disabled:opacity-50"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                                Delete
-                                            </button>
+                                            {can('treatments.create') && (
+                                                <Link
+                                                    href={createTreatment(appt.id).url}
+                                                    className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-blue-700"
+                                                >
+                                                    <Stethoscope className="h-4 w-4" />
+                                                    Treat
+                                                </Link>
+                                            )}
+                                            {can('appointments.update') && (
+                                                <Link
+                                                    href={edit(appt.id).url}
+                                                    className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-blue-700"
+                                                >
+                                                    <Pencil className="h-4 w-4" />
+                                                    Edit
+                                                </Link>
+                                            )}
+                                            {can('appointments.delete') && (
+                                                <button
+                                                    type="button"
+                                                    disabled={processing}
+                                                    onClick={() => handleDelete(appt.id, appt.patient?.full_name ?? `#${appt.id}`)}
+                                                    className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-danger disabled:opacity-50"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                    Delete
+                                                </button>
+                                            )}
                                         </div>
                                     </TableCell>
                                 </TableRow>

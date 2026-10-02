@@ -107,8 +107,8 @@ class RolePermissionSeeder extends Seeder
             'appointments.delete',
 
             'treatments.view',
-            'treatments.create',
-            'treatments.update',
+            // 'treatments.create',
+            // 'treatments.update',
             // NOTE: no treatments.delete -> staff can't hit treatments.destroy
 
             'procedures.view',

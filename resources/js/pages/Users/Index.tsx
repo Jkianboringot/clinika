@@ -8,6 +8,7 @@ import {
     ChevronRight,
     Pencil,
     Search,
+    UserCheck,
     UserX,
 } from 'lucide-react';
 import {
@@ -18,8 +19,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { create, edit, deactivate, index as usersIndex } from '@/routes/users';
-import { edit as editPatient } from '@/routes/patients';
+import { create, edit, deactivate, activate, index as usersIndex } from '@/routes/users';
 
 interface UserRow {
     id: number;
@@ -105,7 +105,8 @@ export default function Index() {
     const page = usePage<PageProps & Record<string, unknown>>();
     const { flash, users, filters, roleCounts, activeRole } = page.props as unknown as PageProps;
 
-    // `put` deactivates users (PUT /users/{user}/deactivate).
+    // `put` deactivates/activates users
+    // (PUT /users/{user}/deactivate, PUT /users/{user}/activate).
     const { processing, put } = useForm();
     const [search, setSearch] = useState(filters?.search ?? '');
     const isFirstRender = useRef(true);
@@ -185,6 +186,15 @@ export default function Index() {
         if (!confirm(`Deactivate "${row.name}"? They will no longer be able to log in.`)) return;
 
         put(deactivate(row.id).url);
+    };
+
+    // Reactivation only applies to currently deactivated users. The backend
+    // enforces this too, so a stale page can't activate an active user.
+    const handleActivate = (row: Row) => {
+        if (isPatientRow(row) || row.is_active === 'active') return;
+        if (!confirm(`Activate "${row.name}"? They will be able to log in again.`)) return;
+
+        put(activate(row.id).url);
     };
 
     return (
@@ -276,32 +286,52 @@ export default function Index() {
                                         )}
                                         <TableCell>
                                             <span
-                                                className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium capitalize text-white ${
-                                                    isActive ? 'bg-emerald-600' : 'bg-red-600'
+                                                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold capitalize ring-1 ring-inset ${
+                                                    isActive
+                                                        ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                                                        : 'bg-red-50 text-red-700 ring-red-200'
                                                 }`}
                                             >
+                                                <span
+                                                    className={`h-1.5 w-1.5 rounded-full ${
+                                                        isActive ? 'bg-emerald-500' : 'bg-red-500'
+                                                    }`}
+                                                />
                                                 {row.is_active}
                                             </span>
                                         </TableCell>
                                         <TableCell>{formatDate(row.created_at)}</TableCell>
                                         <TableCell>
-                                            <div className="flex items-center justify-end gap-4">
-                                                <Link
-                                                    href={patientRow ? editPatient(row.id).url : edit(row.id).url}
-                                                    className="flex items-center gap-1 text-sm font-medium text-ink hover:text-brand-orange"
-                                                >
-                                                    <Pencil className="h-4 w-4" />
-                                                    Edit
-                                                </Link>
+                                            <div className="flex items-center justify-end gap-2">
+                                                {!patientRow && (
+                                                    <Link
+                                                        href={edit(row.id).url}
+                                                        className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                                    >
+                                                        <Pencil className="h-3.5 w-3.5" />
+                                                        Edit
+                                                    </Link>
+                                                )}
                                                 {!patientRow && isActive && (
                                                     <button
                                                         type="button"
                                                         disabled={processing}
                                                         onClick={() => handleDeactivate(row)}
-                                                        className="flex items-center gap-1 text-sm font-medium text-ink hover:text-danger disabled:opacity-50"
+                                                        className="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
                                                     >
-                                                        <UserX className="h-4 w-4" />
+                                                        <UserX className="h-3.5 w-3.5" />
                                                         Deactivate
+                                                    </button>
+                                                )}
+                                                {!patientRow && !isActive && (
+                                                    <button
+                                                        type="button"
+                                                        disabled={processing}
+                                                        onClick={() => handleActivate(row)}
+                                                        className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+                                                    >
+                                                        <UserCheck className="h-3.5 w-3.5" />
+                                                        Activate
                                                     </button>
                                                 )}
                                             </div>

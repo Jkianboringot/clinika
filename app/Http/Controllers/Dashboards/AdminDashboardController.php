@@ -23,7 +23,6 @@ class AdminDashboardController extends Controller
                 'patients' => Patient::count(),
                 'dentists' => User::role('dentist')->count(),
                 'staff'    => User::role('staff')->count(),
-                'admins'   => User::role('admin')->count(),
             ],
         ]);
     }

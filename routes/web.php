@@ -126,6 +126,7 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
         Route::put('/{patient}/deactivate', [PatientController::class, 'deactivate'])->middleware('permission:patients.delete')->name('deactivate');
         Route::put('/{patient}', [PatientController::class, 'update'])->middleware('permission:patients.update')->name('update');
         Route::get('/{patient}', [PatientController::class, 'show'])->middleware('permission:patients.view')->name('show');
+        Route::put('/{patient}/activate', [PatientController::class, 'activate'])->name('activate');
     });
 
     // ===== USERS ===== (admin)
@@ -136,6 +137,7 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
         Route::get('/{user}/edit', [UserController::class, 'edit'])->middleware('permission:users.update')->name('edit');
         Route::put('/{user}/deactivate', [UserController::class, 'deactivate'])->middleware('permission:users.delete')->name('deactivate');
         Route::put('/{user}', [UserController::class, 'update'])->middleware('permission:users.update')->name('update');
+        Route::put('/{user}/activate', [UserController::class, 'activate'])->middleware('permission:users.update')->name('activate');
     });
 
     // ===== APPOINTMENTS =====

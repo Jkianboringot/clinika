@@ -98,7 +98,7 @@ class TreatmentController extends Controller
         }
 
         // After commit. A mail failure must never undo the treatment.
-        // $this->sendSummaryEmail($appointment, $tr);
+        $this->sendSummaryEmail($appointment, $tr);
 
         return redirect()->route('treatments.index')
             ->with('message', $this->withWarnings('Successfully created treatment', $tr->low_stock_warnings ?? []));

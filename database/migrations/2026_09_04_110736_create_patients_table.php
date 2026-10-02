@@ -18,7 +18,7 @@ return new class extends Migration {
             //this is just to prepare for future hr addition which am not supprise they will have
             $table->string('full_name',100);
             $table->date('date_of_birth');
-            $table->string('gender',25)->default(GenderEnum::OTHER->value);
+            $table->string('gender',25);
             $table->string('contact_number',25)->nullable();
             $table->text('address')->nullable(); //no need for seperate table since its unique for user as it is complete address if it was just barangay or something that repeat then ywah, seperate it with another table
 

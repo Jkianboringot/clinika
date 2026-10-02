@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Head, Link, router, usePage, useForm } from '@inertiajs/react';
+import { Head, Link, router, usePage /*, useForm */ } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast, Toaster } from 'sonner';
@@ -11,8 +11,9 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { ChevronLeft, ChevronRight, Pencil, Search, Trash2, X } from 'lucide-react';
-import { edit, index, destroy } from '@/routes/treatments';
+import { ChevronLeft, ChevronRight, Pencil, Search, /* Trash2, */ X } from 'lucide-react';
+import { edit, index /*, destroy */ } from '@/routes/treatments';
+import { useCan } from '@/hooks/use-can';
 
 interface TreatmentRow {
     id: number;
@@ -68,6 +69,7 @@ function formatDate(value: string | null) {
 
 export default function Index({ treatments, filters }: Props) {
     const { flash } = usePage<FlashProps & Record<string, unknown>>().props as unknown as FlashProps;
+    const can = useCan();
 
     // Guards against React 18 Strict Mode (createInertiaApp's `strictMode: true`)
     // double-invoking this effect on mount in development, which would
@@ -88,7 +90,7 @@ export default function Index({ treatments, filters }: Props) {
     }, [flash?.message, flash?.error]);
 
     const [search, setSearch] = useState(filters?.search ?? '');
-    const { processing, delete: destroyForm } = useForm();
+    // const { processing, delete: destroyForm } = useForm();
 
     // Tracks which rows' Summary cell is expanded to full text (by treatment id).
     const [expandedSummaries, setExpandedSummaries] = useState<Set<number>>(new Set());
@@ -124,11 +126,13 @@ export default function Index({ treatments, filters }: Props) {
         router.get(index().url, {}, { preserveState: true, replace: true });
     }
 
-    const handleDelete = (id: number, patientName: string) => {
-        if (confirm(`Delete the treatment for "${patientName}"? This can't be undone.`)) {
-            destroyForm(destroy(id).url);
-        }
-    };
+    // DELETE disabled for now. To re-enable: uncomment this, the useForm line above,
+    // the imports (useForm, Trash2, destroy) and the Delete button below.
+    // const handleDelete = (id: number, patientName: string) => {
+    //     if (confirm(`Delete the treatment for "${patientName}"? This can't be undone.`)) {
+    //         destroyForm(destroy(id).url);
+    //     }
+    // };
 
     return (
         <>
@@ -142,7 +146,7 @@ export default function Index({ treatments, filters }: Props) {
                         <h1 className="text-3xl font-extrabold tracking-tight text-ink">
                             Treatments
                         </h1>
-                      
+
                     </div>
                 </div>
 
@@ -173,7 +177,7 @@ export default function Index({ treatments, filters }: Props) {
                     <Table>
                         <TableHeader>
                             <TableRow className="border-b border-gray-200 hover:bg-transparent">
-                              
+
                                 <TableHead className="font-bold tracking-wide text-blue-700">
                                     Patient
                                 </TableHead>
@@ -192,15 +196,18 @@ export default function Index({ treatments, filters }: Props) {
                                 <TableHead className="font-bold tracking-wide text-blue-700">
                                     Date
                                 </TableHead>
-                                <TableHead className="text-right font-bold tracking-wide text-blue-700">
-                                    Actions
-                                </TableHead>
+                                {can('treatments.update') && (
+                                    <TableHead className="text-right font-bold tracking-wide text-blue-700">
+                                        Actions
+                                    </TableHead>
+                                )}
+
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {treatments.data.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="py-10 text-center text-sm text-subtle">
+                                    <TableCell colSpan={7} className="py-10 text-center text-sm text-subtle">
                                         No treatments found.
                                     </TableCell>
                                 </TableRow>
@@ -216,7 +223,7 @@ export default function Index({ treatments, filters }: Props) {
                                         key={treatment.id}
                                         className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
                                     >
-                                      
+
                                         <TableCell className="font-medium text-blue-700">
                                             {treatment.patient_name ?? '—'}
                                         </TableCell>
@@ -248,27 +255,33 @@ export default function Index({ treatments, filters }: Props) {
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex items-center justify-end gap-2">
-                                                <Link
-                                                    href={edit(treatment.id).url}
-                                                    className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                                                >
-                                                    <Pencil className="h-3.5 w-3.5" />
-                                                    Edit
-                                                </Link>
-                                                <button
-                                                    type="button"
-                                                    disabled={processing}
-                                                    onClick={() =>
-                                                        handleDelete(
-                                                            treatment.id,
-                                                            treatment.patient_name ?? `#${treatment.id}`,
-                                                        )
-                                                    }
-                                                    className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-danger disabled:opacity-50"
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                    Delete
-                                                </button>
+                                                {can('treatments.update') && (
+                                                    <Link
+                                                        href={edit(treatment.id).url}
+                                                        className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                                    >
+                                                        <Pencil className="h-3.5 w-3.5" />
+                                                        Edit
+                                                    </Link>
+                                                )}
+                                                {/* DELETE disabled for now
+                                                {can('treatments.delete') && (
+                                                    <button
+                                                        type="button"
+                                                        disabled={processing}
+                                                        onClick={() =>
+                                                            handleDelete(
+                                                                treatment.id,
+                                                                treatment.patient_name ?? `#${treatment.id}`,
+                                                            )
+                                                        }
+                                                        className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-danger disabled:opacity-50"
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                        Delete
+                                                    </button>
+                                                )}
+                                                */}
                                             </div>
                                         </TableCell>
                                     </TableRow>
@@ -283,11 +296,10 @@ export default function Index({ treatments, filters }: Props) {
                                 <Link
                                     key={i}
                                     href={link.url ?? '#'}
-                                    className={`flex items-center rounded-md px-3 py-1 text-sm ${
-                                        link.active
+                                    className={`flex items-center rounded-md px-3 py-1 text-sm ${link.active
                                             ? 'bg-blue-600 text-white'
                                             : 'text-blue-700 hover:bg-gray-50'
-                                    } ${!link.url ? 'pointer-events-none opacity-40' : ''}`}
+                                        } ${!link.url ? 'pointer-events-none opacity-40' : ''}`}
                                 >
                                     {paginationLabel(link.label)}
                                 </Link>

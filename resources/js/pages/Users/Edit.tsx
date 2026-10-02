@@ -34,7 +34,6 @@ interface EditProps {
 }
 
 const ROLE_LABELS: Record<string, string> = {
-    admin: 'Admin',
     dentist: 'Dentist',
     staff: 'Staff',
 };

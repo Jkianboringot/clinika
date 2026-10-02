@@ -43,12 +43,7 @@ class PatientRequest extends FormRequest
                 'max:150',
                 Rule::unique('patients', 'email')->ignore($this->route('patient')),
             ],
-            'password' => [
-                $this->isMethod('post') ? 'required' : 'nullable',
-                'string',
-                'min:8',
-                'confirmed',
-            ],
+           
         ];
     }
 }

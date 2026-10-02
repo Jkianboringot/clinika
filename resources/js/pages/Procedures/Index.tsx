@@ -13,6 +13,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { create, destroy, edit, index as proceduresIndex } from '@/routes/procedures';
+import { useCan } from '@/hooks/use-can';
 
 interface Procedure {
     id: number;
@@ -58,6 +59,7 @@ function formatDuration(duration: number | null) {
 }
 export default function Index() {
     const { flash, procedures, filters } = usePage<ProceduresPageProps>().props;
+    const can = useCan();
 
     // Guards against React 18 Strict Mode (createInertiaApp's `strictMode: true`)
     // double-invoking this effect on mount in development, which would
@@ -117,16 +119,18 @@ export default function Index() {
                         <h1 className="text-3xl font-extrabold tracking-tight text-ink">
                             Procedures
                         </h1>
-                       
+
                     </div>
-                    <Link href={create().url}>
-                        <Button className="bg-brand-orange font-bold text-white hover:bg-brand-orange-hover">
-                            New procedure
-                        </Button>
-                    </Link>
+                    {can('procedures.create') && (
+                        <Link href={create().url}>
+                            <Button className="bg-brand-orange font-bold text-white hover:bg-brand-orange-hover">
+                                New procedure
+                            </Button>
+                        </Link>
+                    )}
                 </div>
 
-                <div className="overflow-hidden rounded-xl border border-[#c9c0b7  bg-white">
+                <div className="overflow-hidden rounded-xl border border-[#c9c0b7] bg-white">
                     <div className="flex items-center justify-between border-b border-[#c9c0b7] px-5 py-3">
                         <h2 className="font-bold text-ink">All Procedures</h2>
                         <div className="relative">
@@ -148,13 +152,16 @@ export default function Index() {
                                 <TableHead className="font-bold text-brand-orange-hover">Duration</TableHead>
                                 <TableHead className="font-bold text-brand-orange-hover">Price</TableHead>
                                 <TableHead className="font-bold text-brand-orange-hover">Status</TableHead>
-                                <TableHead className="text-right font-bold text-brand-orange-hover">Actions</TableHead>
+                                {can('procedures.update') && (
+                                    <TableHead className="text-right font-bold text-brand-orange-hover">Actions</TableHead>
+                                )}
+
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {procedureRows.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="py-10 text-center text-sm text-subtle">
+                                    <TableCell colSpan={5} className="py-10 text-center text-sm text-subtle">
                                         No procedures found.
                                     </TableCell>
                                 </TableRow>
@@ -179,22 +186,26 @@ export default function Index() {
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center justify-end gap-4">
-                                            <Link
-                                                href={edit(procedure.id).url}
-                                                className="flex items-center gap-1 text-sm font-medium text-ink hover:text-brand-orange"
-                                            >
-                                                <Pencil className="h-4 w-4" />
-                                                Edit
-                                            </Link>
-                                            <button
-                                                type="button"
-                                                disabled={processing}
-                                                onClick={() => handleDelete(procedure.id, procedure.name)}
-                                                className="flex items-center gap-1 text-sm font-medium text-ink hover:text-danger disabled:opacity-50"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                                Delete
-                                            </button>
+                                            {can('procedures.update') && (
+                                                <Link
+                                                    href={edit(procedure.id).url}
+                                                    className="flex items-center gap-1 text-sm font-medium text-ink hover:text-brand-orange"
+                                                >
+                                                    <Pencil className="h-4 w-4" />
+                                                    Edit
+                                                </Link>
+                                            )}
+                                            {can('procedures.delete') && (
+                                                <button
+                                                    type="button"
+                                                    disabled={processing}
+                                                    onClick={() => handleDelete(procedure.id, procedure.name)}
+                                                    className="flex items-center gap-1 text-sm font-medium text-ink hover:text-danger disabled:opacity-50"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                    Delete
+                                                </button>
+                                            )}
                                         </div>
                                     </TableCell>
                                 </TableRow>

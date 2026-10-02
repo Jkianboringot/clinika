@@ -1,119 +1,233 @@
-import { useForm } from '@inertiajs/react';
-import { FormEvent } from 'react';
+import { FormEvent, useState } from 'react';
+import { Head, Link, useForm } from '@inertiajs/react';
+import {
+    ArrowRight,
+    Eye,
+    EyeOff,
+    LockKeyhole,
+    Mail,
+} from 'lucide-react';
 
-function MailIcon({ className }: { className?: string }) {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" className={className}>
-            <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.6" />
-            <path d="m4 7 8 6 8-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-    );
-}
+export default function StaffLogin() {
+    const [showPassword, setShowPassword] = useState(false);
 
-function LockIcon({ className }: { className?: string }) {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" className={className}>
-            <rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.6" />
-            <path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-        </svg>
-    );
-}
-
-export default function Login({ status }: { status?: string }) {
     const { data, setData, post, processing, errors } = useForm({
         email: '',
         password: '',
         remember: false,
     });
 
-    function submit(e: FormEvent) {
+    const submit = (e: FormEvent) => {
         e.preventDefault();
+
         post('/login');
-    }
+    };
 
     return (
-        <div className="flex min-h-screen w-full items-center justify-center bg-gray-50 px-6 py-16 font-sans">
-            <div className="w-full max-w-md">
-                {/* Logo on top, centered */}
-                <div className="mb-6 flex flex-col items-center text-center">
-                    <img src="/logo.png" alt="Klinika logo" className="h-16 w-16 object-contain" />
-                    <div className="mt-3 text-xl font-extrabold leading-tight text-ink">Klinika</div>
-                    <div className="text-xs font-medium text-subtle">Dental Care Excellence</div>
+        <>
+            <Head title="Staff Login" />
+
+            <div className="relative min-h-screen overflow-hidden bg-[#f8fafc]">
+                {/* Blue ambient background */}
+                <div className="pointer-events-none absolute inset-0">
+                    <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-blue-200/40 blur-3xl" />
+                    <div className="absolute -right-32 top-1/4 h-96 w-96 rounded-full bg-sky-200/30 blur-3xl" />
+                    <div className="absolute bottom-[-180px] left-1/3 h-96 w-96 rounded-full bg-blue-100/50 blur-3xl" />
                 </div>
 
-                {/* Sign in card */}
-                <div className="w-full rounded-xl bg-white p-10 shadow-card">
-                    <h2 className="text-2xl font-extrabold tracking-tight text-ink">Welcome Back</h2>
-                    <p className="mt-1 text-sm font-medium text-subtle">Sign in to access your account</p>
+                <div className="relative flex min-h-screen items-center justify-center px-5 py-10">
+                    <div className="w-full max-w-md">
 
-                    {status && (
-                        <div className="mt-5 rounded-md border border-success/30 border-l-4 border-l-success bg-success/5 px-4 py-3 text-sm font-medium text-[#276749]">
-                            {status}
-                        </div>
-                    )}
-                    <form onSubmit={submit} className="mt-6 space-y-4" style={{ colorScheme: 'light' }}>
-                        <div>
-                            <label className="mb-1.5 block text-xs font-semibold tracking-wide text-[#1a1a1a]">
-                                Email Address
-                            </label>
-                            <div className="relative">
-                                <MailIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9a9a]" />
-                                <input
-                                    type="email"
-                                    value={data.email}
-                                    onChange={(e) => setData('email', e.target.value)}
-                                    className={`w-full rounded-md border-[1.5px] bg-gray-50 py-2.5 pl-10 pr-4 text-sm text-[#1a1a1a] outline-none transition focus:border-[#2f6fed] focus:bg-white ${errors.email ? 'border-[#dc2626]' : 'border-gray-200'
-                                        }`}
-                                    placeholder="you@example.com"
+                        {/* Logo */}
+                        <div className="mb-8 flex justify-center">
+                            <div className="flex h-20 w-20 items-center justify-center rounded-[24px] bg-white shadow-[0_12px_40px_rgba(30,64,175,0.12)] ring-1 ring-blue-100">
+                                <img
+                                    src="/logo.png"
+                                    alt="Klinika"
+                                    className="h-14 w-14 object-contain"
                                 />
                             </div>
-                            {errors.email && <p className="mt-1 text-xs font-medium text-[#dc2626]">{errors.email}</p>}
                         </div>
 
-                        <div>
-                            <label className="mb-1.5 block text-xs font-semibold tracking-wide text-[#1a1a1a]">
-                                Password
-                            </label>
-                            <div className="relative">
-                                <LockIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9a9a]" />
-                                <input
-                                    type="password"
-                                    value={data.password}
-                                    onChange={(e) => setData('password', e.target.value)}
-                                    className={`w-full rounded-md border-[1.5px] bg-gray-50 py-2.5 pl-10 pr-4 text-sm text-[#1a1a1a] outline-none transition focus:border-[#2f6fed] focus:bg-white ${errors.password ? 'border-[#dc2626]' : 'border-gray-200'
-                                        }`}
-                                    placeholder="••••••••"
-                                />
+                        {/* Heading */}
+                        <div className="mb-8 text-center">
+                            <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-blue-600">
+                                Klinika
+                            </p>
+
+                            <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+                                Welcome back
+                            </h1>
+
+                            <p className="mt-2 text-sm leading-6 text-gray-500">
+                                Sign in to access the staff dashboard.
+                            </p>
+                        </div>
+
+                        {/* Login Card */}
+                        <div className="rounded-[28px] border border-blue-100/80 bg-white p-7 shadow-[0_20px_60px_rgba(30,64,175,0.10)] sm:p-8">
+
+                            <form onSubmit={submit} className="space-y-5">
+
+                                {/* Email */}
+                                <div>
+                                    <label
+                                        htmlFor="email"
+                                        className="mb-2 block text-sm font-semibold text-gray-800"
+                                    >
+                                        Email address
+                                    </label>
+
+                                    <div className="group relative">
+                                        <Mail
+                                            size={19}
+                                            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 transition group-focus-within:text-blue-600"
+                                        />
+
+                                        <input
+                                            id="email"
+                                            type="email"
+                                            autoComplete="email"
+                                            value={data.email}
+                                            onChange={(e) =>
+                                                setData('email', e.target.value)
+                                            }
+                                            placeholder="you@example.com"
+                                            className="h-13 w-full rounded-2xl border border-gray-200 bg-gray-50/70 pl-12 pr-4 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
+                                        />
+                                    </div>
+
+                                    {errors.email && (
+                                        <p className="mt-2 text-xs font-medium text-red-500">
+                                            {errors.email}
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* Password */}
+                                <div>
+                                    <div className="mb-2 flex items-center justify-between">
+                                        <label
+                                            htmlFor="password"
+                                            className="block text-sm font-semibold text-gray-800"
+                                        >
+                                            Password
+                                        </label>
+                                    </div>
+
+                                    <div className="group relative">
+                                        <LockKeyhole
+                                            size={19}
+                                            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 transition group-focus-within:text-blue-600"
+                                        />
+
+                                        <input
+                                            id="password"
+                                            type={showPassword ? 'text' : 'password'}
+                                            autoComplete="current-password"
+                                            value={data.password}
+                                            onChange={(e) =>
+                                                setData('password', e.target.value)
+                                            }
+                                            placeholder="Enter your password"
+                                            className="h-13 w-full rounded-2xl border border-gray-200 bg-gray-50/70 pl-12 pr-12 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
+                                        />
+
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setShowPassword(!showPassword)
+                                            }
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition hover:text-blue-600"
+                                            aria-label={
+                                                showPassword
+                                                    ? 'Hide password'
+                                                    : 'Show password'
+                                            }
+                                        >
+                                            {showPassword ? (
+                                                <EyeOff size={19} />
+                                            ) : (
+                                                <Eye size={19} />
+                                            )}
+                                        </button>
+                                    </div>
+
+                                    {errors.password && (
+                                        <p className="mt-2 text-xs font-medium text-red-500">
+                                            {errors.password}
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* Remember */}
+                                <label className="flex cursor-pointer items-center gap-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={data.remember}
+                                        onChange={(e) =>
+                                            setData(
+                                                'remember',
+                                                e.target.checked,
+                                            )
+                                        }
+                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    />
+
+                                    <span className="text-sm text-gray-600">
+                                        Keep me signed in
+                                    </span>
+                                </label>
+
+                                {/* Submit */}
+                                <button
+                                    type="submit"
+                                    disabled={processing}
+                                    className="group flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-sm font-bold text-white shadow-[0_10px_25px_rgba(37,99,235,0.22)] transition hover:bg-blue-700 hover:shadow-[0_12px_30px_rgba(37,99,235,0.28)] focus:outline-none focus:ring-4 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    <span>
+                                        {processing
+                                            ? 'Signing in...'
+                                            : 'Sign in '}
+                                    </span>
+
+                                    {!processing && (
+                                        <ArrowRight
+                                            size={18}
+                                            className="transition-transform group-hover:translate-x-1"
+                                        />
+                                    )}
+                                </button>
+                            </form>
+
+                            {/* Patient Login */}
+                            <div className="mt-7 border-t border-gray-100 pt-6 text-center">
+                                <p className="text-xs text-gray-400">
+                                    Are you a patient?
+                                </p>
+
+                                <Link
+                                    href="/patient/login"
+                                    className="mt-2 inline-block text-sm font-semibold text-blue-600 transition hover:text-blue-800"
+                                >
+                                    Sign in as Patient →
+                                </Link>
                             </div>
-                            {errors.password && (
-                                <p className="mt-1 text-xs font-medium text-[#dc2626]">{errors.password}</p>
-                            )}
                         </div>
 
-                        <div className="flex items-center justify-between pt-1">
-                            <label className="flex items-center gap-2">
-                                <input
-                                    type="checkbox"
-                                    checked={data.remember}
-                                    onChange={(e) => setData('remember', e.target.checked)}
-                                    className="h-4 w-4 accent-[#f97316]"
-                                />
-                                <span className="text-sm font-medium text-[#666]">Remember me</span>
-                            </label>
+                        {/* Footer */}
+                        <div className="mt-7 text-center">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-400">
+                                Secure Staff Portal
+                            </p>
+
+                            <p className="mt-2 text-xs text-gray-400">
+                                © {new Date().getFullYear()} Klinika
+                            </p>
                         </div>
-
-                        <button
-                            type="submit"
-                            disabled={processing}
-                            className="w-full rounded-md bg-brand-orange py-3 text-sm font-bold tracking-wide text-white transition hover:-translate-y-px hover:bg-brand-orange-hover disabled:opacity-60"
-                        >
-                            Sign In
-                        </button>
-                    </form>
-
-               
+                    </div>
                 </div>
             </div>
-        </div>
+        </>
     );
 }

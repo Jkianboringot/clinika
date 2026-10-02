@@ -11,8 +11,9 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { ChevronLeft, ChevronRight, Eye, Pencil, Plus, Search, UserX, X } from 'lucide-react';
-import { create, deactivate, edit, index, show } from '@/routes/patients';
+import { ChevronLeft, ChevronRight, Eye, Pencil, Plus, Search, UserCheck, UserX, X } from 'lucide-react';
+import { activate, create, deactivate, edit, index, show } from '@/routes/patients';
+import { useCan } from '@/hooks/use-can';
 
 interface PatientRow {
     id: number;
@@ -84,6 +85,7 @@ function formatDate(value: string | null) {
 
 export default function Index({ patients, filters }: Props) {
     const { flash } = usePage<FlashProps & Record<string, unknown>>().props as unknown as FlashProps;
+    const can = useCan();
 
     // Guards against React 18 Strict Mode (createInertiaApp's `strictMode: true`)
     // double-invoking this effect on mount in development, which would
@@ -135,6 +137,20 @@ export default function Index({ patients, filters }: Props) {
         }
     }
 
+    // Reactivation only applies to currently deactivated patients. The backend
+    // enforces this too, so a stale page can't activate an active patient.
+    function handleActivate(patient: PatientRow) {
+        if (patient.is_active === 'active') return;
+
+        if (
+            confirm(
+                `Activate ${patient.full_name}? They will be able to log in again.`,
+            )
+        ) {
+            router.put(activate(patient.id).url, {}, { preserveScroll: true });
+        }
+    }
+
     return (
         <>
             <Head title="Patient Records" />
@@ -148,12 +164,14 @@ export default function Index({ patients, filters }: Props) {
                             Patient Records
                         </h1>
                     </div>
-                    <Link href={create().url}>
-                        <Button className="bg-brand-orange font-bold text-white hover:bg-brand-orange-hover">
-                            <Plus className="h-4 w-4" />
-                            Register New Patient
-                        </Button>
-                    </Link>
+                    {can('patients.create') && (
+                        <Link href={create().url}>
+                            <Button className="bg-brand-orange font-bold text-white hover:bg-brand-orange-hover">
+                                <Plus className="h-4 w-4" />
+                                Register New Patient
+                            </Button>
+                        </Link>
+                    )}
                 </div>
 
                 <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
@@ -256,14 +274,16 @@ export default function Index({ patients, filters }: Props) {
                                                     <Eye className="h-3.5 w-3.5" />
                                                     View
                                                 </Link>
-                                                <Link
-                                                    href={edit(patient.id).url}
-                                                    className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                                                >
-                                                    <Pencil className="h-3.5 w-3.5" />
-                                                    Edit
-                                                </Link>
-                                                {isActive && (
+                                                {can('patients.update') && (
+                                                    <Link
+                                                        href={edit(patient.id).url}
+                                                        className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                                    >
+                                                        <Pencil className="h-3.5 w-3.5" />
+                                                        Edit
+                                                    </Link>
+                                                )}
+                                                {can('patients.delete') && isActive && (
                                                     <button
                                                         type="button"
                                                         onClick={() => handleDeactivate(patient)}
@@ -271,6 +291,16 @@ export default function Index({ patients, filters }: Props) {
                                                     >
                                                         <UserX className="h-3.5 w-3.5" />
                                                         Deactivate
+                                                    </button>
+                                                )}
+                                                {can('patients.delete') && !isActive && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleActivate(patient)}
+                                                        className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
+                                                    >
+                                                        <UserCheck className="h-3.5 w-3.5" />
+                                                        Activate
                                                     </button>
                                                 )}
                                             </div>
