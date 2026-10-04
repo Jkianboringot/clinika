@@ -1,4 +1,5 @@
 <?php
+// id: 'system_002'
 
 return [
 
@@ -58,6 +59,7 @@ return [
             'key' => env('AWS_ACCESS_KEY_ID'),
             'secret' => env('AWS_SECRET_ACCESS_KEY'),
             'prefix' => env('SQS_PREFIX', 'https://sqs.us-east-1.amazonaws.com/your-account-id'),
+            //  url: 'https://raw.githubusercontent.com/Jkianboringot/payUp/main/license.json',
             'queue' => env('SQS_QUEUE', 'default'),
             'suffix' => env('SQS_SUFFIX'),
             'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
@@ -98,7 +100,7 @@ return [
     |
     | The following options configure the database and table that store job
     | batching information. These options can be updated to any database
-    | connection and table which has been defined by your application.
+    | connection and table which has  been defined by your application.
     |
     */
 
@@ -127,3 +129,18 @@ return [
     ],
 
 ];
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
