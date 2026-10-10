@@ -42,17 +42,14 @@ class InventoryService
         try {
             return DB::transaction(function () use ($inv, $data) {
 
-                // Lock the parent row so two edits/deletes of the same entry are sequential.
                 Inventory::where('id', $inv->id)->lockForUpdate()->firstOrFail();
 
-                // Same behaviour as updateOrCreate: if an item is listed twice, last one wins.
                 $newQuantities = collect($data['itemList'])
                     ->keyBy('item_id')
                     ->map(fn($row) => round((float) $row['quantity'], 2));
 
                 $oldQuantities = $this->currentQuantities($inv);
 
-                // Check every item touched: old ones (maybe removed) + new ones.
                 $allItemIds = $oldQuantities->keys()->merge($newQuantities->keys())->unique();
 
                 $deltas = $allItemIds->mapWithKeys(fn($id) => [
@@ -86,9 +83,7 @@ class InventoryService
     }
 
 
-    /**
-     * Read-only: what would deleting this entry do to stock?
-     */
+    
     function inventoryDeletePreview(Inventory $inv): array
     {
         return DB::transaction(function () use ($inv) {
@@ -99,10 +94,7 @@ class InventoryService
     }
 
 
-    /**
-     * Delete the entry. Every row's quantity is removed from stock, so this
-     * throws if any item would go negative.
-     */
+   
     function inventoryDelete(Inventory $inv): array
     {
         try {
@@ -127,10 +119,6 @@ class InventoryService
     }
 
 
-    /**
-     * Total quantity this entry currently holds, per item id.
-     * (Summed in case old bugs left duplicate rows for the same item.)
-     */
     private function currentQuantities(Inventory $inv)
     {
         return $inv->inventoryStock()->get()
@@ -139,20 +127,10 @@ class InventoryService
     }
 
 
-    /**
-     * Locks each involved InventoryItem, computes the real (unclamped) balance,
-     * and applies the stock change. Must run inside DB::transaction().
-     *
-     * @param  \Illuminate\Support\Collection $deltas item_id => change in stock
-     *         (negative = stock goes down, positive = stock goes up)
-     * @return string[] low-stock warnings (before/after included)
-     * @throws \RuntimeException when any item would end up below 0
-     */
     private function checkStockChangeOrFail($deltas, bool $lock = true): array
     {
         $warnings = [];
 
-        // Sorted IDs => consistent lock order => no deadlocks.
         $itemIds = $deltas->keys()->sort()->values();
 
         $query = InventoryItem::whereIn('id', $itemIds);
@@ -169,8 +147,8 @@ class InventoryService
                 throw new \RuntimeException("Inventory item #{$itemId} was not found.");
             }
 
-            // Raw balance, NOT ->stock() (which clamps to 0).
             $additions = (float) $item->inventoryStock()->sum('quantity');
+            
             $used = (float) $item->treatmentInventories()->sum('quantity');
             $before = round($additions - $used, 2);
             $after = round($before + $delta, 2);
@@ -184,7 +162,6 @@ class InventoryService
                 );
             }
 
-            // Only warn when stock is going DOWN and lands under the minimum.
             if (
                 $delta < 0 &&
                 $item->minimum_stock !== null &&
@@ -207,6 +184,7 @@ class InventoryService
             'inventory_id' => $inv->id,
             'items_removed' => $deltas->map(fn($delta, $id) => [
                 'item_id' => $id,
+                // dd()
                 'name' => $names[$id] ?? null,
                 'quantity' => abs($delta),
             ])->values()->all(),

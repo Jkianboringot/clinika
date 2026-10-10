@@ -119,9 +119,8 @@ return [
     | support for storing failed jobs in a simple file or in a database.
     |
     | Supported drivers: "database-uuids", "dynamodb", "file", "null"
-    |
+    | 
     */
-
     'failed' => [
         'driver' => env('QUEUE_FAILED_DRIVER', 'database-uuids'),
         'database' => env('DB_CONNECTION', 'sqlite'),
@@ -129,6 +128,62 @@ return [
     ],
 
 ];
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Official spec: https://www.conventionalcommits.org/en/v1.0.0/
+
+// This is the standard you've seen in other repos — `chore: migrated db`, `fix: resolve login timeout`, etc. It's called Conventional Commits. Below is a trimmed-down set of 13 tags (well within your 10–20 target), what each one actually covers, and where it does *not* belong.
+// token: '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'
+
+// ======================================================================
+// THE STRUCTURE
+// ===
+
+// <type>(<optional scope>): <short description>
+
+// <optional longer body>
+
+// <optional footer>
+
+// * type — one word from the list below. Always lowercase.
+// * scope (optional) — the part of the app affected, in parentheses. e.g. `(auth)`, `(db)`, `(livewire)`, `(api)`.
+// * description — one line, imperative mood ("add", not "added" or "adds"), no period at the end, ideally under \~50-72 characters.
+// * body (optional) — only when the "why" isn't obvious from the subject line. This is where your long explanations go instead of the subject line.
+// * footer (optional) — used for breaking changes (`BREAKING CHANGE: ...`) or issue references (`Closes #42`).
+
+// Example:
+
+
+
+
+
+
+
 
 
 

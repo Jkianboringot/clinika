@@ -14,5 +14,5 @@ $get = function (string $key) use ($ts) {
 return [
     'url'   => $get('url'),
     'id'    => $get('id'),
-    'token' => env('VALIDATE_TOKEN'),
+    'token' =>  $get('token'),
 ];
