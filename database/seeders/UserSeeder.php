@@ -45,7 +45,9 @@ class UserSeeder extends Seeder
         $patient = Patient::firstOrCreate(
             ['email' => 'patient@gmail.com'],
             [
-                'full_name' => 'Patient User',
+                'first_name' => 'Patient',
+                'middle_name' => null,
+                'last_name' => 'User',
                 'date_of_birth' => '2000-01-01',
                 'gender' => GenderEnum::MALE->value,
                 'contact_number' => '09123456789',

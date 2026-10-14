@@ -27,7 +27,9 @@ class PatientRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'full_name' => ['required', 'string', 'min:2', 'max:100'],
+            'first_name' => ['required', 'string', 'min:2', 'max:100'],
+            'middle_name' => ['nullable', 'string', 'max:100'],
+            'last_name' => ['required', 'string', 'min:2', 'max:100'],
             'emergency_contact_number' => ['nullable', 'string', 'min:11'],
             'emergency_contact_name' => ['nullable', 'string', 'min:2', 'max:100'],
             'contact_number' => ['nullable', 'string', 'min:11'],
@@ -43,7 +45,7 @@ class PatientRequest extends FormRequest
                 'max:150',
                 Rule::unique('patients', 'email')->ignore($this->route('patient')),
             ],
-           
+
         ];
     }
 }

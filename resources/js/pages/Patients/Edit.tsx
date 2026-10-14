@@ -16,7 +16,9 @@ import { update } from '@/routes/patients';
 
 interface Patient {
     id: number;
-    full_name: string;
+    first_name: string;
+    middle_name: string | null;
+    last_name: string;
     gender: string;
     date_of_birth: string;
     email: string;
@@ -29,7 +31,9 @@ interface Patient {
 }
 
 interface PatientForm {
-    full_name: string;
+    first_name: string;
+    middle_name: string;
+    last_name: string;
     gender: string;
     date_of_birth: string;
     email: string;
@@ -54,7 +58,9 @@ const GENDER_LABELS: Record<string, string> = {
 
 export default function Edit({ patient }: Props) {
     const { data, setData, put, processing, errors } = useForm<PatientForm>({
-        full_name: patient.full_name ?? '',
+        first_name: patient.first_name ?? '',
+        middle_name: patient.middle_name ?? '',
+        last_name: patient.last_name ?? '',
         gender: patient.gender ?? '',
         date_of_birth: patient.date_of_birth ?? '',
         email: patient.email ?? '',
@@ -66,6 +72,10 @@ export default function Edit({ patient }: Props) {
         allergies: patient.allergies ?? '',
     });
 
+    const displayName = [patient.first_name, patient.middle_name, patient.last_name]
+        .filter(Boolean)
+        .join(' ');
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         put(update(patient.id).url);
@@ -73,12 +83,12 @@ export default function Edit({ patient }: Props) {
 
     return (
         <>
-            <Head title={`Edit ${patient.full_name}`} />
+            <Head title={`Edit ${displayName}`} />
 
             <div className="mx-auto w-full max-w-4xl p-6">
                 <div className="mb-4">
                     <h1 className="text-2xl font-bold text-ink">Edit Patient</h1>
-                    <p className="mt-1 text-sm text-subtle">{patient.full_name}</p>
+                    <p className="mt-1 text-sm text-subtle">{displayName}</p>
                 </div>
 
                 <form
@@ -100,26 +110,65 @@ export default function Edit({ patient }: Props) {
                     )}
 
                     {/* Identity */}
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-3 gap-3">
                         <div className="space-y-1">
-                            <Label htmlFor="full_name" className="font-semibold text-ink">
-                                Full name
+                            <Label htmlFor="first_name" className="font-semibold text-ink">
+                                First name
                             </Label>
                             <Input
-                                id="full_name"
+                                id="first_name"
                                 type="text"
-                                placeholder="Patient full name"
-                                value={data.full_name}
+                                placeholder="First name"
+                                value={data.first_name}
                                 minLength={2}
                                 maxLength={100}
-                                onChange={(e) => setData('full_name', e.target.value)}
+                                onChange={(e) => setData('first_name', e.target.value)}
                                 className="border-gray-200"
                             />
-                            {errors.full_name && (
-                                <p className="mt-1.5 text-sm text-danger">{errors.full_name}</p>
+                            {errors.first_name && (
+                                <p className="mt-1.5 text-sm text-danger">{errors.first_name}</p>
                             )}
                         </div>
 
+                        <div className="space-y-1">
+                            <Label htmlFor="middle_name" className="font-semibold text-ink">
+                                Middle name
+                            </Label>
+                            <Input
+                                id="middle_name"
+                                type="text"
+                                placeholder="Middle name (optional)"
+                                value={data.middle_name}
+                                maxLength={100}
+                                onChange={(e) => setData('middle_name', e.target.value)}
+                                className="border-gray-200"
+                            />
+                            {errors.middle_name && (
+                                <p className="mt-1.5 text-sm text-danger">{errors.middle_name}</p>
+                            )}
+                        </div>
+
+                        <div className="space-y-1">
+                            <Label htmlFor="last_name" className="font-semibold text-ink">
+                                Last name
+                            </Label>
+                            <Input
+                                id="last_name"
+                                type="text"
+                                placeholder="Last name"
+                                value={data.last_name}
+                                minLength={2}
+                                maxLength={100}
+                                onChange={(e) => setData('last_name', e.target.value)}
+                                className="border-gray-200"
+                            />
+                            {errors.last_name && (
+                                <p className="mt-1.5 text-sm text-danger">{errors.last_name}</p>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                             <Label htmlFor="gender" className="font-semibold text-ink">
                                 Gender
@@ -143,9 +192,7 @@ export default function Edit({ patient }: Props) {
                                 <p className="mt-1.5 text-sm text-danger">{errors.gender}</p>
                             )}
                         </div>
-                    </div>
 
-                    <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                             <Label htmlFor="date_of_birth" className="font-semibold text-ink">
                                 Date of birth
@@ -161,7 +208,10 @@ export default function Edit({ patient }: Props) {
                                 <p className="mt-1.5 text-sm text-danger">{errors.date_of_birth}</p>
                             )}
                         </div>
+                    </div>
 
+                    {/* Contact */}
+                    <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                             <Label htmlFor="email" className="font-semibold text-ink">
                                 Email
@@ -180,10 +230,7 @@ export default function Edit({ patient }: Props) {
                                 <p className="mt-1.5 text-sm text-danger">{errors.email}</p>
                             )}
                         </div>
-                    </div>
 
-                    {/* Contact */}
-                    <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                             <Label htmlFor="contact_number" className="font-semibold text-ink">
                                 Contact number
@@ -201,25 +248,25 @@ export default function Edit({ patient }: Props) {
                                 <p className="mt-1.5 text-sm text-danger">{errors.contact_number}</p>
                             )}
                         </div>
+                    </div>
 
-                        <div className="space-y-1">
-                            <Label htmlFor="address" className="font-semibold text-ink">
-                                Address
-                            </Label>
-                            <Input
-                                id="address"
-                                type="text"
-                                placeholder="Street, barangay, city"
-                                value={data.address}
-                                minLength={3}
-                                maxLength={300}
-                                onChange={(e) => setData('address', e.target.value)}
-                                className="border-gray-200"
-                            />
-                            {errors.address && (
-                                <p className="mt-1.5 text-sm text-danger">{errors.address}</p>
-                            )}
-                        </div>
+                    <div className="space-y-1">
+                        <Label htmlFor="address" className="font-semibold text-ink">
+                            Address
+                        </Label>
+                        <Input
+                            id="address"
+                            type="text"
+                            placeholder="Street, barangay, city"
+                            value={data.address}
+                            minLength={3}
+                            maxLength={300}
+                            onChange={(e) => setData('address', e.target.value)}
+                            className="border-gray-200"
+                        />
+                        {errors.address && (
+                            <p className="mt-1.5 text-sm text-danger">{errors.address}</p>
+                        )}
                     </div>
 
                     {/* Emergency contact */}

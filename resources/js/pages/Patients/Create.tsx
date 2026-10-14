@@ -15,7 +15,9 @@ import { CircleAlert } from 'lucide-react';
 import { store } from '@/routes/patients';
 
 interface PatientForm {
-    full_name: string;
+    first_name: string;
+    middle_name: string;
+    last_name: string;
     gender: string;
     date_of_birth: string;
     email: string;
@@ -36,7 +38,9 @@ const GENDER_LABELS: Record<string, string> = {
 
 export default function Create() {
     const { data, setData, post, processing, errors } = useForm<PatientForm>({
-        full_name: '',
+        first_name: '',
+        middle_name: '',
+        last_name: '',
         gender: '',
         date_of_birth: '',
         email: '',
@@ -81,26 +85,65 @@ export default function Create() {
                     )}
 
                     {/* Identity */}
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-3 gap-3">
                         <div className="space-y-1">
-                            <Label htmlFor="full_name" className="font-semibold text-ink">
-                                Full name
+                            <Label htmlFor="first_name" className="font-semibold text-ink">
+                                First name
                             </Label>
                             <Input
-                                id="full_name"
+                                id="first_name"
                                 type="text"
-                                placeholder="Patient full name"
-                                value={data.full_name}
+                                placeholder="First name"
+                                value={data.first_name}
                                 minLength={2}
                                 maxLength={100}
-                                onChange={(e) => setData('full_name', e.target.value)}
+                                onChange={(e) => setData('first_name', e.target.value)}
                                 className="border-[#e0d0c0]"
                             />
-                            {errors.full_name && (
-                                <p className="mt-1.5 text-sm text-danger">{errors.full_name}</p>
+                            {errors.first_name && (
+                                <p className="mt-1.5 text-sm text-danger">{errors.first_name}</p>
                             )}
                         </div>
 
+                        <div className="space-y-1">
+                            <Label htmlFor="middle_name" className="font-semibold text-ink">
+                                Middle name
+                            </Label>
+                            <Input
+                                id="middle_name"
+                                type="text"
+                                placeholder="Middle name (optional)"
+                                value={data.middle_name}
+                                maxLength={100}
+                                onChange={(e) => setData('middle_name', e.target.value)}
+                                className="border-[#e0d0c0]"
+                            />
+                            {errors.middle_name && (
+                                <p className="mt-1.5 text-sm text-danger">{errors.middle_name}</p>
+                            )}
+                        </div>
+
+                        <div className="space-y-1">
+                            <Label htmlFor="last_name" className="font-semibold text-ink">
+                                Last name
+                            </Label>
+                            <Input
+                                id="last_name"
+                                type="text"
+                                placeholder="Last name"
+                                value={data.last_name}
+                                minLength={2}
+                                maxLength={100}
+                                onChange={(e) => setData('last_name', e.target.value)}
+                                className="border-[#e0d0c0]"
+                            />
+                            {errors.last_name && (
+                                <p className="mt-1.5 text-sm text-danger">{errors.last_name}</p>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                             <Label htmlFor="gender" className="font-semibold text-ink">
                                 Gender
@@ -124,9 +167,7 @@ export default function Create() {
                                 <p className="mt-1.5 text-sm text-danger">{errors.gender}</p>
                             )}
                         </div>
-                    </div>
 
-                    <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                             <Label htmlFor="date_of_birth" className="font-semibold text-ink">
                                 Date of birth
@@ -142,7 +183,10 @@ export default function Create() {
                                 <p className="mt-1.5 text-sm text-danger">{errors.date_of_birth}</p>
                             )}
                         </div>
+                    </div>
 
+                    {/* Contact */}
+                    <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                             <Label htmlFor="email" className="font-semibold text-ink">
                                 Email
@@ -161,10 +205,7 @@ export default function Create() {
                                 <p className="mt-1.5 text-sm text-danger">{errors.email}</p>
                             )}
                         </div>
-                    </div>
 
-                    {/* Contact */}
-                    <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                             <Label htmlFor="contact_number" className="font-semibold text-ink">
                                 Contact number
@@ -182,25 +223,25 @@ export default function Create() {
                                 <p className="mt-1.5 text-sm text-danger">{errors.contact_number}</p>
                             )}
                         </div>
+                    </div>
 
-                        <div className="space-y-1">
-                            <Label htmlFor="address" className="font-semibold text-ink">
-                                Address
-                            </Label>
-                            <Input
-                                id="address"
-                                type="text"
-                                placeholder="Street, barangay, city"
-                                value={data.address}
-                                minLength={3}
-                                maxLength={300}
-                                onChange={(e) => setData('address', e.target.value)}
-                                className="border-[#e0d0c0]"
-                            />
-                            {errors.address && (
-                                <p className="mt-1.5 text-sm text-danger">{errors.address}</p>
-                            )}
-                        </div>
+                    <div className="space-y-1">
+                        <Label htmlFor="address" className="font-semibold text-ink">
+                            Address
+                        </Label>
+                        <Input
+                            id="address"
+                            type="text"
+                            placeholder="Street, barangay, city"
+                            value={data.address}
+                            minLength={3}
+                            maxLength={300}
+                            onChange={(e) => setData('address', e.target.value)}
+                            className="border-[#e0d0c0]"
+                        />
+                        {errors.address && (
+                            <p className="mt-1.5 text-sm text-danger">{errors.address}</p>
+                        )}
                     </div>
 
                     {/* Emergency contact */}

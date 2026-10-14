@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -5,13 +6,20 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import { CircleAlert } from 'lucide-react';
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from '@/components/ui/command';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
+import { Check, ChevronsUpDown, CircleAlert } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { store } from '@/routes/appointments';
 
 interface Option {
@@ -33,6 +41,82 @@ interface Props {
     procedures: Option[];
 }
 
+interface ComboboxProps {
+    id: string;
+    value: string;
+    onChange: (value: string) => void;
+    options: { value: string; label: string }[];
+    placeholder: string;
+    searchPlaceholder: string;
+    emptyText: string;
+}
+
+function Combobox({
+    id,
+    value,
+    onChange,
+    options,
+    placeholder,
+    searchPlaceholder,
+    emptyText,
+}: ComboboxProps) {
+    const [open, setOpen] = useState(false);
+    const selected = options.find((o) => o.value === value);
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <Button
+                    id={id}
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className="w-full justify-between border-gray-200 font-normal"
+                >
+                    <span className={cn('truncate', !selected && 'text-muted-foreground')}>
+                        {selected ? selected.label : placeholder}
+                    </span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent
+                className="p-0"
+                align="start"
+                style={{ width: 'var(--radix-popover-trigger-width)' }}
+            >
+                <Command>
+                    <CommandInput placeholder={searchPlaceholder} />
+                    <CommandList>
+                        <CommandEmpty>{emptyText}</CommandEmpty>
+                        <CommandGroup>
+                            {options.map((o) => (
+                                <CommandItem
+                                    key={o.value}
+                                    // id is included so duplicate names stay unique
+                                    value={`${o.label} ${o.value}`}
+                                    onSelect={() => {
+                                        onChange(o.value);
+                                        setOpen(false);
+                                    }}
+                                >
+                                    <Check
+                                        className={cn(
+                                            'mr-2 h-4 w-4',
+                                            value === o.value ? 'opacity-100' : 'opacity-0',
+                                        )}
+                                    />
+                                    {o.label}
+                                </CommandItem>
+                            ))}
+                        </CommandGroup>
+                    </CommandList>
+                </Command>
+            </PopoverContent>
+        </Popover>
+    );
+}
+
 export default function Create({ patients, procedures }: Props) {
     const { data, setData, post, processing, errors } = useForm<AppointmentForm>({
         patient_id: '',
@@ -41,6 +125,16 @@ export default function Create({ patients, procedures }: Props) {
         appointment_date: '',
         appointment_time: '',
     });
+
+    const patientOptions = patients.map((p) => ({
+        value: String(p.id),
+        label: p.full_name ?? p.name ?? '',
+    }));
+
+    const procedureOptions = procedures.map((p) => ({
+        value: String(p.id),
+        label: p.name ?? p.full_name ?? '',
+    }));
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -80,21 +174,15 @@ export default function Create({ patients, procedures }: Props) {
                             <Label htmlFor="patient_id" className="font-semibold text-ink">
                                 Patient
                             </Label>
-                            <Select
+                            <Combobox
+                                id="patient_id"
                                 value={data.patient_id}
-                                onValueChange={(value) => setData('patient_id', value)}
-                            >
-                                <SelectTrigger id="patient_id" className="border-gray-200">
-                                    <SelectValue placeholder="Select a patient" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {patients.map((p) => (
-                                        <SelectItem key={p.id} value={String(p.id)}>
-                                            {p.full_name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                onChange={(value) => setData('patient_id', value)}
+                                options={patientOptions}
+                                placeholder="Select a patient"
+                                searchPlaceholder="Search patient..."
+                                emptyText="No patient found."
+                            />
                             {errors.patient_id && (
                                 <p className="mt-1.5 text-sm text-danger">{errors.patient_id}</p>
                             )}
@@ -104,21 +192,15 @@ export default function Create({ patients, procedures }: Props) {
                             <Label htmlFor="procedure_id" className="font-semibold text-ink">
                                 Procedure
                             </Label>
-                            <Select
+                            <Combobox
+                                id="procedure_id"
                                 value={data.procedure_id}
-                                onValueChange={(value) => setData('procedure_id', value)}
-                            >
-                                <SelectTrigger id="procedure_id" className="border-gray-200">
-                                    <SelectValue placeholder="Select a procedure" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {procedures.map((p) => (
-                                        <SelectItem key={p.id} value={String(p.id)}>
-                                            {p.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                onChange={(value) => setData('procedure_id', value)}
+                                options={procedureOptions}
+                                placeholder="Select a procedure"
+                                searchPlaceholder="Search procedure..."
+                                emptyText="No procedure found."
+                            />
                             {errors.procedure_id && (
                                 <p className="mt-1.5 text-sm text-danger">{errors.procedure_id}</p>
                             )}

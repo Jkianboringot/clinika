@@ -16,10 +16,9 @@ return new class extends Migration {
             $table->id();
             //just doing this to be more scalable, its not like its hard to do just do it, no harm done
             //this is just to prepare for future hr addition which am not supprise they will have
-            $table->string('full_name',100);
             $table->string('first_name',100);
             $table->string('last_name',100);
-            $table->string('middle_name',100);
+                 $table->string('middle_name', 100)->nullable();
             $table->date('date_of_birth');
             $table->string('gender',25);
             $table->string('contact_number',25)->nullable();

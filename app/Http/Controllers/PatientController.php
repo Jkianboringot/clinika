@@ -3,16 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Enums\IsActiveEnum;
-use App\Http\Requests\SearchRequest;
 use App\Http\Requests\PatientRequest;
 use App\Models\Patient;
 use Illuminate\Http\RedirectResponse;
-use Inertia\Inertia;
-use Inertia\Response;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-
+use Inertia\Inertia;
+use Inertia\Response;
 
 class PatientController extends Controller
 {
@@ -21,17 +19,24 @@ class PatientController extends Controller
         // TODO: add this later
         // $this->authorize('patients.view');
 
-
         $patients = Patient::query()
             ->when(
                 $request->input('search'),
-                fn($query, $search) =>
-                    $query->where('full_name', 'like', "%{$search}%")
+                fn ($query, $search) => $query->where(function ($q) use ($search) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('middle_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        // lets "Juan Dela Cruz" match as one string
+                        ->orWhereRaw(
+                            "CONCAT_WS(' ', first_name, middle_name, last_name) like ?",
+                            ["%{$search}%"]
+                        );
+                })
             )
             ->orderBy('created_at')
             ->paginate(15)
             ->withQueryString();
-                // dd($patients);
+
         return Inertia::render('Patients/Index', [
             'patients' => $patients,
             'filters' => [
@@ -91,18 +96,15 @@ class PatientController extends Controller
         return redirect()->route('patients.index')->with('message', 'Patient updated successfully.');
     }
 
-
-
-
-        public function deactivate(Patient $patient): RedirectResponse
+    public function deactivate(Patient $patient): RedirectResponse
     {
         // $this->authorize('patients.delete');
- 
+
         try {
             // Assign directly so it works even if is_active isn't in $fillable.
             $patient->is_active = IsActiveEnum::DEACTIVED;
             $patient->save();
- 
+
             // Only matters if patients log in through the default web guard
             // with the database session driver.
             DB::table('sessions')->where('user_id', $patient->id)->delete();
@@ -111,10 +113,9 @@ class PatientController extends Controller
                 ->route('patients.index')
                 ->with('error', 'Failed to deactivate patient.');
         }
- 
+
         return redirect()->route('patients.index')->with('message', 'Patient deactivated successfully.');
     }
-
 
     public function show(Patient $patient): Response
     {
@@ -126,47 +127,27 @@ class PatientController extends Controller
     }
 
     public function activate(Patient $patient): RedirectResponse
-{
-    // $this->authorize('patients.update');
+    {
+        // $this->authorize('patients.update');
 
-    try {
-        // The status check is part of the UPDATE query, so it only succeeds
-        // if the patient is currently deactivated.
-        $updated = Patient::whereKey($patient->id)
-            ->where('is_active', IsActiveEnum::DEACTIVED->value)
-            ->update(['is_active' => IsActiveEnum::ACTIVE->value]);
-    } catch (\Throwable $e) {
-        return redirect()
-            ->route('patients.index')
-            ->with('error', 'Failed to activate patient.');
+        try {
+            // The status check is part of the UPDATE query, so it only succeeds
+            // if the patient is currently deactivated.
+            $updated = Patient::whereKey($patient->id)
+                ->where('is_active', IsActiveEnum::DEACTIVED->value)
+                ->update(['is_active' => IsActiveEnum::ACTIVE->value]);
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('patients.index')
+                ->with('error', 'Failed to activate patient.');
+        }
+
+        if ($updated === 0) {
+            return redirect()
+                ->route('patients.index')
+                ->with('error', 'Only deactivated patients can be activated.');
+        }
+
+        return redirect()->route('patients.index')->with('message', 'Patient activated successfully.');
     }
-
-    if ($updated === 0) {
-        return redirect()
-            ->route('patients.index')
-            ->with('error', 'Only deactivated patients can be activated.');
-    }
-
-    return redirect()->route('patients.index')->with('message', 'Patient activated successfully.');
 }
-}
-
-
-
-//  public function destroy(Patient $patient): RedirectResponse
-//     {
-
-//         if ($patient->appointments()->exists()) {
-//             return redirect()
-//                 ->route('patients.index')
-//                 ->with('error', 'This patient has appointment assigned and cannot be deleted.');
-//         }
-//         try {
-//             $patient->deleteOrFail();
-
-//         } catch (\Throwable $e) {
-//             return redirect()->route('patients.index')->with('error', 'Failed to delete, already has with treatment');
-//         }
-
-//         return redirect()->route('patients.index')->with('message', 'Patients deleted successfully.');
-//     }

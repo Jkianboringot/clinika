@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\IsActiveEnum;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -25,6 +26,16 @@ class Patient extends Authenticatable
 
 
 
+protected $appends = ['full_name'];
+
+protected function fullName(): Attribute
+{
+    return Attribute::get(fn () => collect([
+        $this->first_name,
+        $this->middle_name,
+        $this->last_name,
+    ])->filter()->implode(' '));
+}
 
 
 

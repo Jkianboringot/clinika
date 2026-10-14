@@ -45,6 +45,9 @@ class AppointmentController extends Controller
     /** Changing any of these on update flips the status to "rescheduled". */
     private const SCHEDULE_FIELDS = ['appointment_date', 'appointment_time'];
 
+    /** Columns needed so Patient's full_name accessor can be built. */
+    private const PATIENT_NAME_COLUMNS = ['id', 'first_name', 'middle_name', 'last_name'];
+
     public function index(SearchRequest $request): Response
     {
         // $this->authorize('viewAny', Appointment::class);
@@ -52,11 +55,20 @@ class AppointmentController extends Controller
         $request->validated();
 
         $appointments = Appointment::query()
-            ->with(['staff:id,name', 'patient:id,full_name', 'procedure:id,name'])
+            ->with([
+                'staff:id,name',
+                'patient:' . implode(',', self::PATIENT_NAME_COLUMNS),
+                'procedure:id,name',
+            ])
             ->when(
                 $request->string('search')->trim(),
-                fn($query, $search) =>
-                    $query->whereHas('patient', fn($q) => $q->where('full_name', 'like', "{$search}%"))
+                fn ($query, $search) => $query->whereHas(
+                    'patient',
+                    fn ($q) => $q->whereRaw(
+                        "CONCAT_WS(' ', first_name, middle_name, last_name) like ?",
+                        ["%{$search}%"]
+                    )
+                )
             )
             ->orderBy('created_at', 'desc')
             ->paginate(15)
@@ -71,7 +83,7 @@ class AppointmentController extends Controller
     public function create(): Response
     {
         return Inertia::render('Appointments/Create', [
-            'patients' => Patient::where('is_active', IsActiveEnum::ACTIVE->value)->select('id', 'full_name')->orderBy('full_name')->get(),
+            'patients' => $this->activePatients(),
             'staff' => User::select('id', 'name')->orderBy('name')->get(),
             'procedures' => Procedure::select('id', 'name')->orderBy('name')->get(),
         ]);
@@ -103,7 +115,7 @@ class AppointmentController extends Controller
 
         return Inertia::render('Appointments/Edit', [
             'appointment' => $appointment,
-            'patients' => Patient::where('is_active', IsActiveEnum::ACTIVE->value)->select('id', 'full_name')->orderBy('full_name')->get(),
+            'patients' => $this->activePatients(),
             'staff' => User::select('id', 'name')->orderBy('name')->get(),
             'procedures' => Procedure::select('id', 'name')->orderBy('name')->get(),
         ]);
@@ -181,6 +193,16 @@ class AppointmentController extends Controller
         }
 
         return redirect()->route('appointments.index')->with($result[0], $result[1]);
+    }
+
+    /** Active patients for the dropdowns, sorted by name. */
+    private function activePatients()
+    {
+        return Patient::where('is_active', IsActiveEnum::ACTIVE->value)
+            ->select(self::PATIENT_NAME_COLUMNS)
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get();
     }
 
     /** A treatment row OR a completed status both mean "service delivered". */
