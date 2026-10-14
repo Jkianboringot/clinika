@@ -20,6 +20,8 @@ Route::middleware(['auth:web,patient', 'verified'])->group(function () {
     Route::put('settings/password', [SecurityController::class, 'update'])
         ->middleware('throttle:6,1')
         ->name('user-password.update');
-
+        
+Route::post('settings/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
+Route::delete('settings/profile/avatar', [ProfileController::class, 'destroyAvatar'])->name('profile.avatar.destroy');
     // Route::inertia('settings/appearance', 'settings/appearance')->name('appearance.edit');
 });

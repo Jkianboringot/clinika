@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('password');
             // $table->index('name','user_name_index'); contemplating this one
             // $table->index('branch_id','user_branch_id_index');
-
+      $table->string('avatar')->nullable();
             $table->rememberToken();
             $table->timestamps();
 
