@@ -187,6 +187,10 @@ class UserController extends Controller
             abort(403, 'Use your profile page to edit your own account.');
         }
 
+        abort_if($request['password'],403);
+
+
+        
         $validated = $request->validated();
         $this->guardRoleAssignment($validated['role'], $user);
 

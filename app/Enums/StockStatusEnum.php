@@ -7,6 +7,7 @@ enum StockStatusEnum: string
     case InStock  = 'in_stock';
     case Low      = 'low';
     case Critical = 'critical';
+    case OutStock= 'out_stock';
 
     /** Critical = stock is at or below this share of the minimum (and still low). */
     public const CRITICAL_RATIO = 0.5;

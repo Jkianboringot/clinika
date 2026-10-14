@@ -23,8 +23,6 @@ interface User {
 interface UserForm {
     name: string;
     email: string;
-    password: string;
-    password_confirmation: string;
     role: string;
 }
 
@@ -42,8 +40,6 @@ export default function Edit({ user, assignableRoles }: EditProps) {
     const { data, setData, put, processing, errors } = useForm<UserForm>({
         name: user.name,
         email: user.email,
-        password: '',
-        password_confirmation: '',
         role: user.role,
     });
 
@@ -143,43 +139,6 @@ export default function Edit({ user, assignableRoles }: EditProps) {
                             {errors.role && (
                                 <p className="mt-1.5 text-sm text-danger">{errors.role}</p>
                             )}
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                            <Label htmlFor="password" className="font-semibold text-ink">
-                                New Password
-                            </Label>
-                            <Input
-                                id="password"
-                                type="password"
-                                autoComplete="new-password"
-                                placeholder="Leave blank to keep current password"
-                                value={data.password}
-                                minLength={8}
-                                onChange={(e) => setData('password', e.target.value)}
-                                className="border-[#e0d0c0]"
-                            />
-                            {errors.password && (
-                                <p className="mt-1.5 text-sm text-danger">{errors.password}</p>
-                            )}
-                        </div>
-
-                        <div className="space-y-1">
-                            <Label htmlFor="password_confirmation" className="font-semibold text-ink">
-                                Confirm New Password
-                            </Label>
-                            <Input
-                                id="password_confirmation"
-                                type="password"
-                                autoComplete="new-password"
-                                placeholder="Confirm new password"
-                                value={data.password_confirmation}
-                                minLength={8}
-                                onChange={(e) => setData('password_confirmation', e.target.value)}
-                                className="border-[#e0d0c0]"
-                            />
                         </div>
                     </div>
 

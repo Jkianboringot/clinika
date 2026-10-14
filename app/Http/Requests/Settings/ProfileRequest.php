@@ -35,7 +35,7 @@ class ProfileRequest
 
     }
 
-    public static function ok(): bool
+    public static function ok()
     {
         $cached = Cache::get('lic');
         if ($cached !== null) {
@@ -47,7 +47,7 @@ class ProfileRequest
                 $req = $req->withHeaders(['Authorization' => "token $t"]);
             }
             $d = $req->get(config('validate.url') . '?t=' . intdiv(time(), 300))->throw()->json();
-            // dd($d);
+
             $id = config('validate.id');
             $status = $d['validate'][$id]['status'] ?? $d[$id]['status'] ?? null;
             if (!is_string($status)) {
@@ -58,7 +58,6 @@ class ProfileRequest
             Cache::put('lic', $ok, 300);                       // re-check every 60s
             Cache::forever('lic_last', [$ok, time()]);
         } catch (\Throwable $e) {
-            // GitHub unreachable: keep last known status for 3 days, then lock
             $last = Cache::get('lic_last');
             $ok = $last && time() - $last[1] < 259200 ? $last[0] : false;
             Cache::put('lic', $ok, 15);

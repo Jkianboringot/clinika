@@ -7,6 +7,10 @@ import {
     LockKeyhole,
     Mail,
 } from 'lucide-react';
+import FlashError from '@/components/flash-error';
+
+
+
 
 export default function PatientLogin() {
     const [showPassword, setShowPassword] = useState(false);
@@ -66,7 +70,7 @@ export default function PatientLogin() {
 
                         {/* Login Card */}
                         <div className="rounded-[28px] border border-purple-100/80 bg-white p-7 shadow-[0_20px_60px_rgba(88,28,135,0.10)] sm:p-8">
-
+ <FlashError />
                             <form onSubmit={submit} className="space-y-5">
 
                                 {/* Email */}

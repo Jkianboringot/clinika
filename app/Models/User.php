@@ -8,13 +8,13 @@ use App\Enums\IsActiveEnum;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Traits\HasRoles;
-
 /**
  * @property int $id
  * @property string $name
@@ -34,12 +34,16 @@ class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
-  use HasRoles;
+    use HasRoles;
     /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
      */
+
+    protected $appends = ['avatar_url'];
+
+
     protected function casts(): array
     {
         return [
@@ -48,27 +52,43 @@ class User extends Authenticatable
             'is_active' => IsActiveEnum::class
         ];
     }
-
+    protected $hidden = [
+        'password',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'remember_token',
+    ];
     protected $fillable = [
         'name',
         'email',
+        'avatar',
         'password',
         'branch_id',
         'is_active'
     ];
 
-   public function appointments(){
-    return $this->hasMany(Appointment::class,'staff_id');
-   }
- public function inventory(){
-    return $this->hasMany(Inventory::class,'staff_id');
-   }
+    protected function avatarUrl(): Attribute
+    {
+        return Attribute::get(fn() => $this->avatar
+            ? asset('storage/' . $this->avatar)
+            : null);
+    }
 
-    public function treatment(){
-    return $this->hasMany(Treatment::class,'user_id');
-   }
+    public function appointments()
+    {
+        return $this->hasMany(Appointment::class, 'staff_id');
+    }
+    public function inventory()
+    {
+        return $this->hasMany(Inventory::class, 'staff_id');
+    }
+
+    public function treatment()
+    {
+        return $this->hasMany(Treatment::class, 'user_id');
+    }
 
 
-   
+
 
 }
