@@ -21,6 +21,9 @@ class ReportController extends Controller
         ['value' => 'inventory',    'label' => 'Inventory'],
     ];
 
+    // Only the columns Patient::full_name needs
+    private const PATIENT_NAME_COLS = 'id,first_name,middle_name,last_name';
+
     public function index(Request $request)
     {
         $type    = $this->type($request);
@@ -42,6 +45,7 @@ class ReportController extends Controller
 
     public function export(Request $request): StreamedResponse
     {
+        // TODO: re-enable before going live (CSV contains medical info)
         // abort_unless($request->user()->can('reports.download'), 403);
 
         $type    = $this->type($request);
@@ -68,7 +72,7 @@ class ReportController extends Controller
     private function type(Request $request): string
     {
         $type = $request->input('type', 'patients');
-        // abort_unless(in_array($type, array_column(self::TYPES, 'value'), true), 404);
+        abort_unless(in_array($type, array_column(self::TYPES, 'value'), true), 404);
 
         if ($type === 'inventory') {
             abort_unless($request->user()->can('inventory.view'), 403);
@@ -120,10 +124,11 @@ class ReportController extends Controller
             ->when($f['status'], fn ($q, $v) => $q->where('status', $v));
 
         $patients = Patient::query()
-            ->when($f['search'], fn ($q, $v) => $q->where('full_name', 'like', "%{$v}%"))
+            ->searchName($f['search'])
             ->withCount(['appointments as visits' => $apptFilter])
             ->withMax(['appointments as last_visit' => $apptFilter], 'appointment_date')
-            ->orderBy('full_name')
+            ->orderBy('last_name')
+            ->orderBy('first_name')
             ->get();
 
         $columns = [
@@ -159,11 +164,11 @@ class ReportController extends Controller
 
     private function appointments(array $f): array
     {
-        $appointments = Appointment::with(['patient:id,full_name', 'procedure', 'staff'])
+        $appointments = Appointment::with(['patient:' . self::PATIENT_NAME_COLS, 'procedure', 'staff'])
             ->when($f['from'], fn ($q, $v) => $q->whereDate('appointment_date', '>=', $v))
             ->when($f['to'], fn ($q, $v) => $q->whereDate('appointment_date', '<=', $v))
             ->when($f['status'], fn ($q, $v) => $q->where('status', $v))
-            ->when($f['search'], fn ($q, $v) => $q->whereHas('patient', fn ($p) => $p->where('full_name', 'like', "%{$v}%")))
+            ->when($f['search'], fn ($q, $v) => $q->whereHas('patient', fn ($p) => $p->searchName($v)))
             ->orderBy('appointment_date')
             ->orderBy('appointment_time')
             ->get();
@@ -198,7 +203,7 @@ class ReportController extends Controller
     {
         $treatments = Treatment::with([
                 'doctor',
-                'appointment.patient:id,full_name',
+                'appointment.patient:' . self::PATIENT_NAME_COLS,
                 'appointment.procedure',
                 'treatmentInventories.items',
             ])
@@ -206,7 +211,7 @@ class ReportController extends Controller
                 ->when($f['from'], fn ($q, $v) => $q->whereDate('appointment_date', '>=', $v))
                 ->when($f['to'], fn ($q, $v) => $q->whereDate('appointment_date', '<=', $v))
                 ->when($f['status'], fn ($q, $v) => $q->where('status', $v))
-                ->when($f['search'], fn ($q, $v) => $q->whereHas('patient', fn ($p) => $p->where('full_name', 'like', "%{$v}%"))))
+                ->when($f['search'], fn ($q, $v) => $q->whereHas('patient', fn ($p) => $p->searchName($v))))
             ->latest()
             ->get();
 
@@ -268,7 +273,7 @@ class ReportController extends Controller
 
         $low = 0;
         $rows = $items->map(function ($i) use (&$low) {
-            $remaining = max(0, ($i->all_added ?? 0) - ($i->all_used ?? 0)); // all-time, like your stock()
+            $remaining = max(0, ($i->all_added ?? 0) - ($i->all_used ?? 0)); // all-time
             $isLow = $i->minimum_stock !== null && $remaining <= $i->minimum_stock;
             $low += $isLow ? 1 : 0;
 
