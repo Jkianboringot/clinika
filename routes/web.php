@@ -16,6 +16,16 @@ use App\Http\Controllers\TreatmentController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Auth\PatientPasswordResetController;
+
+Route::post('patient/forgot-password/code', [PatientPasswordResetController::class, 'sendCode'])
+    ->middleware('throttle:3,1')
+    ->name('patient.password.code');
+
+Route::post('patient/forgot-password/reset', [PatientPasswordResetController::class, 'reset'])
+    ->middleware('throttle:10,1')
+    ->name('patient.password.reset');
+
 
 /*
 |--------------------------------------------------------------------------
