@@ -7,13 +7,17 @@ enum StockStatusEnum: string
     case InStock  = 'in_stock';
     case Low      = 'low';
     case Critical = 'critical';
-    case OutStock= 'out_stock';
+    case OutStock = 'out_stock';
 
     /** Critical = stock is at or below this share of the minimum (and still low). */
     public const CRITICAL_RATIO = 0.5;
 
     public static function fromStock(float $stock, ?float $minimum): self
     {
+        if ($stock <= 0) {
+            return self::OutStock;
+        }
+
         if ($minimum === null || $stock >= $minimum) {
             return self::InStock;
         }
@@ -29,6 +33,7 @@ enum StockStatusEnum: string
             self::InStock  => 'In Stock',
             self::Low      => 'Low Stock',
             self::Critical => 'Critical',
+            self::OutStock => 'Out of Stock',
         };
     }
 
@@ -38,6 +43,7 @@ enum StockStatusEnum: string
             self::InStock  => 'green',
             self::Low      => 'yellow',
             self::Critical => 'red',
+            self::OutStock => 'gray',
         };
     }
 }

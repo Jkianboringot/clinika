@@ -10,6 +10,7 @@ interface InventoryItem {
     item_name: string;
     description: string | null;
     minimum_stock: number | null;
+    critical_stock: number | null;
 }
 
 interface EditProps {
@@ -20,6 +21,7 @@ interface InventoryItemForm {
     item_name: string;
     description: string;
     minimum_stock: string;
+    critical_stock: string;
 }
 
 export default function Edit({ inventoryItem }: EditProps) {
@@ -27,6 +29,7 @@ export default function Edit({ inventoryItem }: EditProps) {
         item_name: inventoryItem.item_name ?? '',
         description: inventoryItem.description ?? '',
         minimum_stock: inventoryItem.minimum_stock?.toString() ?? '',
+        critical_stock: inventoryItem.critical_stock?.toString() ?? '',
     });
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -97,6 +100,23 @@ export default function Edit({ inventoryItem }: EditProps) {
                         />
                         {errors.minimum_stock && (
                             <p className="mt-1 text-sm text-danger">{errors.minimum_stock}</p>
+                        )}
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="critical_stock" className="font-semibold text-ink">
+                            Critical Stock
+                        </Label>
+                        <Input
+                            id="critical_stock"
+                            type="number"
+                            value={data.critical_stock}
+                            onChange={(e) => setData('critical_stock', e.target.value)}
+                            placeholder="Optional"
+                            className="border-[#e0d0c0]"
+                        />
+                        {errors.critical_stock && (
+                            <p className="mt-1 text-sm text-danger">{errors.critical_stock}</p>
                         )}
                     </div>
 

@@ -93,6 +93,7 @@ class InventoryItemController extends Controller
                 'id' => $item->id,
                 'item_name' => $item->item_name,
                 'minimum_stock' => $item->minimum_stock,
+                'critical_stock' => $item->critical_stock,
                 'stock' => $item->current_stock,
                 'stock_status' => $item->stock_status->value,
                 'stock_status_label' => $item->stock_status->label(),
@@ -134,7 +135,7 @@ class InventoryItemController extends Controller
         // $this->authorize('items.view');
 
         return Inertia::render('Items/Edit', [
-            'inventoryItem' => $inventoryItem->only(['id', 'item_name', 'description', 'minimum_stock']),
+            'inventoryItem' => $inventoryItem->only(['id', 'item_name', 'description', 'minimum_stock', 'critical_stock']),
         ]);
     }
 

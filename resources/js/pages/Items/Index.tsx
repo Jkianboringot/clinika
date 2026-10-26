@@ -20,6 +20,7 @@ interface InventoryItem {
     id: number;
     item_name: string;
     minimum_stock: number | null;
+    critical_stock: number | null;
     stock: number;
     stock_status: StockStatus;
     stock_status_label: string;
@@ -139,13 +140,14 @@ export default function Index() {
                                 <TableHead className="font-bold text-brand-orange-hover">Name</TableHead>
                                 <TableHead className="font-bold text-brand-orange-hover">Stock</TableHead>
                                 <TableHead className="font-bold text-brand-orange-hover">Minimum Stock</TableHead>
+                                <TableHead className="font-bold text-brand-orange-hover">Critical Stock</TableHead>
                                 <TableHead className="text-right font-bold text-brand-orange-hover">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {inventoryitemRows.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="py-10 text-center text-sm text-subtle">
+                                    <TableCell colSpan={5} className="py-10 text-center text-sm text-subtle">
                                         No inventoryitems found.
                                     </TableCell>
                                 </TableRow>
@@ -163,16 +165,15 @@ export default function Index() {
                                             <span className={needsAttention ? 'font-semibold' : ''}>
                                                 {item.stock}
                                             </span>
-                                            {needsAttention && (
-                                                <span className="ml-2">
-                                                    <StockStatusBadge
-                                                        status={item.stock_status}
-                                                        label={item.stock_status_label}
-                                                    />
-                                                </span>
-                                            )}
+                                            <span className="ml-2">
+                                                <StockStatusBadge
+                                                    status={item.stock_status}
+                                                    label={item.stock_status_label}
+                                                />
+                                            </span>
                                         </TableCell>
                                         <TableCell>{item.minimum_stock ?? '—'}</TableCell>
+                                        <TableCell>{item.critical_stock ?? '—'}</TableCell>
                                         <TableCell>
                                             <div className="flex items-center justify-end gap-4">
                                                 <Link

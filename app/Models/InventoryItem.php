@@ -53,11 +53,34 @@ class InventoryItem extends Model
         return $this->stock();
     }
 
+    /**
+     * Out of stock is checked first (stock is zero).
+     * Then Critical: at or below critical_stock,
+     * then Low: at or below minimum_stock (but above critical).
+     */
+    public static function statusFor(float $stock, ?float $minimum, ?float $critical): StockStatusEnum
+    {
+        if ($stock <= 0) {
+            return StockStatusEnum::OutStock;
+        }
+
+        if ($critical !== null && $stock <= $critical) {
+            return StockStatusEnum::Critical;
+        }
+
+        if ($minimum !== null && $stock <= $minimum) {
+            return StockStatusEnum::Low;
+        }
+
+        return StockStatusEnum::InStock;
+    }
+
     public function getStockStatusAttribute(): StockStatusEnum
     {
-        return StockStatusEnum::fromStock(
+        return static::statusFor(
             $this->current_stock,
             $this->minimum_stock !== null ? (float) $this->minimum_stock : null,
+            $this->critical_stock !== null ? (float) $this->critical_stock : null,
         );
     }
 
@@ -79,12 +102,18 @@ class InventoryItem extends Model
                             WHERE ti.inventory_item_id = inventory_items.id), 0))';
     }
 
-    /** Low OR critical: stock below minimum. Items without a minimum never match. */
+    /** Low OR critical: at or below minimum, or at or below critical. */
     public function scopeLowStock(Builder $query): Builder
     {
-        return $query
-            ->whereNotNull('minimum_stock')
-            ->whereRaw(static::stockSql() . ' < minimum_stock');
+        $stock = static::stockSql();
+
+        return $query->where(fn (Builder $q) => $q
+            ->where(fn (Builder $m) => $m
+                ->whereNotNull('minimum_stock')
+                ->whereRaw("$stock <= minimum_stock"))
+            ->orWhere(fn (Builder $c) => $c
+                ->whereNotNull('critical_stock')
+                ->whereRaw("$stock <= critical_stock")));
     }
 
     public function scopeWhereStockStatus(Builder $query, StockStatusEnum $status): Builder
@@ -92,26 +121,33 @@ class InventoryItem extends Model
         $stock = static::stockSql();
 
         return match ($status) {
+            StockStatusEnum::OutStock => $query
+                ->whereRaw("$stock <= 0"),
+
             StockStatusEnum::Critical => $query
-                ->whereNotNull('minimum_stock')
-                ->whereRaw("$stock < minimum_stock")
-                ->whereRaw("$stock <= minimum_stock * ?", [StockStatusEnum::CRITICAL_RATIO]),
+                ->whereNotNull('critical_stock')
+                ->whereRaw("$stock <= critical_stock"),
 
             StockStatusEnum::Low => $query
                 ->whereNotNull('minimum_stock')
-                ->whereRaw("$stock < minimum_stock")
-                ->whereRaw("$stock > minimum_stock * ?", [StockStatusEnum::CRITICAL_RATIO]),
+                ->whereRaw("$stock <= minimum_stock")
+                ->where(fn (Builder $q) => $q
+                    ->whereNull('critical_stock')
+                    ->orWhereRaw("$stock > critical_stock")),
 
-            StockStatusEnum::InStock => $query->where(
-                fn (Builder $q) => $q->whereNull('minimum_stock')
-                    ->orWhereRaw("$stock >= minimum_stock")
-            ),
+            StockStatusEnum::InStock => $query
+                ->where(fn (Builder $q) => $q
+                    ->whereNull('critical_stock')
+                    ->orWhereRaw("$stock > critical_stock"))
+                ->where(fn (Builder $q) => $q
+                    ->whereNull('minimum_stock')
+                    ->orWhereRaw("$stock > minimum_stock")),
         };
     }
 
     /**
-     * All items below their minimum stock, shaped for the React pages.
-     * @return Collection<int, array{id:int,item_name:string,stock:float,minimum_stock:float,status:string,status_label:string}>
+     * All items at or below their thresholds, shaped for the React pages.
+     * @return Collection<int, array{id:int,item_name:string,stock:float,minimum_stock:?float,critical_stock:?float,status:string,status_label:string}>
      */
     public static function lowStockItems(): Collection
     {
@@ -120,12 +156,13 @@ class InventoryItem extends Model
             ->orderBy('item_name')
             ->get()
             ->map(fn (self $item) => [
-                'id'            => $item->id,
-                'item_name'     => $item->item_name,
-                'stock'         => $item->current_stock,
-                'minimum_stock' => (float) $item->minimum_stock,
-                'status'        => $item->stock_status->value,
-                'status_label'  => $item->stock_status->label(),
+                'id'             => $item->id,
+                'item_name'      => $item->item_name,
+                'stock'          => $item->current_stock,
+                'minimum_stock'  => $item->minimum_stock !== null ? (float) $item->minimum_stock : null,
+                'critical_stock' => $item->critical_stock !== null ? (float) $item->critical_stock : null,
+                'status'         => $item->stock_status->value,
+                'status_label'   => $item->stock_status->label(),
             ])
             ->values();
     }

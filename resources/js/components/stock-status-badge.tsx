@@ -1,11 +1,12 @@
-import { AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
+import { AlertTriangle, Ban, CheckCircle2, XCircle } from 'lucide-react';
 
-export type StockStatus = 'in_stock' | 'low' | 'critical';
+export type StockStatus = 'in_stock' | 'low' | 'critical' | 'out_stock';
 
 const config: Record<StockStatus, { className: string; icon: typeof AlertTriangle }> = {
     in_stock: { className: 'bg-green-100 text-green-700', icon: CheckCircle2 },
     low: { className: 'bg-yellow-100 text-yellow-800', icon: AlertTriangle },
     critical: { className: 'bg-red-100 text-danger', icon: XCircle },
+    out_stock: { className: 'bg-gray-200 text-gray-700', icon: Ban },
 };
 
 export default function StockStatusBadge({
