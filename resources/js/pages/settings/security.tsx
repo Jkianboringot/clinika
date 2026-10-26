@@ -4,6 +4,7 @@ import SecurityController from '@/actions/App/Http/Controllers/Settings/Security
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
+import PasswordResetSection from '@/components/password-reset-section';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { edit } from '@/routes/security';
@@ -116,6 +117,8 @@ export default function Security(props: Props) {
                         </>
                     )}
                 </Form>
+
+                <PasswordResetSection />
             </div>
         </>
     );
