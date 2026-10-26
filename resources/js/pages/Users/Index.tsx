@@ -21,12 +21,21 @@ import {
 } from '@/components/ui/table';
 import { create, edit, deactivate, activate, index as usersIndex } from '@/routes/users';
 
+// Saved dentist details, as sent by UserController@index (dentistDetail
+// relation, serialized by Laravel as `dentist_detail`).
+interface DentistDetail {
+    specialization: string[];
+    appointment_limit: number;
+    available_schedule: { day: string; start: string; end: string }[];
+}
+
 interface UserRow {
     id: number;
     name: string;
     email: string;
     is_active: string;
     created_at: string;
+    dentist_detail?: DentistDetail | null;
 }
 
 // Patients are their own model/table (see Patient.php), not a User with a
@@ -78,6 +87,8 @@ const TAB_TITLES: Record<Role, string> = {
     patient: 'Patient Accounts',
 };
 
+const DAY_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
 function formatDate(value: string | null) {
     if (!value) return '—';
 
@@ -91,12 +102,47 @@ function formatDate(value: string | null) {
     return `${month} ${day}, ${year}`; // e.g. "Sep 25, 2026"
 }
 
+// "13:30" -> "1:30 PM"
+function formatTime(value: string) {
+    const [h, m] = value.split(':').map(Number);
+    if (isNaN(h) || isNaN(m)) return value;
+
+    const period = h >= 12 ? 'PM' : 'AM';
+    const hour = h % 12 === 0 ? 12 : h % 12;
+
+    return `${hour}:${String(m).padStart(2, '0')} ${period}`;
+}
+
+// "monday" -> "Mon"
+function shortDay(day: string) {
+    return day.charAt(0).toUpperCase() + day.slice(1, 3);
+}
+
 // Laravel's paginator labels are always one of these three shapes —
 // render icons for prev/next instead of trusting raw HTML entities.
 function paginationLabel(label: string) {
     if (label.includes('Previous')) return <ChevronLeft className="h-4 w-4" />;
     if (label.includes('Next')) return <ChevronRight className="h-4 w-4" />;
     return label;
+}
+
+function DentistSchedule({ schedule }: { schedule: DentistDetail['available_schedule'] }) {
+    if (!schedule?.length) return <span className="text-subtle">—</span>;
+
+    const sorted = [...schedule].sort(
+        (a, b) => DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day),
+    );
+
+    return (
+        <ul className="space-y-0.5 text-xs">
+            {sorted.map((s) => (
+                <li key={s.day} className="whitespace-nowrap">
+                    <span className="inline-block w-9 font-semibold text-ink">{shortDay(s.day)}</span>
+                    {formatTime(s.start)} – {formatTime(s.end)}
+                </li>
+            ))}
+        </ul>
+    );
 }
 
 export default function Index() {
@@ -130,7 +176,10 @@ export default function Index() {
 
     const userRows = users?.data ?? [];
     const isPatientTab = activeRole === 'patient';
-    const columnCount = isPatientTab ? 6 : 5;
+    const isDentistTab = activeRole === 'dentist';
+    // Name, Email, Status, Joined, Actions = 5. Patients add Contact (+1),
+    // dentists add Specialization, Limit, Available (+3).
+    const columnCount = isPatientTab ? 6 : isDentistTab ? 8 : 5;
 
     // Debounced: typing only updates local state immediately. The actual
     // request waits until 400ms after the user stops typing.
@@ -257,6 +306,13 @@ export default function Index() {
                                 {isPatientTab && (
                                     <TableHead className="font-bold text-brand-orange-hover">Contact</TableHead>
                                 )}
+                                {isDentistTab && (
+                                    <>
+                                        <TableHead className="font-bold text-brand-orange-hover">Specialization</TableHead>
+                                        <TableHead className="font-bold text-brand-orange-hover">Limit / day</TableHead>
+                                        <TableHead className="font-bold text-brand-orange-hover">Available</TableHead>
+                                    </>
+                                )}
                                 <TableHead className="font-bold text-brand-orange-hover">Status</TableHead>
                                 <TableHead className="font-bold text-brand-orange-hover">Joined</TableHead>
                                 <TableHead className="text-right font-bold text-brand-orange-hover">Actions</TableHead>
@@ -273,6 +329,7 @@ export default function Index() {
                             {userRows.map((row) => {
                                 const patientRow = isPatientRow(row);
                                 const isActive = row.is_active === 'active';
+                                const dentist = !patientRow ? row.dentist_detail : null;
 
                                 return (
                                     <TableRow
@@ -283,6 +340,30 @@ export default function Index() {
                                         <TableCell>{row.email}</TableCell>
                                         {patientRow && (
                                             <TableCell>{row.contact_number ?? '—'}</TableCell>
+                                        )}
+                                        {isDentistTab && (
+                                            <>
+                                                <TableCell>
+                                                    {dentist?.specialization?.length ? (
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {dentist.specialization.map((s) => (
+                                                                <span
+                                                                    key={s}
+                                                                    className="rounded-full bg-[#fbead9] px-2 py-0.5 text-xs font-medium text-brand-orange-hover"
+                                                                >
+                                                                    {s}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        '—'
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>{dentist?.appointment_limit ?? '—'}</TableCell>
+                                                <TableCell>
+                                                    <DentistSchedule schedule={dentist?.available_schedule ?? []} />
+                                                </TableCell>
+                                            </>
                                         )}
                                         <TableCell>
                                             <span

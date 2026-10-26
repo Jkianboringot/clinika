@@ -160,6 +160,10 @@ class RolePermissionSeeder extends Seeder
             'appointments.view_own',
             'appointments.create',
             'treatments.view_own',
+            
+            'appointments.view',
+            'appointments.create',
+            'appointments.update',
         ];
 
         foreach ($patientPermissions as $name) {

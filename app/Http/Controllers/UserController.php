@@ -41,6 +41,15 @@ use Inertia\Response;
  * - password   : hashed before storage
  * - role       : admin | dentist | staff
  *
+ * DENTIST DETAILS (dentist_details table, one row per dentist)
+ * ------------------------------------------------------------
+ * - specialization     : list of strings
+ * - available_schedule : list of {day, start, end}
+ * - appointment_limit  : soft limit of procedures per day
+ * - Saved on create and update. Changing a user's role away from
+ *   dentist deletes their details.
+ * - Loaded in index() for the dentist tab only.
+ *
  * ARCHITECTURE FLOW
  * ------------------
  *   UI -> Route -> Controller -> Custom Request Form (validation)
@@ -109,6 +118,15 @@ class UserController extends Controller
         } else {
             $users = User::query()
                 ->role($activeRole)
+                // Dentist tab shows specialization, limit and schedule.
+                // `user_id` must be selected so Laravel can match each
+                // detail row to its user (serialized as `dentist_detail`).
+                ->when(
+                    $activeRole === 'dentist',
+                    fn($query) => $query->with(
+                        'dentistDetail:user_id,specialization,available_schedule,appointment_limit'
+                    )
+                )
                 ->when(
                     $validated['search'] ?? null,
                     fn($query, $search) =>
@@ -163,6 +181,7 @@ class UserController extends Controller
         ]);
 
         $user->syncRoles([$validated['role']]);
+        $this->syncDentistDetails($user, $validated);
 
         return redirect()->route('users.index')->with('message', 'User created successfully.');
     }
@@ -174,6 +193,7 @@ class UserController extends Controller
         return Inertia::render('Users/Edit', [
             'user' => $user->only(['id', 'name', 'email', 'is_active']) + [
                 'role' => $user->getRoleNames()->first(),
+                'dentist' => $user->dentistDetail?->only(['specialization', 'appointment_limit', 'available_schedule']),
             ],
             'assignableRoles' => $this->assignableRoles(),
         ]);
@@ -187,10 +207,8 @@ class UserController extends Controller
             abort(403, 'Use your profile page to edit your own account.');
         }
 
-        abort_if($request['password'],403);
+        abort_if($request['password'], 403);
 
-
-        
         $validated = $request->validated();
         $this->guardRoleAssignment($validated['role'], $user);
 
@@ -205,6 +223,7 @@ class UserController extends Controller
         }
 
         $user->syncRoles([$validated['role']]);
+        $this->syncDentistDetails($user, $validated);
 
         return redirect()->route('users.index')->with('message', 'User updated successfully.');
     }
@@ -260,10 +279,11 @@ class UserController extends Controller
 
         return redirect()->route('users.index')->with('message', 'User activated successfully.');
     }
+
     private function assignableRoles(): array
     {
         return Auth::user()->hasRole('admin')
-            ? [ 'dentist', 'staff']
+            ? ['dentist', 'staff']
             : ['dentist'];
     }
 
@@ -278,5 +298,26 @@ class UserController extends Controller
         if ($target?->hasRole('admin') && $role !== 'admin') {
             abort(403, 'Admin accounts cannot be reassigned to another role.');
         }
+    }
+
+    // Saves dentist details only for dentists. Switching to another role removes them.
+    private function syncDentistDetails(User $user, array $validated): void
+    {
+        if ($validated['role'] !== 'dentist') {
+            $user->dentistDetail()->delete();
+            return;
+        }
+
+        $details = $validated['dentist'];
+
+        $user->dentistDetail()->updateOrCreate([], [
+            'specialization' => collect(explode(',', $details['specialization']))
+                ->map(fn($s) => trim($s))
+                ->filter()
+                ->values()
+                ->all(),
+            'available_schedule' => $details['schedule'],
+            'appointment_limit' => $details['appointment_limit'],
+        ]);
     }
 }

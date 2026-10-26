@@ -23,30 +23,30 @@ class AppointmentController extends Controller
         ]);
     }
 
-    // public function create()
-    // {
-    //     return Inertia::render('patient/appointments/create', [
-    //         'procedures' => Procedure::orderBy('name')->get(['id', 'name']),
-    //     ]);
-    // }
+    public function create()
+    {
+        return Inertia::render('patient/appointments/create', [
+            'procedures' => Procedure::orderBy('name')->get(['id', 'name']),
+        ]);
+    }
 
-    // public function store(Request $request)
-    // {
-    //     $data = $request->validate([
-    //         'procedure_id' => ['required', 'exists:procedures,id'],
-    //         'appointment_date' => ['required', 'date', 'after_or_equal:today'],
-    //         'appointment_time' => ['required'],
-    //         'description' => ['nullable', 'string', 'max:1000'],
-    //     ]);
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'procedure_id' => ['required', 'exists:procedures,id'],
+            'appointment_date' => ['required', 'date', 'after_or_equal:today'],
+            'appointment_time' => ['required'],
+            'description' => ['nullable', 'string', 'max:1000'],
+        ]);
 
-    //     // Never take patient_id (or status) from the request
-    //     $data['patient_id'] = auth('patient')->id();
-    //     $data['status'] = 'pending'; // change to the value your status uses for new bookings
+        // Never take patient_id (or status) from the request
+        $data['patient_id'] = auth('patient')->id();
+        $data['status'] = 'pending'; // change to the value your status uses for new bookings
 
-    //     Appointment::create($data);
+        Appointment::create($data);
 
-    //     return redirect()
-    //         ->route('patient.appointments.index')
-    //         ->with('success', 'Appointment booked.');
-    // }
+        return redirect()
+            ->route('patient.appointments.index')
+            ->with('success', 'Appointment booked.');
+    }
 }

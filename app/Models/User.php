@@ -74,6 +74,10 @@ class User extends Authenticatable
             : null);
     }
 
+    public function dentistDetail(): \Illuminate\Database\Eloquent\Relations\HasOne
+{
+    return $this->hasOne(DentistDetail::class);
+}
     public function appointments()
     {
         return $this->hasMany(Appointment::class, 'staff_id');

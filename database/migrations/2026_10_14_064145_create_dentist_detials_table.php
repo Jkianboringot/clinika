@@ -10,12 +10,12 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::create('dentist_detials', function (Blueprint $table) {
+        Schema::create('dentist_details', function (Blueprint $table) {
             $table->id();
-            $table->json('specialization');
-            $table->json('avaible_date');
-            $table->integer('appointment_limit');
-
+            $table->foreignId('user_id')->unique()->constrained()->cascadeOnDelete();
+            $table->json('specialization');        // ["Orthodontics", "Braces"]
+            $table->json('available_schedule');    // [{"day":"monday","start":"09:00","end":"17:00"}]
+            $table->unsignedInteger('appointment_limit'); // soft limit per day
             $table->timestamps();
         });
     }

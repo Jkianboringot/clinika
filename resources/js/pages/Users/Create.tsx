@@ -12,6 +12,11 @@ import {
 } from '@/components/ui/select';
 import { CircleAlert } from 'lucide-react';
 import { store } from '@/routes/users';
+import DentistFields, {
+    buildDentistForm,
+    dentistPayload,
+    DentistForm,
+} from '@/components/dentist-fields';
 
 interface UserForm {
     name: string;
@@ -19,6 +24,7 @@ interface UserForm {
     password: string;
     password_confirmation: string;
     role: string;
+    dentist: DentistForm;
 }
 
 interface CreateProps {
@@ -31,13 +37,20 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export default function Create({ assignableRoles }: CreateProps) {
-    const { data, setData, post, processing, errors, reset } = useForm<UserForm>({
+    const { data, setData, post, processing, errors, reset, transform } = useForm<UserForm>({
         name: '',
         email: '',
         password: '',
         password_confirmation: '',
         role: '',
+        dentist: buildDentistForm(),
     });
+
+    // Sends dentist data only when the role is dentist.
+    transform((d) => ({
+        ...d,
+        dentist: d.role === 'dentist' ? dentistPayload(d.dentist) : undefined,
+    }));
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -172,6 +185,14 @@ export default function Create({ assignableRoles }: CreateProps) {
                             />
                         </div>
                     </div>
+
+                    {data.role === 'dentist' && (
+                        <DentistFields
+                            value={data.dentist}
+                            onChange={(dentist) => setData('dentist', dentist)}
+                            errors={errors as Record<string, string>}
+                        />
+                    )}
 
                     <div className="flex justify-end border-t border-[#f0ddc8] pt-3">
                         <Button

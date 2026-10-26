@@ -12,18 +12,26 @@ import {
 } from '@/components/ui/select';
 import { CircleAlert } from 'lucide-react';
 import { update } from '@/routes/users';
+import DentistFields, {
+    buildDentistForm,
+    dentistPayload,
+    DentistForm,
+} from '@/components/dentist-fields';
 
 interface User {
     id: number;
     name: string;
     email: string;
     role: string;
+    // saved details from the controller (null when the user is not a dentist)
+    dentist?: Parameters<typeof buildDentistForm>[0];
 }
 
 interface UserForm {
     name: string;
     email: string;
     role: string;
+    dentist: DentistForm;
 }
 
 interface EditProps {
@@ -37,11 +45,18 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export default function Edit({ user, assignableRoles }: EditProps) {
-    const { data, setData, put, processing, errors } = useForm<UserForm>({
+    const { data, setData, put, processing, errors, transform } = useForm<UserForm>({
         name: user.name,
         email: user.email,
         role: user.role,
+        dentist: buildDentistForm(user.dentist),
     });
+
+    // Sends dentist data only when the role is dentist.
+    transform((d) => ({
+        ...d,
+        dentist: d.role === 'dentist' ? dentistPayload(d.dentist) : undefined,
+    }));
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -142,6 +157,14 @@ export default function Edit({ user, assignableRoles }: EditProps) {
                         </div>
                     </div>
 
+                    {data.role === 'dentist' && (
+                        <DentistFields
+                            value={data.dentist}
+                            onChange={(dentist) => setData('dentist', dentist)}
+                            errors={errors as Record<string, string>}
+                        />
+                    )}
+
                     <div className="flex justify-end border-t border-[#f0ddc8] pt-3">
                         <Button
                             type="submit"
@@ -150,7 +173,7 @@ export default function Edit({ user, assignableRoles }: EditProps) {
                         >
                             Update User
                         </Button>
-                    </div>
+                </div>
                 </form>
             </div>
         </>

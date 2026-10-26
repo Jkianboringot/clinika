@@ -46,6 +46,13 @@ class UserRequest extends FormRequest
                 'min:8',
                 'confirmed',
             ],
+            'dentist' => ['nullable', 'array'],
+            'dentist.specialization' => ['required_if:role,dentist', 'nullable', 'string', 'max:255'],
+            'dentist.appointment_limit' => ['required_if:role,dentist', 'nullable', 'integer', 'min:1', 'max:50'],
+            'dentist.schedule' => ['required_if:role,dentist', 'nullable', 'array', 'min:1'],
+            'dentist.schedule.*.day' => ['required', 'in:monday,tuesday,wednesday,thursday,friday,saturday,sunday'],
+            'dentist.schedule.*.start' => ['required', 'date_format:H:i'],
+            'dentist.schedule.*.end' => ['required', 'date_format:H:i', 'after:dentist.schedule.*.start'],
         ];
     }
 }
