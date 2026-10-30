@@ -72,7 +72,8 @@ Route::middleware(['auth:patient'])->prefix('patient')->name('patient.')->group(
 
     Route::get('appointments', [PatientAppointmentController::class, 'index'])
         ->middleware('permission:appointments.view_own,patient')->name('appointments.index');
-
+    Route::post('appointments', [PatientAppointmentController::class, 'store'])
+        ->middleware('permission:appointments.view_own,patient')->name('appointments.store');
     Route::get('appointments/create', [PatientAppointmentController::class, 'create'])
         ->middleware('permission:appointments.view_own,patient')->name('appointments.create');
 
