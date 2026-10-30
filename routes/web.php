@@ -179,6 +179,9 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
     // ===== REPORTS =====
     Route::get('/reports', [ReportController::class, 'index'])->middleware('permission:reports.view')->name('reports.index');
     Route::get('/reports/export', [ReportController::class, 'export'])->middleware('permission:reports.view')->name('reports.export');
+    Route::get('/reports/patients/{patient}', [ReportController::class, 'patient'])
+        ->middleware('permission:reports.view')
+        ->name('reports.patient');
 });
 
 require __DIR__ . '/settings.php';

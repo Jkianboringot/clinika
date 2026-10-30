@@ -1,5 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { Download, Printer } from 'lucide-react';
+import { Download, FileText, Printer } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -114,6 +114,9 @@ export default function Index() {
 
     const showStatus =
         type === 'appointments' || type === 'treatments' || type === 'patients';
+
+    // Patient Records tab gets one extra "Report" column with a PDF button per row
+    const hasPatientAction = type === 'patients';
 
     const formatCell = (value: string | number | undefined) =>
         typeof value === 'number' ? value.toLocaleString() : (value ?? '—');
@@ -430,6 +433,12 @@ export default function Index() {
                                                         {c.label}
                                                     </TableHead>
                                                 ))}
+
+                                                {hasPatientAction && (
+                                                    <TableHead className="text-right font-bold tracking-wide text-brand-orange-hover print:hidden">
+                                                        Report
+                                                    </TableHead>
+                                                )}
                                             </TableRow>
                                         </TableHeader>
 
@@ -437,7 +446,7 @@ export default function Index() {
                                             {rows.length === 0 && (
                                                 <TableRow>
                                                     <TableCell
-                                                        colSpan={columns.length}
+                                                        colSpan={columns.length + (hasPatientAction ? 1 : 0)}
                                                         className="py-10 text-center text-sm text-subtle"
                                                     >
                                                         No records found for the selected filters.
@@ -466,6 +475,26 @@ export default function Index() {
                                                             {formatCell(row[c.key])}
                                                         </TableCell>
                                                     ))}
+
+                                                    {hasPatientAction && (
+                                                        <TableCell className="text-right print:hidden">
+                                                            <a
+                                                                href={`/reports/patients/${row.id}?print=1`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                            >
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className="gap-1.5 border-brand-orange text-brand-orange hover:bg-[#fbead9]"
+                                                                >
+                                                                    <FileText className="h-4 w-4" />
+                                                                    PDF
+                                                                </Button>
+                                                            </a>
+                                                        </TableCell>
+                                                    )}
                                                 </TableRow>
                                             ))}
                                         </TableBody>

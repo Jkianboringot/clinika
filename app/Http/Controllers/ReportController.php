@@ -67,6 +67,78 @@ class ReportController extends Controller
         }, "{$type}-report-" . now()->format('Ymd') . '.csv', ['Content-Type' => 'text/csv']);
     }
 
+    /**
+     * Full report for ONE patient (personal info, appointments, treatments).
+     * Opened from the "PDF" button on the Patient Records tab.
+     */
+    public function patient(Patient $patient)
+    {
+        $plain = fn ($v) => $v instanceof \BackedEnum ? $v->value
+            : ($v instanceof \UnitEnum ? $v->name : $v);
+        $date = fn ($v) => $v ? \Carbon\Carbon::parse($v)->format('M d, Y') : '—';
+        $time = fn ($v) => $v ? \Carbon\Carbon::parse($v)->format('h:i A') : '—';
+
+        $appointments = Appointment::with(['procedure', 'staff'])
+            ->where('patient_id', $patient->id)
+            ->orderByDesc('appointment_date')
+            ->orderByDesc('appointment_time')
+            ->get();
+
+        $treatments = Treatment::with([
+                'doctor',
+                'appointment.procedure',
+                'treatmentInventories.items',
+            ])
+            ->whereHas('appointment', fn ($q) => $q->where('patient_id', $patient->id))
+            ->latest()
+            ->get();
+
+        return Inertia::render('Report/Patient', [
+            'patient' => [
+                'first_name'               => $patient->first_name,
+                'middle_name'              => $patient->middle_name,
+                'last_name'                => $patient->last_name,
+                'full_name'                => $patient->full_name,
+                'gender'                   => $plain($patient->gender),
+                'date_of_birth'            => $patient->date_of_birth ? $date($patient->date_of_birth) : null,
+                'age'                      => $patient->date_of_birth
+                    ? \Carbon\Carbon::parse($patient->date_of_birth)->age : null,
+                'email'                    => $patient->email,
+                'contact_number'           => $patient->contact_number,
+                'address'                  => $patient->address,
+                'emergency_contact_name'   => $patient->emergency_contact_name,
+                'emergency_contact_number' => $patient->emergency_contact_number,
+                'medical_history'          => $patient->medical_history,
+                'allergies'                => $patient->allergies,
+                'status'                   => $patient->is_active?->name,
+            ],
+            'appointments' => $appointments->map(fn ($a) => [
+                'date'      => $date($a->appointment_date),
+                'time'      => $time($a->appointment_time),
+                'procedure' => $a->procedure->name ?? '—',
+                'staff'     => $a->staff->name ?? '—',
+                'status'    => (string) $plain($a->status),
+            ])->values(),
+            'treatments' => $treatments->map(fn ($t) => [
+                'date'      => $date($t->appointment->appointment_date),
+                'procedure' => $t->appointment->procedure->name ?? '—',
+                'doctor'    => $t->doctor->name ?? '—',
+                'duration'  => (int) ($t->duration_minutes ?? 0),
+                'summary'   => $t->summary ?? '—',
+                'items'     => $t->treatmentInventories
+                    ->map(fn ($ti) => ($ti->items->item_name ?? '?') . ' × ' . ($ti->quantity + 0))
+                    ->implode(', ') ?: '—',
+                'follow_up' => $t->follow_up_schedule ?? '—',
+            ])->values(),
+            'summary' => [
+                ['label' => 'Appointments', 'value' => $appointments->count()],
+                ['label' => 'Treatments',   'value' => $treatments->count()],
+                ['label' => 'Last Visit',   'value' => $date($appointments->first()?->appointment_date)],
+            ],
+            'generatedAt' => now()->format('M d, Y h:i A'),
+        ]);
+    }
+
     // ---------------------------------------------------------------
 
     private function type(Request $request): string
@@ -74,7 +146,9 @@ class ReportController extends Controller
         $type = $request->input('type', 'patients');
         abort_unless(in_array($type, array_column(self::TYPES, 'value'), true), 404);
 
-       
+        if ($type === 'inventory') {
+            abort_unless($request->user()->can('inventory.view'), 403);
+        }
 
         return $type;
     }
@@ -141,6 +215,7 @@ class ReportController extends Controller
         ];
 
         $rows = $patients->map(fn ($p) => [
+            'id'         => $p->id, // used by the PDF button; not a column, so not in the CSV
             'name'       => $p->full_name,
             'age'        => \Carbon\Carbon::parse($p->date_of_birth)->age,
             'gender'     => $p->gender,
