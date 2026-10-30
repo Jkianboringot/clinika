@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 
 const CLINIC = {
     name: 'MB Klinika',
-    address: 'Your street, Barangay, City, Province',
+    address: '50-B Salvacion St. Virac Catanduanes',
     contact: 'Tel: 0900-000-0000  •  Email: info@yourclinic.com',
 };
 
