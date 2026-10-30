@@ -23,7 +23,6 @@ const ENABLE_PERMISSIONS = false;
 const CLINIC = {
     name: 'MB Klinika',
     address: '50-B Salvacion St. Virac Catanduanes',
-    contact: 'Tel: 0900-000-0000  •  Email: info@yourclinic.com',
 };
 
 interface Column {
