@@ -55,6 +55,7 @@ class RolePermissionSeeder extends Seeder
             'appointments.create',
             'appointments.update',
             'appointments.delete',
+            'appointments.approval',
 
             'followups.view',
             'followups.create',
@@ -90,6 +91,7 @@ class RolePermissionSeeder extends Seeder
 
         $staff->syncPermissions([
             'staff_dashboard.view',
+            'appointments.approval',
 
             'patients.view',
             'patients.create',

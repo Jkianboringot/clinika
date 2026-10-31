@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\AppointmentStatusEnum;
 use App\Enums\IsActiveEnum;
+use App\Enums\IsApproveEnum;
 use App\Http\Requests\AppointmentRequest;
 use App\Http\Requests\SearchRequest;
 use App\Models\Appointment;
@@ -61,6 +62,7 @@ class AppointmentController extends Controller
                 'procedure:id,name',
                 'dentist:id,name',
             ])
+            ->where('is_approve', IsApproveEnum::Approve->value)
             ->when(
                 $request->string('search')->trim(),
                 fn ($query, $search) => $query->whereHas(
@@ -99,6 +101,8 @@ class AppointmentController extends Controller
                 ...Arr::except($request->validated(), ['status']),
                 'staff_id' => auth()->id(),
                 'status' => AppointmentStatusEnum::Scheduled->value,
+                // staff (logged-in user) -> approved right away, anyone else -> pending
+                'is_approve' => auth()->id() ? IsApproveEnum::Approve->value : IsApproveEnum::Pending->value,
             ]);
         } catch (\Throwable $e) {
             report($e);
@@ -142,6 +146,10 @@ class AppointmentController extends Controller
                 // Date or time moved -> rescheduled. Anything else keeps its status.
                 if ($locked->isDirty(self::SCHEDULE_FIELDS)) {
                     $locked->status = AppointmentStatusEnum::Rescheduled->value;
+                    // staff (logged-in user) -> stays approved, anyone else -> pending reschedule
+                    $locked->is_approve = auth()->id()
+                        ? IsApproveEnum::Approve->value
+                        : IsApproveEnum::PendingReScheduled->value;
                 }
 
                 $locked->save();

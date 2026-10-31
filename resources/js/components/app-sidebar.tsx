@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { LayoutGrid, Syringe, Pill, ListPlus, UsersRound, FileUser, TicketCheck, Stethoscope, PackagePlus, FileChartColumn } from 'lucide-react';
+import { LayoutGrid, Syringe, Pill, ListPlus, UsersRound, FileUser, TicketCheck, Stethoscope, PackagePlus, FileChartColumn, ClipboardCheck } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -39,6 +39,10 @@ export function AppSidebar() {
         { title: 'Items', href: '/inventory_items', icon: ListPlus, permission: 'inventory.view' },
         { title: 'Patient', href: '/patients', icon: UsersRound, permission: 'patients.view' },
         { title: 'Appointment', href: '/appointments', icon: TicketCheck, permission: 'appointments.view' },
+        // staff only: the patient guard also has appointments.update, so hide it from patients
+        ...(isPatient
+            ? []
+            : [{ title: 'Approvals', href: '/appointment-approvals', icon: ClipboardCheck, permission: 'appointments.update' }]),
         { title: 'Treatment', href: '/treatments', icon: Stethoscope, permission: 'treatments.view' },
         { title: 'Inventory', href: '/inventories', icon: PackagePlus, permission: 'inventory.view' },
         { title: 'User', href: '/users', icon: FileUser, permission: 'users.view' },

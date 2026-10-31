@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AppointmentApprovalController;
 use App\Http\Controllers\Auth\PatientLoginController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\DashboardController;
@@ -188,6 +189,12 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
     Route::get('/reports/patients/{patient}', [ReportController::class, 'patient'])
         ->middleware('permission:reports.view')
         ->name('reports.patient');
+
+    Route::prefix('appointment-approvals')->name('appointment_approvals.')->group(function () {
+        Route::get('/', [AppointmentApprovalController::class, 'index'])->middleware('permission:appointments.view')->name('index');
+        Route::put('/{appointment}/approve', [AppointmentApprovalController::class, 'approve'])->middleware('permission:appointments.update')->name('approve');
+        Route::put('/{appointment}/reject', [AppointmentApprovalController::class, 'reject'])->middleware('permission:appointments.update')->name('reject');
+    });
 });
 
 require __DIR__ . '/settings.php';
