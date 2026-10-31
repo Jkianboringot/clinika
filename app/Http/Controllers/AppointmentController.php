@@ -59,6 +59,7 @@ class AppointmentController extends Controller
                 'staff:id,name',
                 'patient:' . implode(',', self::PATIENT_NAME_COLUMNS),
                 'procedure:id,name',
+                'dentist:id,name',
             ])
             ->when(
                 $request->string('search')->trim(),
@@ -86,6 +87,7 @@ class AppointmentController extends Controller
             'patients' => $this->activePatients(),
             'staff' => User::select('id', 'name')->orderBy('name')->get(),
             'procedures' => Procedure::select('id', 'name')->orderBy('name')->get(),
+            'dentists' => $this->dentists(),
         ]);
     }
 
@@ -118,6 +120,7 @@ class AppointmentController extends Controller
             'patients' => $this->activePatients(),
             'staff' => User::select('id', 'name')->orderBy('name')->get(),
             'procedures' => Procedure::select('id', 'name')->orderBy('name')->get(),
+            'dentists' => $this->dentists(),
         ]);
     }
 
@@ -202,6 +205,16 @@ class AppointmentController extends Controller
             ->select(self::PATIENT_NAME_COLUMNS)
             ->orderBy('first_name')
             ->orderBy('last_name')
+            ->get();
+    }
+
+    /** Users with the dentist role, for the dropdowns. */
+    private function dentists()
+    {
+        return User::role('dentist')
+            ->where('is_active', IsActiveEnum::ACTIVE->value) // remove if users has no is_active column
+            ->select('id', 'name')
+            ->orderBy('name')
             ->get();
     }
 

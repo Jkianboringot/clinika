@@ -32,6 +32,7 @@ interface Option {
 interface AppointmentForm {
     patient_id: string;
     procedure_id: string;
+    dentist_id: string;
     description: string;
     appointment_date: string;
     appointment_time: string;
@@ -40,6 +41,7 @@ interface AppointmentForm {
 interface Props {
     patients: Option[];
     procedures: Option[];
+    dentists: Option[];
 }
 
 interface ComboboxProps {
@@ -118,10 +120,11 @@ function Combobox({
     );
 }
 
-export default function Create({ patients, procedures }: Props) {
+export default function Create({ patients, procedures, dentists }: Props) {
     const { data, setData, post, processing, errors } = useForm<AppointmentForm>({
         patient_id: '',
         procedure_id: '',
+        dentist_id: '',
         description: '',
         appointment_date: '',
         appointment_time: '',
@@ -135,6 +138,11 @@ export default function Create({ patients, procedures }: Props) {
     const procedureOptions = procedures.map((p) => ({
         value: String(p.id),
         label: p.name ?? p.full_name ?? '',
+    }));
+
+    const dentistOptions = dentists.map((d) => ({
+        value: String(d.id),
+        label: d.name ?? d.full_name ?? '',
     }));
 
     // Block past dates when booking. Local time, so it matches the calendar.
@@ -218,6 +226,24 @@ export default function Create({ patients, procedures }: Props) {
                             />
                             {errors.procedure_id && (
                                 <p className="text-sm text-danger">{errors.procedure_id}</p>
+                            )}
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label htmlFor="dentist_id" className="text-sm font-medium text-ink">
+                                Dentist
+                            </Label>
+                            <Combobox
+                                id="dentist_id"
+                                value={data.dentist_id}
+                                onChange={(value) => setData('dentist_id', value)}
+                                options={dentistOptions}
+                                placeholder="Select a dentist"
+                                searchPlaceholder="Search dentist..."
+                                emptyText="No dentist found."
+                            />
+                            {errors.dentist_id && (
+                                <p className="text-sm text-danger">{errors.dentist_id}</p>
                             )}
                         </div>
                     </div>

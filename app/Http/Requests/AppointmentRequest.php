@@ -24,6 +24,7 @@ class AppointmentRequest extends FormRequest
     {
         return [
         //    'staff_id' => ['required', 'exists:users,id'],
+           'dentist_id' => ['required', 'exists:users,id'],
             'patient_id' => ['required', 'exists:patients,id'],
             'procedure_id' => ['required', 'exists:procedures,id'],
             'description' => ['nullable', 'string', 'max:300'],

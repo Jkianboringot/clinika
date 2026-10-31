@@ -26,6 +26,7 @@ interface AppointmentRow {
     patient: { id: number; full_name: string } | null;
     staff: { id: number; name: string } | null;
     procedure: { id: number; name: string } | null;
+    dentist: { id: number; name: string } | null;
 }
 
 interface PaginationLink {
@@ -223,6 +224,9 @@ export default function Index({ appointments, filters }: Props) {
                                     Procedure
                                 </TableHead>
                                 <TableHead className="font-bold tracking-wide text-blue-700">
+                                    Dentist
+                                </TableHead>
+                                <TableHead className="font-bold tracking-wide text-blue-700">
                                     Staff
                                 </TableHead>
                                 <TableHead className="font-bold tracking-wide text-blue-700">
@@ -257,6 +261,9 @@ export default function Index({ appointments, filters }: Props) {
                                     </TableCell>
                                     <TableCell className="text-gray-700">
                                         {appt.procedure?.name ?? '—'}
+                                    </TableCell>
+                                    <TableCell className="text-gray-700">
+                                        {appt.dentist?.name ?? '—'}
                                     </TableCell>
                                     <TableCell className="text-gray-700">
                                         {appt.staff?.name ?? '—'}

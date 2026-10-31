@@ -9,6 +9,11 @@ class Appointment extends Model
 {
 
     public $guarded = ['id'];
+
+    public function dentist(): BelongsTo
+{
+    return $this->belongsTo(User::class, 'dentist_id');
+}
     function patient()
     {
         return $this->belongsTo(Patient::class);

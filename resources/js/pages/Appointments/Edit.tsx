@@ -25,6 +25,7 @@ interface Appointment {
     id: number;
     patient_id: number;
     procedure_id: number;
+    dentist_id: number | null;
     description: string | null;
     appointment_date: string; // "YYYY-MM-DD"
     appointment_time: string; // "HH:mm"
@@ -33,6 +34,7 @@ interface Appointment {
 interface AppointmentForm {
     patient_id: string;
     procedure_id: string;
+    dentist_id: string;
     description: string;
     appointment_date: string;
     appointment_time: string;
@@ -42,12 +44,14 @@ interface Props {
     appointment: Appointment;
     patients: Option[];
     procedures: Option[];
+    dentists: Option[];
 }
 
-export default function Edit({ appointment, patients, procedures }: Props) {
+export default function Edit({ appointment, patients, procedures, dentists }: Props) {
     const { data, setData, put, processing, errors } = useForm<AppointmentForm>({
         patient_id: String(appointment.patient_id),
         procedure_id: String(appointment.procedure_id),
+        dentist_id: appointment.dentist_id ? String(appointment.dentist_id) : '',
         description: appointment.description ?? '',
         appointment_date: appointment.appointment_date,
         appointment_time: appointment.appointment_time?.slice(0, 5) ?? '',
@@ -138,6 +142,30 @@ export default function Edit({ appointment, patients, procedures }: Props) {
                             </Select>
                             {errors.procedure_id && (
                                 <p className="text-sm text-danger">{errors.procedure_id}</p>
+                            )}
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label htmlFor="dentist_id" className="text-sm font-medium text-ink">
+                                Dentist
+                            </Label>
+                            <Select
+                                value={data.dentist_id}
+                                onValueChange={(value) => setData('dentist_id', value)}
+                            >
+                                <SelectTrigger id="dentist_id" className="h-10 w-full border-gray-200">
+                                    <SelectValue placeholder="Select a dentist" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {dentists.map((d) => (
+                                        <SelectItem key={d.id} value={String(d.id)}>
+                                            {d.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {errors.dentist_id && (
+                                <p className="text-sm text-danger">{errors.dentist_id}</p>
                             )}
                         </div>
                     </div>
