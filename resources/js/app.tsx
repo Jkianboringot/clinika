@@ -15,6 +15,8 @@ createInertiaApp({
                 return null;
             case name === 'auth/login':      // ← add this line
                 return null;
+            case name.startsWith('auth/Patient'):   // PatientLogin, PatientRegister
+                return null;
             case name.startsWith('auth/'):
                 return AuthLayout;
             case name.startsWith('settings/'):

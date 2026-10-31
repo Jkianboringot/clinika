@@ -17,6 +17,7 @@ use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\PatientPasswordResetController;
+use App\Http\Controllers\Auth\PatientRegisterController;
 
 Route::post('patient/forgot-password/code', [PatientPasswordResetController::class, 'sendCode'])
     ->middleware('throttle:3,1')
@@ -26,6 +27,11 @@ Route::post('patient/forgot-password/reset', [PatientPasswordResetController::cl
     ->middleware('throttle:10,1')
     ->name('patient.password.reset');
 
+
+Route::get('/patient/register', [PatientRegisterController::class, 'create'])->name('patient.register');
+Route::post('/patient/register', [PatientRegisterController::class, 'store'])
+    ->middleware('throttle:5,1')
+    ->name('patient.register.store');
 
 /*
 |--------------------------------------------------------------------------

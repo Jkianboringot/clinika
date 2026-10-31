@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import {
     ArrowRight,
     Eye,
@@ -226,7 +226,15 @@ export default function PatientLogin() {
                                             )}
                                         </button>
                                     </form>
-
+                                    <div className="mt-6 text-center">
+                                        <p className="text-xs text-gray-400">New to Klinika?</p>
+                                        <Link
+                                            href="/patient/register"
+                                            className="mt-1 inline-block text-sm font-semibold text-purple-600 transition hover:text-purple-800"
+                                        >
+                                            Create a patient account
+                                        </Link>
+                                    </div>
                                     {/* Staff Login */}
                                     <div className="mt-7 border-t border-gray-100 pt-6 text-center">
                                         <p className="text-xs text-gray-400">

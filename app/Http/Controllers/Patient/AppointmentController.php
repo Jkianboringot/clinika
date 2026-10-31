@@ -25,7 +25,7 @@ class AppointmentController extends Controller
 
     public function create()
     {
-        return Inertia::render('patient/appointments/create', [
+        return Inertia::render('Patients/Appointment/Index', [
             'procedures' => Procedure::orderBy('name')->get(['id', 'name']),
         ]);
     }

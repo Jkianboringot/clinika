@@ -22,7 +22,7 @@ type AppointmentForm = {
 
 const today = () => new Date().toISOString().split('T')[0];
 
-export default function PatientAppointmentCreate({ procedures }: { procedures: Procedure[] }) {
+export default function PatientAppointmentCreate({ procedures = [] }: { procedures?: Procedure[] }) {
     const { data, setData, post, processing, errors } = useForm<AppointmentForm>({
         procedure_id: '',
         appointment_date: '',
