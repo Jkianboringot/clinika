@@ -15,6 +15,10 @@ type PageProps = {
     auth: Auth;
 };
 
+type ProfileProps = {
+    showAvatar: boolean;
+};
+
 // Staff users have `name`; patients have the split name columns.
 type ProfileUser = {
     name?: string;
@@ -31,8 +35,8 @@ const getDisplayName = (user: ProfileUser): string =>
     user.name ??
     [user.first_name, user.middle_name, user.last_name].filter(Boolean).join(' ');
 
-const getInitials = (user: ProfileUser): string =>
-    (user.name ?? '')
+const getInitials = (name: string): string =>
+    name
         .split(' ')
         .filter(Boolean)
         .map((part) => part.charAt(0))
@@ -40,9 +44,10 @@ const getInitials = (user: ProfileUser): string =>
         .join('')
         .toUpperCase();
 
-export default function Profile() {
+export default function Profile({ showAvatar }: ProfileProps) {
     const { auth } = usePage<PageProps>().props;
     const user = auth.user as unknown as ProfileUser;
+    // Only used to pick which name fields to show, not for the photo.
     const isPatient = Boolean(user.first_name);
     const displayName = getDisplayName(user);
 
@@ -66,8 +71,8 @@ export default function Profile() {
 
             <h1 className="sr-only">Profile settings</h1>
 
-            {/* Profile photo: staff only, patients don't get one */}
-            {!isPatient && (
+            {/* Profile photo: shown for everyone only when the flag is on */}
+            {showAvatar && (
                 <div className="space-y-6">
                     <Heading
                         variant="small"
@@ -91,7 +96,7 @@ export default function Profile() {
                                             className="object-cover"
                                         />
                                         <AvatarFallback className="text-xl">
-                                            {getInitials(user)}
+                                            {getInitials(displayName)}
                                         </AvatarFallback>
                                     </Avatar>
 

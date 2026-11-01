@@ -104,7 +104,7 @@ export default function Index() {
                 <div className="mb-6 flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-extrabold tracking-tight text-ink">
-                            InventoryItems
+                            Inventory Items
                         </h1>
                     </div>
                     <Link href={create().url}>

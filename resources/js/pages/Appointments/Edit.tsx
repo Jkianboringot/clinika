@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,7 +12,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { CircleAlert } from 'lucide-react';
+import { ClipboardList, CircleAlert } from 'lucide-react';
 import { update } from '@/routes/appointments';
 
 interface Option {
@@ -72,9 +72,18 @@ export default function Edit({ appointment, patients, procedures, dentists }: Pr
             <Head title="Edit Appointment" />
 
             <div className="mx-auto w-full max-w-4xl p-6">
-                <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-ink">Edit Appointment</h1>
-                    <p className="mt-1 text-sm text-subtle">Update this patient visit</p>
+                <div className="mb-6 flex items-start justify-between">
+                    <div>
+                        <h1 className="text-2xl font-bold text-ink">Edit Appointment</h1>
+                        <p className="mt-1 text-sm text-subtle">Update this patient visit</p>
+                    </div>
+                    <Link
+                        href={`/patients/${appointment.patient_id}/questionnaire`}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                        <ClipboardList className="h-3.5 w-3.5" />
+                        Questionnaire
+                    </Link>
                 </div>
 
                 <form

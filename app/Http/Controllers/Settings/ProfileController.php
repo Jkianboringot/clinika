@@ -24,6 +24,8 @@ class ProfileController extends Controller
         return Inertia::render('settings/profile', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
+            // One switch controls the profile photo section for everyone.
+            'showAvatar' => (bool) config('profile.avatar_enabled'),
         ]);
     }
 
@@ -55,11 +57,11 @@ class ProfileController extends Controller
     }
 
     /**
-     * Upload or replace the user's avatar (staff only).
+     * Upload or replace the user's avatar (only when enabled in config).
      */
     public function updateAvatar(Request $request): RedirectResponse
     {
-        abort_if($request->user() instanceof Patient, 403);
+        abort_unless(config('profile.avatar_enabled'), 403);
 
         $request->validate([
             'avatar' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
@@ -81,11 +83,11 @@ class ProfileController extends Controller
     }
 
     /**
-     * Remove the user's avatar (staff only).
+     * Remove the user's avatar (only when enabled in config).
      */
     public function destroyAvatar(Request $request): RedirectResponse
     {
-        abort_if($request->user() instanceof Patient, 403);
+        abort_unless(config('profile.avatar_enabled'), 403);
 
         $user = $request->user();
 
