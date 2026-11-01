@@ -9,6 +9,7 @@ use App\Mail\TreatmentSummaryMail;
 use App\Models\Appointment;
 use App\Models\InventoryItem;
 use App\Models\Medication;
+use App\Models\MedicalQuestionnaire;
 use App\Models\Procedure;
 use App\Models\Treatment;
 use App\Services\TreatmentService;
@@ -56,6 +57,8 @@ class TreatmentController extends Controller
 
     public function create(Appointment $appointment)
     {
+        $questionnaire = MedicalQuestionnaire::where('patient_id', $appointment->patient_id)->first();
+
         return Inertia::render('Treatments/Create', [
             'appointment' => $appointment->load('patient'),
             'items' => InventoryItem::selectRaw('id, item_name as name')->orderBy('item_name')->get(),
@@ -68,6 +71,12 @@ class TreatmentController extends Controller
                 'value' => $a->value,
                 'label' => $a->value,
             ]),
+            'questionnaire' => $questionnaire ? [
+                'answers' => $questionnaire->answers,
+                'conditions' => $questionnaire->conditions,
+                'updated_at' => $questionnaire->updated_at?->format('M j, Y g:i A'),
+            ] : null,
+            'questionnaireSections' => MedicalQuestionnaire::sections(),
         ]);
     }
 

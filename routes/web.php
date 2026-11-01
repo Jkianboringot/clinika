@@ -9,9 +9,11 @@ use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\InventoryItemController;
 use App\Http\Controllers\MedicationController;
 use App\Http\Controllers\Patient\AppointmentController as PatientAppointmentController;
+use App\Http\Controllers\Patient\QuestionnaireController as PatientQuestionnaireController;
 use App\Http\Controllers\Patient\TreatmentController as PatientTreatmentController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\ProcedureController;
+use App\Http\Controllers\QuestionnaireController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TreatmentController;
 use App\Http\Controllers\UserController;
@@ -87,7 +89,11 @@ Route::middleware(['auth:patient'])->prefix('patient')->name('patient.')->group(
     Route::get('treatments', [PatientTreatmentController::class, 'index'])
         ->middleware('permission:treatments.view_own,patient')->name('treatments.index');
 
-
+    // ===== MEDICAL QUESTIONNAIRE (patient fills in their own) =====
+    Route::get('questionnaire', [PatientQuestionnaireController::class, 'edit'])
+        ->middleware('permission:profile.update,patient')->name('questionnaire.edit');
+    Route::post('questionnaire', [PatientQuestionnaireController::class, 'store'])
+        ->middleware('permission:profile.update,patient')->name('questionnaire.store');
 });
 
 /*
@@ -150,6 +156,10 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
         Route::put('/{patient}', [PatientController::class, 'update'])->middleware('permission:patients.update')->name('update');
         Route::get('/{patient}', [PatientController::class, 'show'])->middleware('permission:patients.view')->name('show');
         Route::put('/{patient}/activate', [PatientController::class, 'activate'])->name('activate');
+
+        // ===== MEDICAL QUESTIONNAIRE (staff read-only view) =====
+    Route::get('/{patient}/questionnaire', [QuestionnaireController::class, 'show'])
+            ->middleware('permission:patients.view')->name('questionnaire');
     });
 
     // ===== USERS ===== (admin)
@@ -171,6 +181,14 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
         Route::get('/{appointment}/edit', [AppointmentController::class, 'edit'])->middleware('permission:appointments.update')->name('edit');
         Route::put('/{appointment}', [AppointmentController::class, 'update'])->middleware('permission:appointments.update')->name('update');
         Route::delete('/{appointment}', [AppointmentController::class, 'destroy'])->middleware('permission:appointments.delete')->name('destroy');
+
+        // ===== MEDICAL QUESTIONNAIRE (filled in before choosing the patient) =====
+        Route::get('/questionnaire', [QuestionnaireController::class, 'pendingFill'])
+            ->middleware('permission:appointments.create')->name('questionnaire');
+        Route::post('/questionnaire', [QuestionnaireController::class, 'pendingSave'])
+            ->middleware('permission:appointments.create')->name('questionnaire.save');
+        Route::post('/questionnaire/skip', [QuestionnaireController::class, 'pendingSkip'])
+            ->middleware('permission:appointments.create')->name('questionnaire.skip');
     });
 
     // ===== TREATMENTS =====

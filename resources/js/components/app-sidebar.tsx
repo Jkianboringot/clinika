@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { LayoutGrid, Syringe, Pill, ListPlus, UsersRound, FileUser, TicketCheck, Stethoscope, PackagePlus, FileChartColumn, ClipboardCheck } from 'lucide-react';
+import { LayoutGrid, Syringe, Pill, ListPlus, UsersRound, FileUser, TicketCheck, Stethoscope, PackagePlus, FileChartColumn, ClipboardCheck, ClipboardList } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -52,6 +52,9 @@ export function AppSidebar() {
         { title: 'Dashboard', href: '/patient/dashboard', icon: LayoutGrid, permission: 'patient_dashboard.view' },
         { title: 'My Appointments', href: '/patient/appointments', icon: TicketCheck, permission: 'appointments.view_own' },
         { title: 'My Treatments', href: '/patient/treatments', icon: Stethoscope, permission: 'treatments.view_own' },
+        ...(isPatient
+            ? [{ title: 'Medical Questionnaire', href: '/patient/questionnaire', icon: ClipboardList, permission: 'profile.update' }]
+            : []),
     ];
 
     const visibleNavItems = mainNavItems.filter((item) => {

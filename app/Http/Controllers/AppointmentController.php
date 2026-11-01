@@ -8,6 +8,7 @@ use App\Enums\IsApproveEnum;
 use App\Http\Requests\AppointmentRequest;
 use App\Http\Requests\SearchRequest;
 use App\Models\Appointment;
+use App\Models\MedicalQuestionnaire;
 use App\Models\Patient;
 use App\Models\Procedure;
 use App\Models\User;
@@ -83,8 +84,13 @@ class AppointmentController extends Controller
         ]);
     }
 
-    public function create(): Response
+    public function create(): Response|RedirectResponse
     {
+        // The questionnaire comes first. Without it in this session, go fill it in.
+        if (! session()->has('pending_questionnaire')) {
+            return redirect()->route('appointments.questionnaire');
+        }
+
         return Inertia::render('Appointments/Create', [
             'patients' => $this->activePatients(),
             'staff' => User::select('id', 'name')->orderBy('name')->get(),
@@ -96,6 +102,26 @@ class AppointmentController extends Controller
     public function store(AppointmentRequest $request): RedirectResponse
     {
         try {
+            $patientId = (int) $request->validated()['patient_id'];
+
+            $pending = session('pending_questionnaire');
+
+            if ($pending) {
+                // Attach the questionnaire just filled in to the chosen patient.
+                MedicalQuestionnaire::updateOrCreate(
+                    ['patient_id' => $patientId],
+                    [
+                        'answers' => $pending['answers'],
+                        'conditions' => $pending['conditions'],
+                        'agreed' => $pending['agreed'],
+                    ],
+                );
+            } elseif (! MedicalQuestionnaire::where('patient_id', $patientId)->exists()) {
+                return redirect()
+                    ->route('appointments.questionnaire')
+                    ->with('error', 'Fill in or skip the medical questionnaire first.');
+            }
+
             Appointment::create([
                 // status is never taken from the request
                 ...Arr::except($request->validated(), ['status']),
@@ -104,6 +130,8 @@ class AppointmentController extends Controller
                 // staff (logged-in user) -> approved right away, anyone else -> pending
                 'is_approve' => auth()->id() ? IsApproveEnum::Approve->value : IsApproveEnum::Pending->value,
             ]);
+
+            session()->forget('pending_questionnaire');
         } catch (\Throwable $e) {
             report($e);
 

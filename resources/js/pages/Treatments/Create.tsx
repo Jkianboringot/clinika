@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { CircleAlert, Plus, Trash2 } from 'lucide-react';
 import { index, store } from '@/routes/treatments';
+import QuestionnaireSummary, { type QuestionnaireData, type QuestionnaireSections } from '@/components/questionnaire-summary';
 
 interface Appointment {
     id: number;
@@ -55,6 +56,8 @@ interface Props {
     items: Item[];
     medications: Item[];
     procedures: Procedure[];
+    questionnaire: QuestionnaireData;
+    questionnaireSections: QuestionnaireSections;
 }
 
 const emptyPrescription: PrescriptionRow = {
@@ -66,7 +69,7 @@ const emptyPrescription: PrescriptionRow = {
 
 const emptyItem: ItemRow = { item_id: '', quantity: '1' };
 
-export default function Create({ appointment, items, medications = [], procedures }: Props) {
+export default function Create({ appointment, items, medications = [], procedures, questionnaire, questionnaireSections }: Props) {
     const { data, setData, post, processing, errors } = useForm<TreatmentForm>({
         follow_up_schedule: '',
         duration_minutes: '',
@@ -123,6 +126,10 @@ export default function Create({ appointment, items, medications = [], procedure
             <div className="mx-auto w-full max-w-4xl p-6">
                 <div className="mb-4">
                     <h1 className="text-2xl font-bold text-ink">New Treatment</h1>
+                </div>
+
+                <div className="mb-4">
+                    <QuestionnaireSummary sections={questionnaireSections} questionnaire={questionnaire} />
                 </div>
 
                 <form

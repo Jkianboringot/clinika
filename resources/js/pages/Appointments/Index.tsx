@@ -11,7 +11,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { ChevronLeft, ChevronRight, Pencil, Plus, Search, Stethoscope, Trash2, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ClipboardList, Pencil, Plus, Search, Stethoscope, Trash2, X } from 'lucide-react';
 import { create, edit, index, destroy } from '@/routes/appointments';
 import { create as createTreatment } from '@/routes/treatments';
 import { useForm } from '@inertiajs/react';
@@ -286,6 +286,15 @@ export default function Index({ appointments, filters }: Props) {
                                                 >
                                                     <Stethoscope className="h-4 w-4" />
                                                     Treat
+                                                </Link>
+                                            )}
+                                            {appt.patient && (
+                                                <Link
+                                                    href={`/patients/${appt.patient.id}/questionnaire`}
+                                                    className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-blue-700"
+                                                >
+                                                    <ClipboardList className="h-4 w-4" />
+                                                    Questionnaire
                                                 </Link>
                                             )}
                                             {can('appointments.update') && (
