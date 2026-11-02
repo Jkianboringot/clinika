@@ -21,12 +21,20 @@ class MedicalQuestionnaireRequest extends FormRequest
             $rules["answers.$key"] = ['required', 'boolean'];
         }
 
-        // Women-only questions are validated (and therefore saved) only for female patients.
         $patient = $this->user('patient');
 
-        if ($patient && MedicalQuestionnaire::showsWomenSection($patient)) {
+        if ($patient) {
+            // Patient self-service: women questions are required, but only for female patients.
+            if (MedicalQuestionnaire::showsWomenSection($patient)) {
+                foreach (array_keys(config('medical_questionnaire.women')) as $key) {
+                    $rules["answers.$key"] = ['required', 'boolean'];
+                }
+            }
+        } else {
+            // Staff flow: the patient is not chosen yet, so women questions are optional here.
+            // They are kept or dropped later in AppointmentController@store, once the patient is known.
             foreach (array_keys(config('medical_questionnaire.women')) as $key) {
-                $rules["answers.$key"] = ['required', 'boolean'];
+                $rules["answers.$key"] = ['nullable', 'boolean'];
             }
         }
 

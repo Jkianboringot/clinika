@@ -1,8 +1,9 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DateCalendar, formatIsoDate } from '@/components/ui/date-picker';
 import { TimeSlots, formatTime } from '@/components/ui/time-slots';
 import {
@@ -31,6 +32,14 @@ interface Appointment {
     appointment_time: string; // "HH:mm"
 }
 
+type Question = { key: string; label: string };
+
+interface QuestionnaireData {
+    answers: Record<string, boolean | null>;
+    conditions: string[];
+    agreed: boolean;
+}
+
 interface AppointmentForm {
     patient_id: string;
     procedure_id: string;
@@ -38,6 +47,7 @@ interface AppointmentForm {
     description: string;
     appointment_date: string;
     appointment_time: string;
+    questionnaire: QuestionnaireData | null; // null = not edited
 }
 
 interface Props {
@@ -45,9 +55,53 @@ interface Props {
     patients: Option[];
     procedures: Option[];
     dentists: Option[];
+    sections: { general: Question[]; women: Question[]; conditions: Question[] };
+    isFemale: boolean;
+    questionnaire: { answers: Record<string, boolean>; conditions: string[] } | null;
 }
 
-export default function Edit({ appointment, patients, procedures, dentists }: Props) {
+function YesNo({
+    value,
+    onChange,
+}: {
+    value: boolean | null;
+    onChange: (v: boolean) => void;
+}) {
+    const base = 'h-8 w-16 rounded-md border text-sm font-medium transition';
+    const off = 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50';
+    const on = 'border-blue-600 bg-blue-600 text-white';
+
+    return (
+        <div className="flex shrink-0 gap-2">
+            <button
+                type="button"
+                aria-pressed={value === true}
+                onClick={() => onChange(true)}
+                className={`${base} ${value === true ? on : off}`}
+            >
+                Yes
+            </button>
+            <button
+                type="button"
+                aria-pressed={value === false}
+                onClick={() => onChange(false)}
+                className={`${base} ${value === false ? on : off}`}
+            >
+                No
+            </button>
+        </div>
+    );
+}
+
+export default function Edit({
+    appointment,
+    patients,
+    procedures,
+    dentists,
+    sections,
+    isFemale,
+    questionnaire,
+}: Props) {
     const { data, setData, put, processing, errors } = useForm<AppointmentForm>({
         patient_id: String(appointment.patient_id),
         procedure_id: String(appointment.procedure_id),
@@ -55,7 +109,57 @@ export default function Edit({ appointment, patients, procedures, dentists }: Pr
         description: appointment.description ?? '',
         appointment_date: appointment.appointment_date,
         appointment_time: appointment.appointment_time?.slice(0, 5) ?? '',
+        questionnaire: null,
     });
+
+    const questionKeys = [
+        ...sections.general.map((q) => q.key),
+        ...(isFemale ? sections.women.map((q) => q.key) : []),
+    ];
+
+    const openQuestionnaire = () =>
+        setData('questionnaire', {
+            answers: Object.fromEntries(
+                questionKeys.map((k) => [k, questionnaire?.answers?.[k] ?? null]),
+            ),
+            conditions: questionnaire?.conditions ?? [],
+            agreed: false,
+        });
+
+    const closeQuestionnaire = () => setData('questionnaire', null);
+
+    const setAnswer = (key: string, value: boolean) => {
+        if (!data.questionnaire) return;
+        setData('questionnaire', {
+            ...data.questionnaire,
+            answers: { ...data.questionnaire.answers, [key]: value },
+        });
+    };
+
+    const toggleCondition = (key: string) => {
+        if (!data.questionnaire) return;
+        const current = data.questionnaire.conditions;
+        setData('questionnaire', {
+            ...data.questionnaire,
+            conditions: current.includes(key)
+                ? current.filter((k) => k !== key)
+                : [...current, key],
+        });
+    };
+
+    const renderQuestions = (questions: Question[]) => (
+        <ul className="divide-y divide-gray-100">
+            {questions.map((q) => (
+                <li key={q.key} className="flex items-center justify-between gap-4 py-3">
+                    <span className="text-sm text-gray-800">{q.label}</span>
+                    <YesNo
+                        value={data.questionnaire?.answers[q.key] ?? null}
+                        onChange={(v) => setAnswer(q.key, v)}
+                    />
+                </li>
+            ))}
+        </ul>
+    );
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -77,13 +181,14 @@ export default function Edit({ appointment, patients, procedures, dentists }: Pr
                         <h1 className="text-2xl font-bold text-ink">Edit Appointment</h1>
                         <p className="mt-1 text-sm text-subtle">Update this patient visit</p>
                     </div>
-                    <Link
-                        href={`/patients/${appointment.patient_id}/questionnaire`}
+                    <button
+                        type="button"
+                        onClick={data.questionnaire ? closeQuestionnaire : openQuestionnaire}
                         className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
                     >
                         <ClipboardList className="h-3.5 w-3.5" />
-                        Questionnaire
-                    </Link>
+                        {data.questionnaire ? 'Cancel questionnaire edit' : 'Edit questionnaire'}
+                    </button>
                 </div>
 
                 <form
@@ -244,6 +349,73 @@ export default function Edit({ appointment, patients, procedures, dentists }: Pr
                             <p className="text-sm text-danger">{errors.description}</p>
                         )}
                     </div>
+
+                    {/* ROW 4: medical questionnaire (only when "Edit questionnaire" is clicked) */}
+                    {data.questionnaire && (
+                        <div className="space-y-4">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="text-base">
+                                        Medical Questionnaire (Yes / No)
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>{renderQuestions(sections.general)}</CardContent>
+                            </Card>
+
+                            {isFemale && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="text-base">Women</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>{renderQuestions(sections.women)}</CardContent>
+                                </Card>
+                            )}
+
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="text-base">
+                                        Conditions the patient has had or has now
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2 md:grid-cols-3">
+                                        {sections.conditions.map((c) => (
+                                            <label
+                                                key={c.key}
+                                                className="flex cursor-pointer items-center gap-2 text-sm text-gray-800"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={data.questionnaire!.conditions.includes(c.key)}
+                                                    onChange={() => toggleCondition(c.key)}
+                                                    className="h-4 w-4 rounded border-gray-300"
+                                                />
+                                                {c.label}
+                                            </label>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <label className="flex cursor-pointer items-start gap-3 text-sm text-gray-800">
+                                <input
+                                    type="checkbox"
+                                    checked={data.questionnaire.agreed}
+                                    onChange={(e) =>
+                                        setData('questionnaire', {
+                                            ...data.questionnaire!,
+                                            agreed: e.target.checked,
+                                        })
+                                    }
+                                    className="mt-0.5 h-4 w-4 rounded border-gray-300"
+                                />
+                                <span>
+                                    To the best of my knowledge, all of the preceding answers are true
+                                    and correct.
+                                </span>
+                            </label>
+                        </div>
+                    )}
 
                     <div className="flex justify-end border-t border-gray-200 pt-5">
                         <Button

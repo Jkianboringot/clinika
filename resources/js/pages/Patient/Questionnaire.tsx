@@ -9,6 +9,8 @@ type Question = { key: string; label: string };
 interface Props {
     sections: { general: Question[]; women: Question[]; conditions: Question[] };
     isFemale: boolean;
+    /** Staff flow before a patient is chosen: women questions can be left blank. */
+    womenOptional?: boolean;
     saved: { answers: Record<string, boolean>; conditions: string[] } | null;
     postUrl?: string;
     skipUrl?: string;
@@ -48,17 +50,35 @@ function YesNo({
     );
 }
 
-export default function PatientQuestionnaire({ sections, isFemale, saved, postUrl, skipUrl, canSkip }: Props) {
-    const questionKeys = [
-        ...sections.general.map((q) => q.key),
-        ...(isFemale ? sections.women.map((q) => q.key) : []),
-    ];
+export default function PatientQuestionnaire({
+    sections,
+    isFemale,
+    womenOptional = false,
+    saved,
+    postUrl,
+    skipUrl,
+    canSkip,
+}: Props) {
+    const generalKeys = sections.general.map((q) => q.key);
+    const womenKeys = isFemale ? sections.women.map((q) => q.key) : [];
 
-    const { data, setData, post, processing, errors } = useForm<QuestionnaireForm>({
+    // Every question that has a Yes/No button on screen.
+    const questionKeys = [...generalKeys, ...womenKeys];
+
+    // Questions that must be answered. Optional women questions are not counted.
+    const requiredKeys = womenOptional ? generalKeys : questionKeys;
+
+    const { data, setData, post, processing, errors, transform } = useForm<QuestionnaireForm>({
         answers: Object.fromEntries(questionKeys.map((key) => [key, saved?.answers?.[key] ?? null])),
         conditions: saved?.conditions ?? [],
         agreed: false,
     });
+
+    // Unanswered (null) questions are not sent, so optional ones stay blank.
+    transform((d) => ({
+        ...d,
+        answers: Object.fromEntries(Object.entries(d.answers).filter(([, v]) => v !== null)),
+    }));
 
     const setAnswer = (key: string, value: boolean) =>
         setData('answers', { ...data.answers, [key]: value });
@@ -69,7 +89,7 @@ export default function PatientQuestionnaire({ sections, isFemale, saved, postUr
             data.conditions.includes(key) ? data.conditions.filter((k) => k !== key) : [...data.conditions, key],
         );
 
-    const answeredCount = questionKeys.filter((k) => data.answers[k] !== null && data.answers[k] !== undefined).length;
+    const answeredCount = requiredKeys.filter((k) => data.answers[k] !== null && data.answers[k] !== undefined).length;
 
     const fieldErrors = errors as Record<string, string>;
 
@@ -122,7 +142,7 @@ export default function PatientQuestionnaire({ sections, isFemale, saved, postUr
                             <CardTitle className="flex items-center justify-between text-base">
                                 <span>Answer the following questions by Yes or No</span>
                                 <span className="text-xs font-normal text-muted-foreground">
-                                    {answeredCount} / {questionKeys.length} answered
+                                    {answeredCount} / {requiredKeys.length} answered
                                 </span>
                             </CardTitle>
                         </CardHeader>
@@ -132,7 +152,14 @@ export default function PatientQuestionnaire({ sections, isFemale, saved, postUr
                     {isFemale && (
                         <Card>
                             <CardHeader>
-                                <CardTitle className="text-base">Women</CardTitle>
+                                <CardTitle className="text-base">
+                                    Women
+                                    {womenOptional && (
+                                        <span className="ml-2 text-xs font-normal text-muted-foreground">
+                                            Answer only if the patient is female
+                                        </span>
+                                    )}
+                                </CardTitle>
                             </CardHeader>
                             <CardContent>{renderQuestions(sections.women)}</CardContent>
                         </Card>

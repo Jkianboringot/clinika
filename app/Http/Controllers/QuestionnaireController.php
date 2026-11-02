@@ -38,8 +38,10 @@ class QuestionnaireController extends Controller
     {
         return Inertia::render('Patient/Questionnaire', [
             'sections' => MedicalQuestionnaire::sections(),
-            // Patient not chosen yet, so the women's section is hidden.
-            'isFemale' => false,
+            // Patient not chosen yet, so show the women's section as optional.
+            // It is dropped later if the chosen patient is not female.
+            'isFemale' => true,
+            'womenOptional' => true,
             'saved' => session('pending_questionnaire') ? [
                 'answers' => session('pending_questionnaire')['answers'],
                 'conditions' => session('pending_questionnaire')['conditions'],
@@ -57,9 +59,10 @@ class QuestionnaireController extends Controller
         session([
             'pending_questionnaire' => [
                 'answers' => collect($data['answers'])
+                    ->reject(fn ($value) => $value === null)
                     ->map(fn ($value) => filter_var($value, FILTER_VALIDATE_BOOLEAN))
                     ->all(),
-                'conditions' => array_values(array_unique($data['conditions'])),
+                'conditions' => array_values(array_unique($data['conditions'] ?? [])),
                 'agreed' => true,
             ],
         ]);
@@ -69,12 +72,19 @@ class QuestionnaireController extends Controller
             ->with('message', 'Questionnaire saved. Now choose the patient.');
     }
 
-    /** Staff only: every question set to No. */
+    /** Staff only: every question (general + women) set to No. */
     public function pendingSkip(): RedirectResponse
     {
+        $sections = MedicalQuestionnaire::sections();
+
+        $keys = collect($sections['general'])
+            ->merge($sections['women'])
+            ->pluck('key')
+            ->all();
+
         session([
             'pending_questionnaire' => [
-                'answers' => array_fill_keys(array_keys(config('medical_questionnaire.general')), false),
+                'answers' => array_fill_keys($keys, false),
                 'conditions' => [],
                 'agreed' => false,
             ],
