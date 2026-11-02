@@ -163,7 +163,6 @@ class RolePermissionSeeder extends Seeder
             'appointments.create',
             'treatments.view_own',
             
-            'appointments.view',
             'appointments.create',
             'appointments.update',
         ];
