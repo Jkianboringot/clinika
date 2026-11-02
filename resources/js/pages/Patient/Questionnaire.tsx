@@ -1,16 +1,23 @@
+import { useState } from 'react';
 import { Head, router, useForm } from '@inertiajs/react';
 import { CircleAlert } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 
 type Question = { key: string; label: string };
 
 interface Props {
     sections: { general: Question[]; women: Question[]; conditions: Question[] };
     isFemale: boolean;
-    /** Staff flow before a patient is chosen: women questions can be left blank. */
-    womenOptional?: boolean;
     saved: { answers: Record<string, boolean>; conditions: string[] } | null;
     postUrl?: string;
     skipUrl?: string;
@@ -27,10 +34,13 @@ function YesNo({
     value,
     onChange,
     invalid,
+    clearable,
 }: {
     value: boolean | null;
-    onChange: (value: boolean) => void;
+    onChange: (value: boolean | null) => void;
     invalid?: boolean;
+    /** Optional question: clicking the selected button again clears it. */
+    clearable?: boolean;
 }) {
     const base = 'h-8 w-16 rounded-md border text-sm font-medium transition';
     const off = invalid
@@ -38,49 +48,48 @@ function YesNo({
         : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50';
     const on = 'border-blue-600 bg-blue-600 text-white';
 
+    const pick = (next: boolean) => onChange(clearable && value === next ? null : next);
+
     return (
         <div className="flex shrink-0 gap-2">
-            <button type="button" aria-pressed={value === true} onClick={() => onChange(true)} className={`${base} ${value === true ? on : off}`}>
+            <button type="button" aria-pressed={value === true} onClick={() => pick(true)} className={`${base} ${value === true ? on : off}`}>
                 Yes
             </button>
-            <button type="button" aria-pressed={value === false} onClick={() => onChange(false)} className={`${base} ${value === false ? on : off}`}>
+            <button type="button" aria-pressed={value === false} onClick={() => pick(false)} className={`${base} ${value === false ? on : off}`}>
                 No
             </button>
         </div>
     );
 }
 
-export default function PatientQuestionnaire({
-    sections,
-    isFemale,
-    womenOptional = false,
-    saved,
-    postUrl,
-    skipUrl,
-    canSkip,
-}: Props) {
+export default function PatientQuestionnaire({ sections, isFemale, saved, postUrl, skipUrl, canSkip }: Props) {
+    // Staff flow (before a patient is chosen) has no known gender, so show a picker.
+    const [gender, setGender] = useState('');
+    const needsGenderPicker = Boolean(canSkip) && !isFemale;
+    const showWomen = isFemale || gender === 'female';
+
     const generalKeys = sections.general.map((q) => q.key);
-    const womenKeys = isFemale ? sections.women.map((q) => q.key) : [];
-
-    // Every question that has a Yes/No button on screen.
-    const questionKeys = [...generalKeys, ...womenKeys];
-
-    // Questions that must be answered. Optional women questions are not counted.
-    const requiredKeys = womenOptional ? generalKeys : questionKeys;
+    const womenKeys = sections.women.map((q) => q.key);
 
     const { data, setData, post, processing, errors, transform } = useForm<QuestionnaireForm>({
-        answers: Object.fromEntries(questionKeys.map((key) => [key, saved?.answers?.[key] ?? null])),
+        answers: Object.fromEntries(
+            [...generalKeys, ...womenKeys].map((key) => [key, saved?.answers?.[key] ?? null]),
+        ),
         conditions: saved?.conditions ?? [],
         agreed: false,
     });
 
-    // Unanswered (null) questions are not sent, so optional ones stay blank.
+    // Blank (null) answers are not sent. Women answers are not sent when the section is hidden.
     transform((d) => ({
         ...d,
-        answers: Object.fromEntries(Object.entries(d.answers).filter(([, v]) => v !== null)),
+        answers: Object.fromEntries(
+            Object.entries(d.answers).filter(
+                ([key, v]) => v !== null && (showWomen || !womenKeys.includes(key)),
+            ),
+        ),
     }));
 
-    const setAnswer = (key: string, value: boolean) =>
+    const setAnswer = (key: string, value: boolean | null) =>
         setData('answers', { ...data.answers, [key]: value });
 
     const toggleCondition = (key: string) =>
@@ -89,7 +98,8 @@ export default function PatientQuestionnaire({
             data.conditions.includes(key) ? data.conditions.filter((k) => k !== key) : [...data.conditions, key],
         );
 
-    const answeredCount = requiredKeys.filter((k) => data.answers[k] !== null && data.answers[k] !== undefined).length;
+    // Only the required (general) questions count toward progress.
+    const answeredCount = generalKeys.filter((k) => data.answers[k] !== null && data.answers[k] !== undefined).length;
 
     const fieldErrors = errors as Record<string, string>;
 
@@ -98,7 +108,7 @@ export default function PatientQuestionnaire({
         post(postUrl ?? '/patient/questionnaire');
     };
 
-    const renderQuestions = (questions: Question[]) => (
+    const renderQuestions = (questions: Question[], optional = false) => (
         <ul className="divide-y divide-gray-100">
             {questions.map((q) => {
                 const invalid = Boolean(fieldErrors[`answers.${q.key}`]);
@@ -106,7 +116,12 @@ export default function PatientQuestionnaire({
                 return (
                     <li key={q.key} className="flex items-center justify-between gap-4 py-3">
                         <span className={`text-sm ${invalid ? 'text-red-600' : 'text-gray-800'}`}>{q.label}</span>
-                        <YesNo value={data.answers[q.key] ?? null} onChange={(v) => setAnswer(q.key, v)} invalid={invalid} />
+                        <YesNo
+                            value={data.answers[q.key] ?? null}
+                            onChange={(v) => setAnswer(q.key, v)}
+                            invalid={invalid}
+                            clearable={optional}
+                        />
                     </li>
                 );
             })}
@@ -127,7 +142,7 @@ export default function PatientQuestionnaire({
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    {Object.keys(errors).length > 0 && (
+                    {/* {Object.keys(errors).length > 0 && (
                         <Alert variant="destructive">
                             <CircleAlert />
                             <AlertTitle>Something's not right</AlertTitle>
@@ -135,6 +150,28 @@ export default function PatientQuestionnaire({
                                 Please answer every question and confirm the statement at the bottom.
                             </AlertDescription>
                         </Alert>
+                    )} */}
+
+                    {needsGenderPicker && (
+                        <Card>
+                            <CardContent className="pt-6">
+                                <div className="max-w-xs space-y-1">
+                                    <Label htmlFor="gender" className="font-semibold">
+                                        Patient gender
+                                    </Label>
+                                    <Select value={gender} onValueChange={setGender}>
+                                        <SelectTrigger id="gender">
+                                            <SelectValue placeholder="Select gender" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="male">Male</SelectItem>
+                                            <SelectItem value="female">Female</SelectItem>
+                                            <SelectItem value="other">Other</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </CardContent>
+                        </Card>
                     )}
 
                     <Card>
@@ -142,26 +179,24 @@ export default function PatientQuestionnaire({
                             <CardTitle className="flex items-center justify-between text-base">
                                 <span>Answer the following questions by Yes or No</span>
                                 <span className="text-xs font-normal text-muted-foreground">
-                                    {answeredCount} / {requiredKeys.length} answered
+                                    {answeredCount} / {generalKeys.length} answered
                                 </span>
                             </CardTitle>
                         </CardHeader>
                         <CardContent>{renderQuestions(sections.general)}</CardContent>
                     </Card>
 
-                    {isFemale && (
+                    {showWomen && sections.women.length > 0 && (
                         <Card>
                             <CardHeader>
                                 <CardTitle className="text-base">
                                     Women
-                                    {womenOptional && (
-                                        <span className="ml-2 text-xs font-normal text-muted-foreground">
-                                            Answer only if the patient is female
-                                        </span>
-                                    )}
+                                    <span className="ml-2 text-xs font-normal text-muted-foreground">
+                                        Optional. Click a selected answer again to clear it.
+                                    </span>
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent>{renderQuestions(sections.women)}</CardContent>
+                            <CardContent>{renderQuestions(sections.women, true)}</CardContent>
                         </Card>
                     )}
 

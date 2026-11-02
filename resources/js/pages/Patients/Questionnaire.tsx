@@ -90,12 +90,12 @@ function QuestionnaireDetails({
         <div className="space-y-4">
             {/* What the dentist needs to see first */}
             <Card className={nothingToFlag ? '' : 'border-amber-300 bg-amber-50/60'}>
-                <CardHeader>
+                {/* <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-base">
-                        {!nothingToFlag && <AlertTriangle className="h-4 w-4 text-amber-600" />}
+                        {!nothingToFlag && <AlertTriangle className="h-4 w-4 text-red-600" />}
                         Needs attention
                     </CardTitle>
-                </CardHeader>
+                </CardHeader> */}
                 <CardContent className="space-y-4">
                     {nothingToFlag ? (
                         <p className="text-sm text-muted-foreground">

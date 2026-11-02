@@ -38,9 +38,10 @@ class QuestionnaireController extends Controller
             MedicalQuestionnaire::updateOrCreate(
                 ['patient_id' => $patientId],
                 [
-                    'answers' => collect($data['answers'])
-                        ->map(fn ($value) => filter_var($value, FILTER_VALIDATE_BOOLEAN))
-                        ->all(),
+                  'answers' => collect($data['answers'])
+    ->reject(fn ($value) => $value === null)   // add this line
+    ->map(fn ($value) => filter_var($value, FILTER_VALIDATE_BOOLEAN))
+    ->all(),
                     'conditions' => array_values(array_unique($data['conditions'])),
                     'agreed' => true,
                 ],
