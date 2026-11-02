@@ -251,11 +251,11 @@ export default function Create({ patients, procedures, dentists }: Props) {
                     className="space-y-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
                 >
                     {Object.keys(errors).length > 0 && (
-                        <Alert variant="destructive">
-                            <CircleAlert />
-                            <AlertTitle>Something's not right</AlertTitle>
-                            <AlertDescription>
-                                <ul className="list-inside list-disc text-sm text-danger">
+                        <Alert className="border-red-200 bg-red-50 text-red-700">
+                            <CircleAlert className="text-red-600" />
+                            <AlertTitle className="text-red-700">Something's not right</AlertTitle>
+                            <AlertDescription className="text-red-700">
+                                <ul className="list-inside list-disc text-sm text-red-700">
                                     {Object.entries(errors).map(([key, message]) => (
                                         <li key={key}>{message as string}</li>
                                     ))}
