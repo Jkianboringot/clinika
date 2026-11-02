@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { DateCalendar, formatIsoDate } from '@/components/ui/date-picker';
+import { DateCalendar, formatIsoDate, type DayStatus } from '@/components/ui/date-picker';
 import { TimeSlots, formatTime } from '@/components/ui/time-slots';
 import {
     Command,
@@ -120,6 +120,11 @@ function Combobox({
     );
 }
 
+const currentMonth = () => {
+    const t = new Date();
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`;
+};
+
 export default function Create({ patients, procedures, dentists }: Props) {
     const { data, setData, post, processing, errors } = useForm<AppointmentForm>({
         patient_id: '',
@@ -129,6 +134,12 @@ export default function Create({ patients, procedures, dentists }: Props) {
         appointment_date: '',
         appointment_time: '',
     });
+
+    // Availability for the chosen dentist
+    const [month, setMonth] = useState(currentMonth);
+    const [statuses, setStatuses] = useState<Record<string, DayStatus>>({});
+    const [openTimes, setOpenTimes] = useState<string[]>([]);
+    const [loadingTimes, setLoadingTimes] = useState(false);
 
     const patientOptions = patients.map((p) => ({
         value: String(p.id),
@@ -152,6 +163,68 @@ export default function Create({ patients, procedures, dentists }: Props) {
             t.getDate(),
         ).padStart(2, '0')}`;
     })();
+
+    // Changing the dentist invalidates the chosen day and time.
+    const chooseDentist = (value: string) => {
+        setStatuses({});
+        setData({ ...data, dentist_id: value, appointment_date: '', appointment_time: '' });
+    };
+
+    // Changing the day invalidates the chosen time.
+    const chooseDate = (value: string) => {
+        setData({ ...data, appointment_date: value, appointment_time: '' });
+    };
+
+    // Day statuses for the visible month of the chosen dentist.
+    useEffect(() => {
+        if (!data.dentist_id) return;
+
+        let active = true;
+        const params = new URLSearchParams({ month, dentist_id: data.dentist_id });
+
+        fetch(`/appointments/day-statuses?${params}`, {
+            headers: { Accept: 'application/json' },
+        })
+            .then((r) => r.json())
+            .then((json) => {
+                if (active && json.days) setStatuses(json.days);
+            });
+
+        return () => {
+            active = false;
+        };
+    }, [month, data.dentist_id]);
+
+    // Open times for the chosen dentist on the chosen day.
+    useEffect(() => {
+        if (!data.dentist_id || !data.appointment_date) {
+            setOpenTimes([]);
+            return;
+        }
+
+        let active = true;
+        setLoadingTimes(true);
+
+        const params = new URLSearchParams({
+            date: data.appointment_date,
+            dentist_id: data.dentist_id,
+        });
+
+        fetch(`/appointments/open-slots?${params}`, {
+            headers: { Accept: 'application/json' },
+        })
+            .then((r) => r.json())
+            .then((json) => {
+                if (active) setOpenTimes(json.times ?? []);
+            })
+            .finally(() => {
+                if (active) setLoadingTimes(false);
+            });
+
+        return () => {
+            active = false;
+        };
+    }, [data.appointment_date, data.dentist_id]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -236,7 +309,7 @@ export default function Create({ patients, procedures, dentists }: Props) {
                             <Combobox
                                 id="dentist_id"
                                 value={data.dentist_id}
-                                onChange={(value) => setData('dentist_id', value)}
+                                onChange={chooseDentist}
                                 options={dentistOptions}
                                 placeholder="Select a dentist"
                                 searchPlaceholder="Search dentist..."
@@ -248,7 +321,7 @@ export default function Create({ patients, procedures, dentists }: Props) {
                         </div>
                     </div>
 
-                    {/* ROW 2: schedule (calendar + time side by side) */}
+                    {/* ROW 2: schedule, driven by the chosen dentist */}
                     <div className="rounded-2xl border border-gray-200 bg-gray-50/60 p-5">
                         <div className="mb-5 flex items-center justify-between">
                             <h2 className="text-sm font-semibold text-ink">Schedule</h2>
@@ -259,42 +332,59 @@ export default function Create({ patients, procedures, dentists }: Props) {
                             )}
                         </div>
 
-                        <div className="grid gap-6 md:grid-cols-[300px_1fr]">
-                            <div>
-                                <p className="mb-3 text-sm font-medium text-ink">Date</p>
-                                <DateCalendar
-                                    value={data.appointment_date}
-                                    onChange={(value) => setData('appointment_date', value)}
-                                    minDate={todayIso}
-                                />
-                                {errors.appointment_date && (
-                                    <p className="mt-2 text-sm text-danger">
-                                        {errors.appointment_date}
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="md:border-l md:border-gray-200 md:pl-6">
-                                <div className="mb-3 flex items-center justify-between">
-                                    <p className="text-sm font-medium text-ink">Time</p>
-                                    {data.appointment_time && (
-                                        <span className="text-xs font-medium text-blue-600">
-                                            {formatTime(data.appointment_time)}
-                                        </span>
+                        {!data.dentist_id ? (
+                            <p className="text-sm text-subtle">
+                                Select a dentist to see their open days and times.
+                            </p>
+                        ) : (
+                            <div className="grid gap-6 md:grid-cols-[300px_1fr]">
+                                <div>
+                                    <p className="mb-3 text-sm font-medium text-ink">Date</p>
+                                    <DateCalendar
+                                        value={data.appointment_date}
+                                        onChange={chooseDate}
+                                        minDate={todayIso}
+                                        statuses={statuses}
+                                        onMonthChange={setMonth}
+                                    />
+                                    {errors.appointment_date && (
+                                        <p className="mt-2 text-sm text-danger">
+                                            {errors.appointment_date}
+                                        </p>
                                     )}
                                 </div>
 
-                                <TimeSlots
-                                    value={data.appointment_time}
-                                    onChange={(value) => setData('appointment_time', value)}
-                                />
-                                {errors.appointment_time && (
-                                    <p className="mt-2 text-sm text-danger">
-                                        {errors.appointment_time}
-                                    </p>
-                                )}
+                                <div className="md:border-l md:border-gray-200 md:pl-6">
+                                    <div className="mb-3 flex items-center justify-between">
+                                        <p className="text-sm font-medium text-ink">Time</p>
+                                        {data.appointment_time && (
+                                            <span className="text-xs font-medium text-blue-600">
+                                                {formatTime(data.appointment_time)}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {!data.appointment_date ? (
+                                        <p className="text-sm text-subtle">Select a date first.</p>
+                                    ) : loadingTimes ? (
+                                        <p className="text-sm text-subtle">Loading...</p>
+                                    ) : (
+                                        <TimeSlots
+                                            value={data.appointment_time}
+                                            onChange={(value) => setData('appointment_time', value)}
+                                            available={openTimes}
+                                            emptyText="No open times on this day."
+                                        />
+                                    )}
+
+                                    {errors.appointment_time && (
+                                        <p className="mt-2 text-sm text-danger">
+                                            {errors.appointment_time}
+                                        </p>
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
 
                     {/* ROW 3: notes, full width */}

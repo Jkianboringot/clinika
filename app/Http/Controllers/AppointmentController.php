@@ -12,8 +12,11 @@ use App\Models\MedicalQuestionnaire;
 use App\Models\Patient;
 use App\Models\Procedure;
 use App\Models\User;
+use App\Services\DentistAvailability;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -24,30 +27,26 @@ use Inertia\Response;
  * =====================================================================
  * APPOINTMENT MODULE — Controller Notes
  * =====================================================================
- * Only STAFF create/manage appointments. Controller stays thin.
+ * Staff and patient bookings share the same rules (DentistAvailability):
+ * working hours, booked slots, past times and the dentist's daily limit.
  *
  * STATUS LIFECYCLE (all automatic — the client never sets status)
  * ---------------------------------------------------------------
- * - Create                       -> scheduled
- * - Date or time changed (edit)  -> rescheduled
- * - Treatment created            -> completed   (done in TreatmentService)
- * - Treatment deleted            -> cancelled   (done in TreatmentService)
- * - "Delete" on the UI           -> cancelled   (row is NEVER deleted)
+ * - Create                        -> scheduled
+ * - Date, time or dentist changed -> rescheduled
+ * - Treatment created             -> completed   (done in TreatmentService)
+ * - Treatment deleted             -> cancelled   (done in TreatmentService)
+ * - "Delete" on the UI            -> cancelled   (row is NEVER deleted)
  *
  * TREATMENT GUARD
  * ---------------
- * An appointment that already has a treatment is proof a service was
- * delivered (income), so it can't be cancelled, "deleted" or edited.
- * The check runs inside a transaction with the row locked, and
- * TreatmentService locks the same row first — so a treatment can't sneak
- * in between the check and the status change.
+ * An appointment with a treatment can't be cancelled or edited. The check
+ * runs inside a transaction with the row locked.
  *
  * QUESTIONNAIRE ON EDIT
  * ---------------------
- * Staff can optionally edit the patient's medical questionnaire from the
- * edit page. It is only saved when the page sends a "questionnaire"
- * block, and it is saved inside the same locked transaction as the
- * appointment (so the treatment guard covers it too).
+ * Saved only when the page sends a "questionnaire" block, inside the same
+ * locked transaction as the appointment.
  * =====================================================================
  */
 
@@ -55,6 +54,8 @@ class AppointmentController extends Controller
 {
     /** Columns needed so Patient's full_name accessor can be built. */
     private const PATIENT_NAME_COLUMNS = ['id', 'first_name', 'middle_name', 'last_name'];
+
+    public function __construct(private DentistAvailability $availability) {}
 
     public function index(SearchRequest $request): Response
     {
@@ -105,56 +106,113 @@ class AppointmentController extends Controller
         ]);
     }
 
+    /** JSON: status for every day of one month for one dentist (available | full | unavailable | past). */
+    public function dayStatuses(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'month' => ['required', 'date_format:Y-m'],
+            'dentist_id' => ['required', 'exists:users,id'],
+            'appointment_id' => ['nullable', 'integer', 'exists:appointments,id'],
+        ]);
+
+        return response()->json([
+            'days' => $this->availability->monthStatuses(
+                $data['month'],
+                (int) $data['dentist_id'],
+                $data['appointment_id'] ?? null,
+            ),
+        ]);
+    }
+
+    /** JSON: free "HH:mm" times for one dentist on one day. Pass appointment_id when editing so its own slot stays open. */
+    public function openSlots(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'date' => ['required', 'date_format:Y-m-d'],
+            'dentist_id' => ['required', 'exists:users,id'],
+            'appointment_id' => ['nullable', 'integer', 'exists:appointments,id'],
+        ]);
+
+        $dentist = User::findOrFail($data['dentist_id']);
+
+        return response()->json([
+            'times' => $this->availability->freeTimes(
+                $dentist,
+                $data['date'],
+                $data['appointment_id'] ?? null,
+            ),
+        ]);
+    }
+
     public function store(AppointmentRequest $request): RedirectResponse
     {
+        $data = $request->validated();
+
         try {
-            $patientId = (int) $request->validated()['patient_id'];
+            return DB::transaction(function () use ($data) {
+                // Lock the dentist first so two bookings can't both take the last slot.
+                $dentist = User::whereKey($data['dentist_id'])->lockForUpdate()->firstOrFail();
 
-            $pending = session('pending_questionnaire');
+                $conflict = $this->availability->conflict(
+                    $dentist,
+                    $data['appointment_date'],
+                    $data['appointment_time'],
+                );
 
-            if ($pending) {
-                $patient = Patient::findOrFail($patientId);
-                $answers = $pending['answers'];
-
-                $womenKeys = collect(MedicalQuestionnaire::sections()['women'])->pluck('key')->all();
-
-                if (MedicalQuestionnaire::showsWomenSection($patient)) {
-                    // Female patient: every women question must be answered.
-                    if (count(array_diff($womenKeys, array_keys($answers))) > 0) {
-                        return redirect()
-                            ->route('appointments.questionnaire')
-                            ->with('error', 'This patient is female. Please answer the Women questions too.');
-                    }
-                } else {
-                    // Not female: the women answers do not belong on this record.
-                    $answers = Arr::except($answers, $womenKeys);
+                if ($conflict) {
+                    return back()->withInput()->withErrors([
+                        $conflict['field'] => $conflict['message'],
+                    ]);
                 }
 
-                // Attach the questionnaire just filled in to the chosen patient.
-                MedicalQuestionnaire::updateOrCreate(
-                    ['patient_id' => $patientId],
-                    [
-                        'answers' => $answers,
-                        'conditions' => $pending['conditions'],
-                        'agreed' => $pending['agreed'],
-                    ],
-                );
-            } elseif (! MedicalQuestionnaire::where('patient_id', $patientId)->exists()) {
+                $patientId = (int) $data['patient_id'];
+                $pending = session('pending_questionnaire');
+
+                if ($pending) {
+                    $patient = Patient::findOrFail($patientId);
+                    $answers = $pending['answers'];
+
+                    $womenKeys = collect(MedicalQuestionnaire::sections()['women'])->pluck('key')->all();
+
+                    if (MedicalQuestionnaire::showsWomenSection($patient)) {
+                        if (count(array_diff($womenKeys, array_keys($answers))) > 0) {
+                            return redirect()
+                                ->route('appointments.questionnaire')
+                                ->with('error', 'This patient is female. Please answer the Women questions too.');
+                        }
+                    } else {
+                        $answers = Arr::except($answers, $womenKeys);
+                    }
+
+                    MedicalQuestionnaire::updateOrCreate(
+                        ['patient_id' => $patientId],
+                        [
+                            'answers' => $answers,
+                            'conditions' => $pending['conditions'],
+                            'agreed' => $pending['agreed'],
+                        ],
+                    );
+                } elseif (! MedicalQuestionnaire::where('patient_id', $patientId)->exists()) {
+                    return redirect()
+                        ->route('appointments.questionnaire')
+                        ->with('error', 'Fill in or skip the medical questionnaire first.');
+                }
+
+                Appointment::create([
+                    ...Arr::except($data, ['status']),
+                    'staff_id' => auth()->id(),
+                    'status' => AppointmentStatusEnum::Scheduled->value,
+                    'is_approve' => auth()->id()
+                        ? IsApproveEnum::Approve->value
+                        : IsApproveEnum::Pending->value,
+                ]);
+
+                session()->forget('pending_questionnaire');
+
                 return redirect()
-                    ->route('appointments.questionnaire')
-                    ->with('error', 'Fill in or skip the medical questionnaire first.');
-            }
-
-            Appointment::create([
-                // status is never taken from the request
-                ...Arr::except($request->validated(), ['status']),
-                'staff_id' => auth()->id(),
-                'status' => AppointmentStatusEnum::Scheduled->value,
-                // staff (logged-in user) -> approved right away, anyone else -> pending
-                'is_approve' => auth()->id() ? IsApproveEnum::Approve->value : IsApproveEnum::Pending->value,
-            ]);
-
-            session()->forget('pending_questionnaire');
+                    ->route('appointments.index')
+                    ->with('message', 'Appointment created successfully.');
+            });
         } catch (\Throwable $e) {
             report($e);
 
@@ -162,8 +220,6 @@ class AppointmentController extends Controller
                 ->route('appointments.index')
                 ->with('error', 'Failed to create appointment.');
         }
-
-        return redirect()->route('appointments.index')->with('message', 'Appointment created successfully.');
     }
 
     public function edit(Appointment $appointment): Response
@@ -191,29 +247,46 @@ class AppointmentController extends Controller
     {
         // Validated OUTSIDE the try so errors show on the form instead of being swallowed.
         $questionnaire = $this->validatedQuestionnaire($request, $appointment);
+        $data = $request->validated();
 
         try {
-            $refusal = DB::transaction(function () use ($request, $appointment, $questionnaire) {
+            return DB::transaction(function () use ($data, $appointment, $questionnaire) {
                 $locked = Appointment::whereKey($appointment->id)->lockForUpdate()->firstOrFail();
 
                 if ($this->hasTreatment($locked)) {
-                    return 'This appointment already has a treatment and can no longer be edited.';
+                    return redirect()
+                        ->route('appointments.index')
+                        ->with('error', 'This appointment already has a treatment and can no longer be edited.');
                 }
 
-                $data = $request->validated();
-
-                // Decide BEFORE fill(), comparing normalized values (date + HH:mm).
                 $scheduleChanged = $this->scheduleChanged($locked, $data);
+                $dentistChanged = (int) $locked->dentist_id !== (int) $data['dentist_id'];
+
+                // Only re-check the slot when the date, time or dentist actually moved.
+                if ($scheduleChanged || $dentistChanged) {
+                    $dentist = User::whereKey($data['dentist_id'])->lockForUpdate()->firstOrFail();
+
+                    $conflict = $this->availability->conflict(
+                        $dentist,
+                        $data['appointment_date'],
+                        $data['appointment_time'],
+                        $appointment->id,
+                    );
+
+                    if ($conflict) {
+                        return back()->withInput()->withErrors([
+                            $conflict['field'] => $conflict['message'],
+                        ]);
+                    }
+                }
 
                 $locked->fill([
                     ...Arr::except($data, ['status']),
                     'staff_id' => auth()->id(),
                 ]);
 
-                // Date or time moved -> rescheduled. Anything else keeps its status.
-                if ($scheduleChanged) {
+                if ($scheduleChanged || $dentistChanged) {
                     $locked->status = AppointmentStatusEnum::Rescheduled->value;
-                    // staff (logged-in user) -> stays approved, anyone else -> pending reschedule
                     $locked->is_approve = auth()->id()
                         ? IsApproveEnum::Approve->value
                         : IsApproveEnum::PendingReScheduled->value;
@@ -221,8 +294,6 @@ class AppointmentController extends Controller
 
                 $locked->save();
 
-                // Only when the staff opened the questionnaire section.
-                // Saved to the patient whose answers were shown on the page.
                 if ($questionnaire) {
                     MedicalQuestionnaire::updateOrCreate(
                         ['patient_id' => $appointment->patient_id],
@@ -236,7 +307,9 @@ class AppointmentController extends Controller
                     );
                 }
 
-                return null;
+                return redirect()
+                    ->route('appointments.index')
+                    ->with('message', 'Appointment updated successfully.');
             });
         } catch (\Throwable $e) {
             report($e);
@@ -245,17 +318,12 @@ class AppointmentController extends Controller
                 ->route('appointments.index')
                 ->with('error', 'Failed to update appointment.');
         }
-
-        if ($refusal) {
-            return redirect()->route('appointments.index')->with('error', $refusal);
-        }
-
-        return redirect()->route('appointments.index')->with('message', 'Appointment updated successfully.');
     }
 
     /**
      * "Delete" = cancel. The row is kept for history; only the status changes.
-     * Blocked entirely if a treatment is attached.
+     * Blocked entirely if a treatment is attached. Cancelled rows drop out of
+     * DentistAvailability, so the slot and the day's count reopen automatically.
      */
     public function destroy(Appointment $appointment): RedirectResponse
     {
@@ -289,9 +357,9 @@ class AppointmentController extends Controller
     }
 
     /**
-     * True only when the date or the HH:mm time actually differs from the saved row.
+     * True only when the date or the HH:mm time differs from the saved row.
      * Normalizes both sides so "09:00" and "09:00:00", or "2026-11-02" and
-     * "2026-11-02 00:00:00", are treated as the same value.
+     * "2026-11-02 00:00:00", count as the same value.
      */
     private function scheduleChanged(Appointment $appointment, array $data): bool
     {
@@ -346,7 +414,7 @@ class AppointmentController extends Controller
     private function dentists()
     {
         return User::role('dentist')
-            ->where('is_active', IsActiveEnum::ACTIVE->value) // remove if users has no is_active column
+            ->where('is_active', IsActiveEnum::ACTIVE->value)
             ->select('id', 'name')
             ->orderBy('name')
             ->get();

@@ -7,6 +7,9 @@ interface TimeSlotsProps {
     startHour?: number; // first slot, default 8 (8:00 AM)
     endHour?: number; // last slot ends before this hour, default 18 (6:00 PM)
     stepMinutes?: number; // default 30
+    // When given, ONLY these "HH:mm" times are shown (e.g. the dentist's open times).
+    available?: string[];
+    emptyText?: string; // shown when `available` is an empty list
     className?: string;
 }
 
@@ -28,9 +31,14 @@ export function TimeSlots({
     startHour = 8,
     endHour = 18,
     stepMinutes = 30,
+    available,
+    emptyText = 'No open times.',
     className,
 }: TimeSlotsProps) {
     const slots = useMemo(() => {
+        // Server already filtered and sorted these, so use them as-is.
+        if (available) return available;
+
         const list: string[] = [];
         for (let mins = startHour * 60; mins < endHour * 60; mins += stepMinutes) {
             const h = String(Math.floor(mins / 60)).padStart(2, '0');
@@ -44,7 +52,11 @@ export function TimeSlots({
             list.sort();
         }
         return list;
-    }, [value, startHour, endHour, stepMinutes]);
+    }, [value, startHour, endHour, stepMinutes, available]);
+
+    if (available && slots.length === 0) {
+        return <p className="text-sm text-subtle">{emptyText}</p>;
+    }
 
     return (
         <div className={cn('grid grid-cols-4 gap-2', className)}>

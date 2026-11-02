@@ -1,10 +1,11 @@
+import { useEffect, useState } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DateCalendar, formatIsoDate } from '@/components/ui/date-picker';
+import { DateCalendar, formatIsoDate, type DayStatus } from '@/components/ui/date-picker';
 import { TimeSlots, formatTime } from '@/components/ui/time-slots';
 import {
     Select,
@@ -29,7 +30,7 @@ interface Appointment {
     dentist_id: number | null;
     description: string | null;
     appointment_date: string; // "YYYY-MM-DD"
-    appointment_time: string; // "HH:mm"
+    appointment_time: string; // "HH:mm:ss" or "HH:mm"
 }
 
 type Question = { key: string; label: string };
@@ -102,16 +103,117 @@ export default function Edit({
     isFemale,
     questionnaire,
 }: Props) {
+    const initialTime = appointment.appointment_time?.slice(0, 5) ?? '';
+
     const { data, setData, put, processing, errors } = useForm<AppointmentForm>({
         patient_id: String(appointment.patient_id),
         procedure_id: String(appointment.procedure_id),
         dentist_id: appointment.dentist_id ? String(appointment.dentist_id) : '',
         description: appointment.description ?? '',
         appointment_date: appointment.appointment_date,
-        appointment_time: appointment.appointment_time?.slice(0, 5) ?? '',
+        appointment_time: initialTime,
         questionnaire: null,
     });
 
+    // Availability for the chosen dentist. This appointment is excluded from its own
+    // count and slot, so the time it already has stays selectable.
+    const [month, setMonth] = useState(() => appointment.appointment_date.slice(0, 7));
+    const [statuses, setStatuses] = useState<Record<string, DayStatus>>({});
+    const [openTimes, setOpenTimes] = useState<string[]>([]);
+    const [loadingTimes, setLoadingTimes] = useState(false);
+
+    const patientOptions = patients.map((p) => ({
+        value: String(p.id),
+        label: p.full_name ?? p.name ?? '',
+    }));
+
+    const procedureOptions = procedures.map((p) => ({
+        value: String(p.id),
+        label: p.name ?? p.full_name ?? '',
+    }));
+
+    const dentistOptions = dentists.map((d) => ({
+        value: String(d.id),
+        label: d.name ?? d.full_name ?? '',
+    }));
+
+    // Changing the dentist invalidates the chosen day and time.
+    const chooseDentist = (value: string) => {
+        setStatuses({});
+        setOpenTimes([]);
+        setData({ ...data, dentist_id: value, appointment_date: '', appointment_time: '' });
+    };
+
+    // Changing the day invalidates the chosen time.
+    const chooseDate = (value: string) => {
+        setData({ ...data, appointment_date: value, appointment_time: '' });
+    };
+
+    // Day statuses for the visible month of the chosen dentist.
+    useEffect(() => {
+        if (!data.dentist_id) return;
+
+        let active = true;
+        const params = new URLSearchParams({
+            month,
+            dentist_id: data.dentist_id,
+            appointment_id: String(appointment.id),
+        });
+
+        fetch(`/appointments/day-statuses?${params}`, {
+            headers: { Accept: 'application/json' },
+        })
+            .then((r) => r.json())
+            .then((json) => {
+                if (active && json.days) setStatuses(json.days);
+            });
+
+        return () => {
+            active = false;
+        };
+    }, [month, data.dentist_id, appointment.id]);
+
+    // Open times for the chosen dentist on the chosen day.
+    useEffect(() => {
+        if (!data.dentist_id || !data.appointment_date) {
+            setOpenTimes([]);
+            return;
+        }
+
+        let active = true;
+        setLoadingTimes(true);
+
+        const params = new URLSearchParams({
+            date: data.appointment_date,
+            dentist_id: data.dentist_id,
+            appointment_id: String(appointment.id),
+        });
+
+        fetch(`/appointments/open-slots?${params}`, {
+            headers: { Accept: 'application/json' },
+        })
+            .then((r) => r.json())
+            .then((json) => {
+                if (active) setOpenTimes(json.times ?? []);
+            })
+            .finally(() => {
+                if (active) setLoadingTimes(false);
+            });
+
+        return () => {
+            active = false;
+        };
+    }, [data.appointment_date, data.dentist_id, appointment.id]);
+
+    // Block past dates. Local time, so it matches the calendar.
+    const todayIso = (() => {
+        const t = new Date();
+        return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(
+            t.getDate(),
+        ).padStart(2, '0')}`;
+    })();
+
+    // Questionnaire
     const questionKeys = [
         ...sections.general.map((q) => q.key),
         ...(isFemale ? sections.women.map((q) => q.key) : []),
@@ -223,9 +325,9 @@ export default function Edit({
                                     <SelectValue placeholder="Select a patient" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {patients.map((p) => (
-                                        <SelectItem key={p.id} value={String(p.id)}>
-                                            {p.full_name}
+                                    {patientOptions.map((p) => (
+                                        <SelectItem key={p.value} value={p.value}>
+                                            {p.label}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -247,9 +349,9 @@ export default function Edit({
                                     <SelectValue placeholder="Select a procedure" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {procedures.map((p) => (
-                                        <SelectItem key={p.id} value={String(p.id)}>
-                                            {p.name}
+                                    {procedureOptions.map((p) => (
+                                        <SelectItem key={p.value} value={p.value}>
+                                            {p.label}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -263,17 +365,14 @@ export default function Edit({
                             <Label htmlFor="dentist_id" className="text-sm font-medium text-ink">
                                 Dentist
                             </Label>
-                            <Select
-                                value={data.dentist_id}
-                                onValueChange={(value) => setData('dentist_id', value)}
-                            >
+                            <Select value={data.dentist_id} onValueChange={chooseDentist}>
                                 <SelectTrigger id="dentist_id" className="h-10 w-full border-gray-200">
                                     <SelectValue placeholder="Select a dentist" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {dentists.map((d) => (
-                                        <SelectItem key={d.id} value={String(d.id)}>
-                                            {d.name}
+                                    {dentistOptions.map((d) => (
+                                        <SelectItem key={d.value} value={d.value}>
+                                            {d.label}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -284,7 +383,7 @@ export default function Edit({
                         </div>
                     </div>
 
-                    {/* ROW 2: schedule (calendar + time side by side) */}
+                    {/* ROW 2: schedule, driven by the chosen dentist */}
                     <div className="rounded-2xl border border-gray-200 bg-gray-50/60 p-5">
                         <div className="mb-5 flex items-center justify-between">
                             <h2 className="text-sm font-semibold text-ink">Schedule</h2>
@@ -295,41 +394,59 @@ export default function Edit({
                             )}
                         </div>
 
-                        <div className="grid gap-6 md:grid-cols-[300px_1fr]">
-                            <div>
-                                <p className="mb-3 text-sm font-medium text-ink">Date</p>
-                                <DateCalendar
-                                    value={data.appointment_date}
-                                    onChange={(value) => setData('appointment_date', value)}
-                                />
-                                {errors.appointment_date && (
-                                    <p className="mt-2 text-sm text-danger">
-                                        {errors.appointment_date}
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="md:border-l md:border-gray-200 md:pl-6">
-                                <div className="mb-3 flex items-center justify-between">
-                                    <p className="text-sm font-medium text-ink">Time</p>
-                                    {data.appointment_time && (
-                                        <span className="text-xs font-medium text-blue-600">
-                                            {formatTime(data.appointment_time)}
-                                        </span>
+                        {!data.dentist_id ? (
+                            <p className="text-sm text-subtle">
+                                Select a dentist to see their open days and times.
+                            </p>
+                        ) : (
+                            <div className="grid gap-6 md:grid-cols-[300px_1fr]">
+                                <div>
+                                    <p className="mb-3 text-sm font-medium text-ink">Date</p>
+                                    <DateCalendar
+                                        value={data.appointment_date}
+                                        onChange={chooseDate}
+                                        minDate={todayIso}
+                                        statuses={statuses}
+                                        onMonthChange={setMonth}
+                                    />
+                                    {errors.appointment_date && (
+                                        <p className="mt-2 text-sm text-danger">
+                                            {errors.appointment_date}
+                                        </p>
                                     )}
                                 </div>
 
-                                <TimeSlots
-                                    value={data.appointment_time}
-                                    onChange={(value) => setData('appointment_time', value)}
-                                />
-                                {errors.appointment_time && (
-                                    <p className="mt-2 text-sm text-danger">
-                                        {errors.appointment_time}
-                                    </p>
-                                )}
+                                <div className="md:border-l md:border-gray-200 md:pl-6">
+                                    <div className="mb-3 flex items-center justify-between">
+                                        <p className="text-sm font-medium text-ink">Time</p>
+                                        {data.appointment_time && (
+                                            <span className="text-xs font-medium text-blue-600">
+                                                {formatTime(data.appointment_time)}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {!data.appointment_date ? (
+                                        <p className="text-sm text-subtle">Select a date first.</p>
+                                    ) : loadingTimes ? (
+                                        <p className="text-sm text-subtle">Loading...</p>
+                                    ) : (
+                                        <TimeSlots
+                                            value={data.appointment_time}
+                                            onChange={(value) => setData('appointment_time', value)}
+                                            available={openTimes}
+                                            emptyText="No open times on this day."
+                                        />
+                                    )}
+
+                                    {errors.appointment_time && (
+                                        <p className="mt-2 text-sm text-danger">
+                                            {errors.appointment_time}
+                                        </p>
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
 
                     {/* ROW 3: notes, full width */}

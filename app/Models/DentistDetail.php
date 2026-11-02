@@ -7,11 +7,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class DentistDetail extends Model
 {
-    protected $fillable = ['user_id', 'specialization', 'available_schedule', 'appointment_limit'];
+      protected $fillable = ['user_id', 'specialization', 'available_schedule', 'appointment_limit'];
 
     protected $casts = [
         'specialization' => 'array',
         'available_schedule' => 'array',
+        'appointment_limit' => 'integer',
     ];
 
     public function user(): BelongsTo

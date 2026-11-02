@@ -94,7 +94,37 @@ Route::middleware(['auth:patient'])->prefix('patient')->name('patient.')->group(
         ->middleware('permission:profile.update,patient')->name('questionnaire.edit');
     Route::post('questionnaire', [PatientQuestionnaireController::class, 'store'])
         ->middleware('permission:profile.update,patient')->name('questionnaire.store');
+
+    Route::get('appointments/calendar-data', [PatientAppointmentController::class, 'calendarData'])
+        ->middleware('permission:appointments.view_own,patient')->name('appointments.calendar-data');
+    Route::get('appointments/slots', [PatientAppointmentController::class, 'slots'])
+        ->middleware('permission:appointments.view_own,patient')->name('appointments.slots');
+
+
+    Route::prefix('appointments')->name('appointments.')->group(function () {
+        Route::get('/', [AppointmentController::class, 'index'])->middleware('permission:appointments.view')->name('index');
+        Route::get('/create', [AppointmentController::class, 'create'])->middleware('permission:appointments.create')->name('create');
+        Route::post('/', [AppointmentController::class, 'store'])->middleware('permission:appointments.create')->name('store');
+        Route::get('/{appointment}/edit', [AppointmentController::class, 'edit'])->middleware('permission:appointments.update')->name('edit');
+        Route::put('/{appointment}', [AppointmentController::class, 'update'])->middleware('permission:appointments.update')->name('update');
+        Route::delete('/{appointment}', [AppointmentController::class, 'destroy'])->middleware('permission:appointments.delete')->name('destroy');
+
+        // ===== MEDICAL QUESTIONNAIRE (filled in before choosing the patient) =====
+        Route::get('/questionnaire', [QuestionnaireController::class, 'pendingFill'])
+            ->middleware('permission:appointments.create')->name('questionnaire');
+        Route::post('/questionnaire', [QuestionnaireController::class, 'pendingSave'])
+            ->middleware('permission:appointments.create')->name('questionnaire.save');
+        Route::post('/questionnaire/skip', [QuestionnaireController::class, 'pendingSkip'])
+            ->middleware('permission:appointments.create')->name('questionnaire.skip');
+
+        Route::get('/day-statuses', [AppointmentController::class, 'dayStatuses'])
+            ->middleware('permission:appointments.create')->name('day_statuses');
+        Route::get('/open-slots', [AppointmentController::class, 'openSlots'])
+            ->middleware('permission:appointments.create')->name('open_slots');
+    });
 });
+
+
 
 /*
 |--------------------------------------------------------------------------
@@ -158,7 +188,7 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
         Route::put('/{patient}/activate', [PatientController::class, 'activate'])->name('activate');
 
         // ===== MEDICAL QUESTIONNAIRE (staff read-only view) =====
-    Route::get('/{patient}/questionnaire', [QuestionnaireController::class, 'show'])
+        Route::get('/{patient}/questionnaire', [QuestionnaireController::class, 'show'])
             ->middleware('permission:patients.view')->name('questionnaire');
     });
 
@@ -189,6 +219,11 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
             ->middleware('permission:appointments.create')->name('questionnaire.save');
         Route::post('/questionnaire/skip', [QuestionnaireController::class, 'pendingSkip'])
             ->middleware('permission:appointments.create')->name('questionnaire.skip');
+
+        Route::get('/day-statuses', [AppointmentController::class, 'dayStatuses'])
+            ->middleware('permission:appointments.create')->name('day_statuses');
+        Route::get('/open-slots', [AppointmentController::class, 'openSlots'])
+            ->middleware('permission:appointments.create')->name('open_slots');
     });
 
     // ===== TREATMENTS =====
