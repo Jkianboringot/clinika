@@ -12,6 +12,7 @@ use App\Models\MedicalQuestionnaire;
 use App\Models\Patient;
 use App\Models\Procedure;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -52,9 +53,6 @@ use Inertia\Response;
 
 class AppointmentController extends Controller
 {
-    /** Changing any of these on update flips the status to "rescheduled". */
-    private const SCHEDULE_FIELDS = ['appointment_date', 'appointment_time'];
-
     /** Columns needed so Patient's full_name accessor can be built. */
     private const PATIENT_NAME_COLUMNS = ['id', 'first_name', 'middle_name', 'last_name'];
 
@@ -107,66 +105,66 @@ class AppointmentController extends Controller
         ]);
     }
 
-public function store(AppointmentRequest $request): RedirectResponse
-{
-    try {
-        $patientId = (int) $request->validated()['patient_id'];
+    public function store(AppointmentRequest $request): RedirectResponse
+    {
+        try {
+            $patientId = (int) $request->validated()['patient_id'];
 
-        $pending = session('pending_questionnaire');
+            $pending = session('pending_questionnaire');
 
-        if ($pending) {
-            $patient = Patient::findOrFail($patientId);
-            $answers = $pending['answers'];
+            if ($pending) {
+                $patient = Patient::findOrFail($patientId);
+                $answers = $pending['answers'];
 
-            $womenKeys = collect(MedicalQuestionnaire::sections()['women'])->pluck('key')->all();
+                $womenKeys = collect(MedicalQuestionnaire::sections()['women'])->pluck('key')->all();
 
-            if (MedicalQuestionnaire::showsWomenSection($patient)) {
-                // Female patient: every women question must be answered.
-                if (count(array_diff($womenKeys, array_keys($answers))) > 0) {
-                    return redirect()
-                        ->route('appointments.questionnaire')
-                        ->with('error', 'This patient is female. Please answer the Women questions too.');
+                if (MedicalQuestionnaire::showsWomenSection($patient)) {
+                    // Female patient: every women question must be answered.
+                    if (count(array_diff($womenKeys, array_keys($answers))) > 0) {
+                        return redirect()
+                            ->route('appointments.questionnaire')
+                            ->with('error', 'This patient is female. Please answer the Women questions too.');
+                    }
+                } else {
+                    // Not female: the women answers do not belong on this record.
+                    $answers = Arr::except($answers, $womenKeys);
                 }
-            } else {
-                // Not female: the women answers do not belong on this record.
-                $answers = Arr::except($answers, $womenKeys);
+
+                // Attach the questionnaire just filled in to the chosen patient.
+                MedicalQuestionnaire::updateOrCreate(
+                    ['patient_id' => $patientId],
+                    [
+                        'answers' => $answers,
+                        'conditions' => $pending['conditions'],
+                        'agreed' => $pending['agreed'],
+                    ],
+                );
+            } elseif (! MedicalQuestionnaire::where('patient_id', $patientId)->exists()) {
+                return redirect()
+                    ->route('appointments.questionnaire')
+                    ->with('error', 'Fill in or skip the medical questionnaire first.');
             }
 
-            // Attach the questionnaire just filled in to the chosen patient.
-            MedicalQuestionnaire::updateOrCreate(
-                ['patient_id' => $patientId],
-                [
-                    'answers' => $answers,
-                    'conditions' => $pending['conditions'],
-                    'agreed' => $pending['agreed'],
-                ],
-            );
-        } elseif (! MedicalQuestionnaire::where('patient_id', $patientId)->exists()) {
+            Appointment::create([
+                // status is never taken from the request
+                ...Arr::except($request->validated(), ['status']),
+                'staff_id' => auth()->id(),
+                'status' => AppointmentStatusEnum::Scheduled->value,
+                // staff (logged-in user) -> approved right away, anyone else -> pending
+                'is_approve' => auth()->id() ? IsApproveEnum::Approve->value : IsApproveEnum::Pending->value,
+            ]);
+
+            session()->forget('pending_questionnaire');
+        } catch (\Throwable $e) {
+            report($e);
+
             return redirect()
-                ->route('appointments.questionnaire')
-                ->with('error', 'Fill in or skip the medical questionnaire first.');
+                ->route('appointments.index')
+                ->with('error', 'Failed to create appointment.');
         }
 
-        Appointment::create([
-            // status is never taken from the request
-            ...Arr::except($request->validated(), ['status']),
-            'staff_id' => auth()->id(),
-            'status' => AppointmentStatusEnum::Scheduled->value,
-            // staff (logged-in user) -> approved right away, anyone else -> pending
-            'is_approve' => auth()->id() ? IsApproveEnum::Approve->value : IsApproveEnum::Pending->value,
-        ]);
-
-        session()->forget('pending_questionnaire');
-    } catch (\Throwable $e) {
-        report($e);
-
-        return redirect()
-            ->route('appointments.index')
-            ->with('error', 'Failed to create appointment.');
+        return redirect()->route('appointments.index')->with('message', 'Appointment created successfully.');
     }
-
-    return redirect()->route('appointments.index')->with('message', 'Appointment created successfully.');
-}
 
     public function edit(Appointment $appointment): Response
     {
@@ -202,13 +200,18 @@ public function store(AppointmentRequest $request): RedirectResponse
                     return 'This appointment already has a treatment and can no longer be edited.';
                 }
 
+                $data = $request->validated();
+
+                // Decide BEFORE fill(), comparing normalized values (date + HH:mm).
+                $scheduleChanged = $this->scheduleChanged($locked, $data);
+
                 $locked->fill([
-                    ...Arr::except($request->validated(), ['status']),
+                    ...Arr::except($data, ['status']),
                     'staff_id' => auth()->id(),
                 ]);
 
                 // Date or time moved -> rescheduled. Anything else keeps its status.
-                if ($locked->isDirty(self::SCHEDULE_FIELDS)) {
+                if ($scheduleChanged) {
                     $locked->status = AppointmentStatusEnum::Rescheduled->value;
                     // staff (logged-in user) -> stays approved, anyone else -> pending reschedule
                     $locked->is_approve = auth()->id()
@@ -283,6 +286,22 @@ public function store(AppointmentRequest $request): RedirectResponse
         }
 
         return redirect()->route('appointments.index')->with($result[0], $result[1]);
+    }
+
+    /**
+     * True only when the date or the HH:mm time actually differs from the saved row.
+     * Normalizes both sides so "09:00" and "09:00:00", or "2026-11-02" and
+     * "2026-11-02 00:00:00", are treated as the same value.
+     */
+    private function scheduleChanged(Appointment $appointment, array $data): bool
+    {
+        $oldDate = Carbon::parse($appointment->appointment_date)->toDateString();
+        $newDate = Carbon::parse($data['appointment_date'])->toDateString();
+
+        $oldTime = substr((string) $appointment->appointment_time, 0, 5);
+        $newTime = substr((string) $data['appointment_time'], 0, 5);
+
+        return $oldDate !== $newDate || $oldTime !== $newTime;
     }
 
     /** Returns the validated questionnaire, or null when it was not edited. */

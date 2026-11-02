@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Patient;
 
+use App\Enums\AppointmentStatusEnum;
+use App\Enums\IsApproveEnum;
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\Procedure;
@@ -35,13 +37,15 @@ class AppointmentController extends Controller
         $data = $request->validate([
             'procedure_id' => ['required', 'exists:procedures,id'],
             'appointment_date' => ['required', 'date', 'after_or_equal:today'],
-            'appointment_time' => ['required'],
+            'appointment_time' => ['required', 'date_format:H:i'],
             'description' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        // Never take patient_id (or status) from the request
+        // Never take these from the request
         $data['patient_id'] = auth('patient')->id();
-        $data['status'] = 'pending'; // change to the value your status uses for new bookings
+        $data['status'] = AppointmentStatusEnum::Scheduled->value;
+        // Patient bookings need staff approval, same as the staff module's "non-staff" path
+        $data['is_approve'] = IsApproveEnum::Pending->value;
 
         Appointment::create($data);
 
