@@ -410,15 +410,16 @@ class AppointmentController extends Controller
             ->get();
     }
 
-    /** Users with the dentist role, for the dropdowns. */
-    private function dentists()
-    {
-        return User::role('dentist')
-            ->where('is_active', IsActiveEnum::ACTIVE->value)
-            ->select('id', 'name')
-            ->orderBy('name')
-            ->get();
-    }
+ /** Users with the dentist role, for the dropdowns. */
+private function dentists()
+{
+    return User::role('dentist')
+        ->where('is_active', IsActiveEnum::ACTIVE->value)
+        ->select('id', 'name')
+        ->with('dentistDetail:id,user_id,specialization,available_schedule')
+        ->orderBy('name')
+        ->get();
+}
 
     /** A treatment row OR a completed status both mean "service delivered". */
     private function hasTreatment(Appointment $appointment): bool

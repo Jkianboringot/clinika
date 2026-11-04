@@ -78,6 +78,8 @@ class User extends Authenticatable
 {
     return $this->hasOne(DentistDetail::class);
 }
+
+
     public function appointments()
     {
         return $this->hasMany(Appointment::class, 'staff_id');

@@ -26,7 +26,7 @@ class DentistDashboardController extends Controller
         $today   = Carbon::today();
 
         // ---------- Today's schedule ----------
-        $todayAppointments = Appointment::with('patient:id,name')
+        $todayAppointments = Appointment::with('patient:id,first_name,middle_name,last_name')
             ->whereDate('appointment_date', $today)
             ->orderBy('appointment_date')
             ->get();
@@ -34,7 +34,7 @@ class DentistDashboardController extends Controller
         $schedule = $todayAppointments->map(fn ($a) => [
             'id'      => $a->id,
             'time'    => Carbon::parse($a->appointment_date)->format('g:i A'),
-            'patient' => $a->patient?->name ?? 'Unknown patient',
+            'patient' => $a->patient?->full_name ?? 'Unknown patient',
             'reason'  => $a->reason,
             'status'  => $a->status ?? 'scheduled',
         ])->values();
@@ -48,7 +48,7 @@ class DentistDashboardController extends Controller
         $nextPatient = $next ? [
             'id'      => $next->id,
             'time'    => Carbon::parse($next->appointment_date)->format('g:i A'),
-            'patient' => $next->patient?->name ?? 'Unknown patient',
+            'patient' => $next->patient?->full_name ?? 'Unknown patient',
             'reason'  => $next->reason,
         ] : null;
 
@@ -87,7 +87,7 @@ class DentistDashboardController extends Controller
         })->values();
 
         // ---------- Upcoming follow-ups ----------
-        $followUps = Treatment::with('appointment.patient:id,name')
+        $followUps = Treatment::with('appointment.patient:id,first_name,middle_name,last_name')
             ->where('user_id', $dentist->id)
             ->whereNotNull('follow_up_schedule')
             ->whereDate('follow_up_schedule', '>=', $today)
@@ -96,21 +96,21 @@ class DentistDashboardController extends Controller
             ->get()
             ->map(fn ($t) => [
                 'id'        => $t->id,
-                'patient'   => $t->appointment?->patient?->name ?? 'Unknown patient',
+                'patient'   => $t->appointment?->patient?->full_name ?? 'Unknown patient',
                 'procedure' => $t->procedure,
                 'date'      => Carbon::parse($t->follow_up_schedule)->format('M j'),
                 'daysAway'  => $today->diffInDays(Carbon::parse($t->follow_up_schedule)->startOfDay()),
             ])->values();
 
         // ---------- Recent treatments ----------
-        $recentTreatments = Treatment::with('appointment.patient:id,name')
+        $recentTreatments = Treatment::with('appointment.patient:id,first_name,middle_name,last_name')
             ->where('user_id', $dentist->id)
             ->latest()
             ->limit(5)
             ->get()
             ->map(fn ($t) => [
                 'id'        => $t->id,
-                'patient'   => $t->appointment?->patient?->name ?? 'Unknown patient',
+                'patient'   => $t->appointment?->patient?->full_name ?? 'Unknown patient',
                 'procedure' => $t->procedure,
                 'date'      => $t->created_at?->format('M j'),
             ])->values();
