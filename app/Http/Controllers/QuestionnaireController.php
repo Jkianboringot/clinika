@@ -19,7 +19,7 @@ class QuestionnaireController extends Controller
     {
         $questionnaire = MedicalQuestionnaire::where('patient_id', $patient->id)->first();
 
-        return Inertia::render('Patients/Questionnaire', [
+        return Inertia::render('Patients/Appointment/Questionnaire', [
             'patient' => [
                 'id' => $patient->id,
                 'full_name' => $patient->full_name,
