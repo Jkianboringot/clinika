@@ -4,13 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { CircleAlert, Plus, Trash2 } from 'lucide-react';
 import { index, update } from '@/routes/treatments';
 
@@ -76,6 +70,9 @@ const emptyPrescription: PrescriptionRow = {
 
 const emptyItem: ItemRow = { item_id: '', quantity: '1' };
 
+// Matches the border color used by the other inputs on this page.
+const fieldBorder = 'border-[#e0d0c0]';
+
 export default function Edit({ treatment, appointment, items, medications = [], procedures }: Props) {
     const { data, setData, put, processing, errors } = useForm<TreatmentForm>({
         follow_up_schedule: treatment.follow_up_schedule?.slice(0, 10) ?? '',
@@ -97,6 +94,16 @@ export default function Edit({ treatment, appointment, items, medications = [], 
     const fieldError = (key: string) => (errors as Record<string, string>)[key];
 
     const procedure = procedures.find((p) => p.id === appointment?.procedure_id);
+
+    const itemOptions = items.map((item) => ({
+        value: String(item.id),
+        label: item.name,
+    }));
+
+    const medicationOptions = medications.map((med) => ({
+        value: String(med.id),
+        label: med.name,
+    }));
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -194,7 +201,7 @@ export default function Edit({ treatment, appointment, items, medications = [], 
                                 placeholder="30"
                                 value={data.duration_minutes}
                                 onChange={(e) => setData('duration_minutes', e.target.value)}
-                                className="border-[#e0d0c0]"
+                                className={fieldBorder}
                             />
                             {errors.duration_minutes && (
                                 <p className="mt-1.5 text-sm text-danger">{errors.duration_minutes}</p>
@@ -210,7 +217,7 @@ export default function Edit({ treatment, appointment, items, medications = [], 
                                 type="date"
                                 value={data.follow_up_schedule}
                                 onChange={(e) => setData('follow_up_schedule', e.target.value)}
-                                className="border-[#e0d0c0]"
+                                className={fieldBorder}
                             />
                             {errors.follow_up_schedule && (
                                 <p className="mt-1.5 text-sm text-danger">{errors.follow_up_schedule}</p>
@@ -228,7 +235,7 @@ export default function Edit({ treatment, appointment, items, medications = [], 
                             value={data.summary}
                             maxLength={300}
                             onChange={(e) => setData('summary', e.target.value)}
-                            className="border-[#e0d0c0]"
+                            className={fieldBorder}
                         />
                         {errors.summary && (
                             <p className="mt-1.5 text-sm text-danger">{errors.summary}</p>
@@ -244,7 +251,7 @@ export default function Edit({ treatment, appointment, items, medications = [], 
                                 variant="outline"
                                 size="sm"
                                 onClick={addItem}
-                                className="border-[#e0d0c0]"
+                                className={fieldBorder}
                             >
                                 <Plus className="h-4 w-4" />
                                 Add item
@@ -260,21 +267,15 @@ export default function Edit({ treatment, appointment, items, medications = [], 
                         {data.itemList.map((row, i) => (
                             <div key={i} className="grid grid-cols-[1fr_8rem_auto] items-start gap-3">
                                 <div className="space-y-1">
-                                    <Select
+                                    <Combobox
                                         value={row.item_id}
-                                        onValueChange={(value) => updateItem(i, 'item_id', value)}
-                                    >
-                                        <SelectTrigger className="border-[#e0d0c0]">
-                                            <SelectValue placeholder="Select item" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {items.map((item) => (
-                                                <SelectItem key={item.id} value={String(item.id)}>
-                                                    {item.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                        onChange={(value) => updateItem(i, 'item_id', value)}
+                                        options={itemOptions}
+                                        placeholder="Select item"
+                                        searchPlaceholder="Search item..."
+                                        emptyText="No item found."
+                                        className={fieldBorder}
+                                    />
                                     {fieldError(`itemList.${i}.item_id`) && (
                                         <p className="mt-1.5 text-sm text-danger">
                                             {fieldError(`itemList.${i}.item_id`)}
@@ -289,7 +290,7 @@ export default function Edit({ treatment, appointment, items, medications = [], 
                                         placeholder="Qty"
                                         value={row.quantity}
                                         onChange={(e) => updateItem(i, 'quantity', e.target.value)}
-                                        className="border-[#e0d0c0]"
+                                        className={`h-10 ${fieldBorder}`}
                                     />
                                     {fieldError(`itemList.${i}.quantity`) && (
                                         <p className="mt-1.5 text-sm text-danger">
@@ -304,7 +305,7 @@ export default function Edit({ treatment, appointment, items, medications = [], 
                                     size="icon"
                                     aria-label="Remove item"
                                     onClick={() => removeItem(i)}
-                                    className="border-red-200 text-red-600 hover:bg-red-50"
+                                    className="h-10 w-10 border-red-200 text-red-600 hover:bg-red-50"
                                 >
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -324,7 +325,7 @@ export default function Edit({ treatment, appointment, items, medications = [], 
                                 variant="outline"
                                 size="sm"
                                 onClick={addPrescription}
-                                className="border-[#e0d0c0]"
+                                className={fieldBorder}
                             >
                                 <Plus className="h-4 w-4" />
                                 Add medication
@@ -341,23 +342,17 @@ export default function Edit({ treatment, appointment, items, medications = [], 
                                 className="grid grid-cols-[1.5fr_1fr_1fr_1fr_auto] items-start gap-3"
                             >
                                 <div className="space-y-1">
-                                    <Select
+                                    <Combobox
                                         value={row.medication_id}
-                                        onValueChange={(value) =>
+                                        onChange={(value) =>
                                             updatePrescription(i, 'medication_id', value)
                                         }
-                                    >
-                                        <SelectTrigger className="border-[#e0d0c0]">
-                                            <SelectValue placeholder="Select medication" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {medications.map((item) => (
-                                                <SelectItem key={item.id} value={String(item.id)}>
-                                                    {item.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                        options={medicationOptions}
+                                        placeholder="Select medication"
+                                        searchPlaceholder="Search medication..."
+                                        emptyText="No medication found."
+                                        className={fieldBorder}
+                                    />
                                     {fieldError(`prescriptionlist.${i}.medication_id`) && (
                                         <p className="mt-1.5 text-sm text-danger">
                                             {fieldError(`prescriptionlist.${i}.medication_id`)}
@@ -369,13 +364,13 @@ export default function Edit({ treatment, appointment, items, medications = [], 
                                     placeholder="Dosage"
                                     value={row.dosage}
                                     onChange={(e) => updatePrescription(i, 'dosage', e.target.value)}
-                                    className="border-[#e0d0c0]"
+                                    className={`h-10 ${fieldBorder}`}
                                 />
                                 <Input
                                     placeholder="Frequency"
                                     value={row.frequency}
                                     onChange={(e) => updatePrescription(i, 'frequency', e.target.value)}
-                                    className="border-[#e0d0c0]"
+                                    className={`h-10 ${fieldBorder}`}
                                 />
                                 <Input
                                     type="number"
@@ -383,7 +378,7 @@ export default function Edit({ treatment, appointment, items, medications = [], 
                                     placeholder="Days"
                                     value={row.duration_days}
                                     onChange={(e) => updatePrescription(i, 'duration_days', e.target.value)}
-                                    className="border-[#e0d0c0]"
+                                    className={`h-10 ${fieldBorder}`}
                                 />
 
                                 <Button
@@ -392,7 +387,7 @@ export default function Edit({ treatment, appointment, items, medications = [], 
                                     size="icon"
                                     aria-label="Remove medication"
                                     onClick={() => removePrescription(i)}
-                                    className="border-red-200 text-red-600 hover:bg-red-50"
+                                    className="h-10 w-10 border-red-200 text-red-600 hover:bg-red-50"
                                 >
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
