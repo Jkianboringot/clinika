@@ -164,21 +164,29 @@ export default function Questionnaire({ sections, isFemale, appointment, initial
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2 md:grid-cols-3">
-                                {sections.conditions.map((c) => (
-                                    <label
-                                        key={c.key}
-                                        className="flex cursor-pointer items-center gap-2 text-sm text-gray-800"
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={data.conditions.includes(c.key)}
-                                            onChange={() => toggleCondition(c.key)}
-                                            className="h-4 w-4 rounded border-gray-300"
-                                        />
-                                        {c.label}
-                                    </label>
-                                ))}
+                            <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
+                                {sections.conditions.map((c) => {
+                                    const checked = data.conditions.includes(c.key);
+
+                                    return (
+                                        <label
+                                            key={c.key}
+                                            className={`flex cursor-pointer items-center gap-2.5 rounded-md border px-3 py-2 text-sm transition focus-within:ring-2 focus-within:ring-blue-300 ${
+                                                checked
+                                                    ? 'border-blue-600 bg-blue-50 font-semibold text-blue-800'
+                                                    : 'border-gray-200 text-gray-800 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={checked}
+                                                onChange={() => toggleCondition(c.key)}
+                                                className="h-4 w-4 rounded border-gray-300 accent-blue-600"
+                                            />
+                                            {c.label}
+                                        </label>
+                                    );
+                                })}
                             </div>
                         </CardContent>
                     </Card>

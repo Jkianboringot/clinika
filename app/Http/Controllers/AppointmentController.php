@@ -242,7 +242,27 @@ class AppointmentController extends Controller
             ] : null,
         ]);
     }
+/** Staff: read-only questionnaire of the appointment's patient. */
+public function showQuestionnaire(Appointment $appointment): Response
+{
+    $patient = $appointment->patient;
 
+    $questionnaire = MedicalQuestionnaire::where('patient_id', $patient->id)->first();
+
+    return Inertia::render('Appointments/Questionnaire', [
+        'patient' => [
+            'id' => $patient->id,
+            'full_name' => $patient->full_name,
+        ],
+        'sections' => MedicalQuestionnaire::sections(),
+        'isFemale' => MedicalQuestionnaire::showsWomenSection($patient),
+        'questionnaire' => $questionnaire ? [
+            'answers' => $questionnaire->answers,
+            'conditions' => $questionnaire->conditions,
+            'updated_at' => $questionnaire->updated_at?->format('M j, Y g:i A'),
+        ] : null,
+    ]);
+}
     public function update(AppointmentRequest $request, Appointment $appointment): RedirectResponse
     {
         // Validated OUTSIDE the try so errors show on the form instead of being swallowed.

@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Combobox } from '@/components/ui/combobox';
 import { CircleAlert, Plus, Trash2 } from 'lucide-react';
 import { index, update } from '@/routes/treatments';
+import QuestionnaireSummary, { type QuestionnaireData, type QuestionnaireSections } from '@/components/questionnaire-summary';
 
 interface Appointment {
     id: number;
@@ -59,6 +60,9 @@ interface Props {
     items: Item[];
     medications: Item[];
     procedures: Procedure[];
+    // Optional so the page still renders if the controller doesn't send them yet.
+    questionnaire?: QuestionnaireData;
+    questionnaireSections?: QuestionnaireSections;
 }
 
 const emptyPrescription: PrescriptionRow = {
@@ -73,7 +77,15 @@ const emptyItem: ItemRow = { item_id: '', quantity: '1' };
 // Matches the border color used by the other inputs on this page.
 const fieldBorder = 'border-[#e0d0c0]';
 
-export default function Edit({ treatment, appointment, items, medications = [], procedures }: Props) {
+export default function Edit({
+    treatment,
+    appointment,
+    items,
+    medications = [],
+    procedures,
+    questionnaire,
+    questionnaireSections,
+}: Props) {
     const { data, setData, put, processing, errors } = useForm<TreatmentForm>({
         follow_up_schedule: treatment.follow_up_schedule?.slice(0, 10) ?? '',
         duration_minutes: treatment.duration_minutes != null ? String(treatment.duration_minutes) : '',
@@ -149,6 +161,15 @@ export default function Edit({ treatment, appointment, items, medications = [], 
                 <div className="mb-4">
                     <h1 className="text-2xl font-bold text-ink">Edit Treatment</h1>
                 </div>
+
+                {questionnaire && questionnaireSections && (
+                    <div className="mb-4">
+                        <QuestionnaireSummary
+                            sections={questionnaireSections}
+                            questionnaire={questionnaire}
+                        />
+                    </div>
+                )}
 
                 <form
                     onSubmit={handleSubmit}

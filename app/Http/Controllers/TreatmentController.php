@@ -119,6 +119,8 @@ class TreatmentController extends Controller
 
         $appointment = Appointment::with('patient')->findOrFail($treatment->appointment_id);
 
+        $questionnaire = MedicalQuestionnaire::where('patient_id', $appointment->patient_id)->first();
+
         return Inertia::render('Treatments/Edit', [
             'treatment' => [
                 'id' => $treatment->id,
@@ -149,6 +151,12 @@ class TreatmentController extends Controller
                 'id' => $m->id,
                 'name' => $m->name ?? $m->medication_name ?? $m->generic_name ?? "Medication #{$m->id}",
             ]),
+            'questionnaire' => $questionnaire ? [
+                'answers' => $questionnaire->answers,
+                'conditions' => $questionnaire->conditions,
+                'updated_at' => $questionnaire->updated_at?->format('M j, Y g:i A'),
+            ] : null,
+            'questionnaireSections' => MedicalQuestionnaire::sections(),
         ]);
     }
 

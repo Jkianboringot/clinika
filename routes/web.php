@@ -216,6 +216,9 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
             ->middleware('permission:appointments.create')->name('day_statuses');
         Route::get('/open-slots', [AppointmentController::class, 'openSlots'])
             ->middleware('permission:appointments.create')->name('open_slots');
+
+            Route::get('/{appointment}/questionnaire', [AppointmentController::class, 'showQuestionnaire'])
+    ->middleware('permission:appointments.view')->name('questionnaire.show');
     });
 
     // ===== TREATMENTS =====

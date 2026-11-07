@@ -216,7 +216,7 @@ export default function Index({ appointments, filters }: Props) {
                     <Table>
                         <TableHeader>
                             <TableRow className="border-b border-gray-200 hover:bg-transparent">
-                              
+
                                 <TableHead className="font-bold tracking-wide text-blue-700">
                                     Patient
                                 </TableHead>
@@ -230,7 +230,7 @@ export default function Index({ appointments, filters }: Props) {
                                     Staff
                                 </TableHead>
                                 <TableHead className="font-bold tracking-wide text-blue-700">
-                                    Date of Appointment 
+                                    Date of Appointment
                                 </TableHead>
                                 <TableHead className="font-bold tracking-wide text-blue-700">
                                     Time
@@ -290,7 +290,7 @@ export default function Index({ appointments, filters }: Props) {
                                             )}
                                             {appt.patient && (
                                                 <Link
-                                                    href={`/patients/${appt.patient.id}/questionnaire`}
+                                                    href={`/appointments/${appt.id}/questionnaire`}
                                                     className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-blue-700"
                                                 >
                                                     <ClipboardList className="h-4 w-4" />
