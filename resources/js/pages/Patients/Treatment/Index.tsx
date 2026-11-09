@@ -107,3 +107,9 @@ export default function PatientTreatmentsIndex({ treatments }: { treatments: Pag
       </>
     );
 }
+
+PatientTreatmentsIndex.layout = {
+    breadcrumbs: [
+        { title: 'My Treatment',  },
+    ],
+};

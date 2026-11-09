@@ -9,8 +9,6 @@ import {
 } from 'lucide-react';
 import FlashError from '@/components/flash-error';
 
-
-
 export default function StaffLogin() {
     const [showPassword, setShowPassword] = useState(false);
 
@@ -116,6 +114,13 @@ export default function StaffLogin() {
                                         >
                                             Password
                                         </label>
+
+                                        <Link
+                                            href="/forgot-password"
+                                            className="text-xs font-semibold text-blue-600 transition hover:text-blue-800"
+                                        >
+                                            Forgot password?
+                                        </Link>
                                     </div>
 
                                     <div className="group relative">

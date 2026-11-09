@@ -21,6 +21,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\PatientPasswordResetController;
 use App\Http\Controllers\Auth\PatientRegisterController;
+use App\Http\Controllers\Auth\UserPasswordResetController;
+
 
 Route::post('patient/forgot-password/code', [PatientPasswordResetController::class, 'sendCode'])
     ->middleware('throttle:3,1')
@@ -36,6 +38,13 @@ Route::post('/patient/register', [PatientRegisterController::class, 'store'])
     ->middleware('throttle:5,1')
     ->name('patient.register.store');
 
+    Route::post('forgot-password/code', [UserPasswordResetController::class, 'sendCode'])
+    ->middleware(['guest:web', 'throttle:3,1'])
+    ->name('user.password.code');
+
+Route::post('forgot-password/reset', [UserPasswordResetController::class, 'reset'])
+    ->middleware(['guest:web', 'throttle:10,1'])
+    ->name('user.password.reset');
 /*
 |--------------------------------------------------------------------------
 | ROLE LEGEND (MB Klinika)

@@ -311,17 +311,24 @@ class AppointmentController extends Controller
             ->with('success', 'Appointment cancelled.');
     }
 
-    private function bookingPage(?array $appointment = null): Response
-    {
-        return Inertia::render('Patients/Appointment/Create', [
-            'dentists' => $this->availability->dentists()
-                ->map(fn (User $d) => ['id' => $d->id, 'name' => $d->name])
-                ->values(),
-            'procedures' => Procedure::orderBy('name')->get(['id', 'name']),
-            'appointment' => $appointment,
-        ]);
-    }
-
+   private function bookingPage(?array $appointment = null): Response
+{
+    return Inertia::render('Patients/Appointment/Create', [
+        'dentists' => $this->availability->dentists()
+            ->load('dentistDetail:id,user_id,specialization,available_schedule')
+            ->map(fn (User $d) => [
+                'id' => $d->id,
+                'name' => $d->name,
+                'dentist_detail' => $d->dentistDetail ? [
+                    'specialization' => $d->dentistDetail->specialization,
+                    'available_schedule' => $d->dentistDetail->available_schedule,
+                ] : null,
+            ])
+            ->values(),
+        'procedures' => Procedure::orderBy('name')->get(['id', 'name']),
+        'appointment' => $appointment,
+    ]);
+}
     private function patient(): Patient
     {
         return Patient::findOrFail(auth('patient')->id());

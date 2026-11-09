@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -27,6 +27,17 @@ interface Option {
     name: string;
 }
 
+type ScheduleSlot = { day: string; start: string; end: string };
+
+interface DentistDetail {
+    specialization: string[] | string | null;
+    available_schedule: ScheduleSlot[] | string | null;
+}
+
+interface DentistOption extends Option {
+    dentist_detail?: DentistDetail | null;
+}
+
 interface EditingAppointment {
     id: number;
     procedure_id: string;
@@ -45,20 +56,61 @@ interface AppointmentForm {
 }
 
 interface Props {
-    dentists: Option[];
+    dentists: DentistOption[];
     procedures: Option[];
     appointment?: EditingAppointment | null;
+}
+
+interface ComboboxDetail {
+    label: string;
+    value: string;
+}
+
+interface ComboboxOption {
+    value: string;
+    label: string;
+    details?: ComboboxDetail[];
 }
 
 interface ComboboxProps {
     id: string;
     value: string;
     onChange: (value: string) => void;
-    options: { value: string; label: string }[];
+    options: ComboboxOption[];
     placeholder: string;
     searchPlaceholder: string;
     emptyText: string;
 }
+
+const listText = (value: string[] | string | null | undefined) =>
+    Array.isArray(value) ? value.join(', ') : (value ?? '');
+
+const capitalize = (text: string) => `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+
+// One row for specialization, then one row per scheduled day.
+const dentistDetails = (detail: DentistDetail | null | undefined): ComboboxDetail[] => {
+    if (!detail) return [];
+
+    const rows: ComboboxDetail[] = [];
+
+    const specialization = listText(detail.specialization);
+    if (specialization) {
+        rows.push({ label: 'Specialization', value: specialization });
+    }
+
+    if (Array.isArray(detail.available_schedule)) {
+        detail.available_schedule.forEach((slot) => {
+            rows.push({
+                label: capitalize(slot.day),
+                value: `${slot.start} – ${slot.end}`,
+            });
+        });
+    } else if (detail.available_schedule) {
+        rows.push({ label: 'Schedule', value: detail.available_schedule });
+    }
+
+    return rows;
+};
 
 function Combobox({
     id,
@@ -102,19 +154,40 @@ function Combobox({
                             {options.map((o) => (
                                 <CommandItem
                                     key={o.value}
-                                    value={`${o.label} ${o.value}`}
+                                    // details are included so search also matches specialization or schedule
+                                    value={`${o.label} ${
+                                        o.details?.map((d) => `${d.label} ${d.value}`).join(' ') ?? ''
+                                    } ${o.value}`}
                                     onSelect={() => {
                                         onChange(o.value);
                                         setOpen(false);
                                     }}
+                                    className="items-start py-2.5"
                                 >
                                     <Check
                                         className={cn(
-                                            'mr-2 h-4 w-4',
+                                            'mr-2 mt-0.5 h-4 w-4 shrink-0',
                                             value === o.value ? 'opacity-100' : 'opacity-0',
                                         )}
                                     />
-                                    {o.label}
+                                    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                                        <span className="font-semibold text-ink">{o.label}</span>
+
+                                        {o.details && o.details.length > 0 && (
+                                            <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-xs">
+                                                {o.details.map((d, i) => (
+                                                    <Fragment key={`${d.label}-${i}`}>
+                                                        <span className="text-muted-foreground">
+                                                            {d.label}
+                                                        </span>
+                                                        <span className="font-medium text-gray-800">
+                                                            {d.value}
+                                                        </span>
+                                                    </Fragment>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </CommandItem>
                             ))}
                         </CommandGroup>
@@ -151,7 +224,12 @@ export default function Create({ dentists, procedures, appointment }: Props) {
     const [loadingTimes, setLoadingTimes] = useState(false);
 
     const procedureOptions = procedures.map((p) => ({ value: String(p.id), label: p.name }));
-    const dentistOptions = dentists.map((d) => ({ value: String(d.id), label: d.name }));
+
+    const dentistOptions = dentists.map((d) => ({
+        value: String(d.id),
+        label: d.name,
+        details: dentistDetails(d.dentist_detail),
+    }));
 
     // Block past dates. Local time, so it matches the calendar.
     const todayIso = (() => {
@@ -272,46 +350,45 @@ export default function Create({ dentists, procedures, appointment }: Props) {
                         </Alert>
                     )}
 
-                    {/* ROW 1: what and who */}
-                    <div className="grid gap-5 md:grid-cols-2">
-                        <div className="space-y-1.5">
-                            <Label htmlFor="procedure_id" className="text-sm font-medium text-ink">
-                                Reason for visit
-                            </Label>
-                            <Combobox
-                                id="procedure_id"
-                                value={data.procedure_id}
-                                onChange={(value) => setData('procedure_id', value)}
-                                options={procedureOptions}
-                                placeholder="Select a reason"
-                                searchPlaceholder="Search reason..."
-                                emptyText="No reason found."
-                            />
-                            {errors.procedure_id && (
-                                <p className="text-sm text-danger">{errors.procedure_id}</p>
-                            )}
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <Label htmlFor="dentist_id" className="text-sm font-medium text-ink">
-                                Dentist
-                            </Label>
-                            <Combobox
-                                id="dentist_id"
-                                value={data.dentist_id}
-                                onChange={chooseDentist}
-                                options={dentistOptions}
-                                placeholder="Select a dentist"
-                                searchPlaceholder="Search dentist..."
-                                emptyText="No dentist found."
-                            />
-                            {errors.dentist_id && (
-                                <p className="text-sm text-danger">{errors.dentist_id}</p>
-                            )}
-                        </div>
+                    {/* ROW 1: dentist, full width so the details have room */}
+                    <div className="space-y-1.5">
+                        <Label htmlFor="dentist_id" className="text-sm font-medium text-ink">
+                            Dentist
+                        </Label>
+                        <Combobox
+                            id="dentist_id"
+                            value={data.dentist_id}
+                            onChange={chooseDentist}
+                            options={dentistOptions}
+                            placeholder="Select a dentist"
+                            searchPlaceholder="Search dentist..."
+                            emptyText="No dentist found."
+                        />
+                        {errors.dentist_id && (
+                            <p className="text-sm text-danger">{errors.dentist_id}</p>
+                        )}
                     </div>
 
-                    {/* ROW 2: schedule */}
+                    {/* ROW 2: reason for visit */}
+                    <div className="space-y-1.5">
+                        <Label htmlFor="procedure_id" className="text-sm font-medium text-ink">
+                            Reason for visit
+                        </Label>
+                        <Combobox
+                            id="procedure_id"
+                            value={data.procedure_id}
+                            onChange={(value) => setData('procedure_id', value)}
+                            options={procedureOptions}
+                            placeholder="Select a reason"
+                            searchPlaceholder="Search reason..."
+                            emptyText="No reason found."
+                        />
+                        {errors.procedure_id && (
+                            <p className="text-sm text-danger">{errors.procedure_id}</p>
+                        )}
+                    </div>
+
+                    {/* ROW 3: schedule */}
                     <div className="rounded-2xl border border-gray-200 bg-gray-50/60 p-5">
                         <div className="mb-5 flex items-center justify-between">
                             <h2 className="text-sm font-semibold text-ink">Schedule</h2>
@@ -377,7 +454,7 @@ export default function Create({ dentists, procedures, appointment }: Props) {
                         )}
                     </div>
 
-                    {/* ROW 3: notes */}
+                    {/* ROW 4: notes */}
                     <div className="space-y-1.5">
                         <Label htmlFor="description" className="text-sm font-medium text-ink">
                             Notes (optional)
@@ -398,7 +475,12 @@ export default function Create({ dentists, procedures, appointment }: Props) {
                     <div className="flex justify-end border-t border-gray-200 pt-5">
                         <Button
                             type="submit"
-                            disabled={processing || !data.procedure_id || !data.dentist_id || !data.appointment_time}
+                            disabled={
+                                processing ||
+                                !data.procedure_id ||
+                                !data.dentist_id ||
+                                !data.appointment_time
+                            }
                             className="h-10 bg-blue-600 px-6 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
                         >
                             {editing ? 'Save New Time' : 'Submit Appointment Request'}
