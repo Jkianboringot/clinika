@@ -7,7 +7,6 @@ import FlashError from '@/components/flash-error';
 const GENDER_LABELS: Record<string, string> = {
     male: 'Male',
     female: 'Female',
-    other: 'Other',
 };
 
 const inputClass =
