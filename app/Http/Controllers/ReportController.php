@@ -146,9 +146,7 @@ class ReportController extends Controller
         $type = $request->input('type', 'patients');
         abort_unless(in_array($type, array_column(self::TYPES, 'value'), true), 404);
 
-        if ($type === 'inventory') {
-            abort_unless($request->user()->can('inventory.view'), 403);
-        }
+      
 
         return $type;
     }
