@@ -34,7 +34,7 @@ class TreatmentService
      */
     public function assertOpenForTreatment(Appointment $appointment): void
     {
-        if ($appointment->is_approve !== 'approved') {
+        if ($appointment->is_approve !== 'approve') {
             throw new \RuntimeException('Only an approved appointment can be treated.');
         }
 

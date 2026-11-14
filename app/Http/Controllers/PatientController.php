@@ -32,7 +32,7 @@ class PatientController extends Controller
         ],
     ]);
 
-
+}
     public function create(): Response
     {
         // $this->authorize('patients.create');

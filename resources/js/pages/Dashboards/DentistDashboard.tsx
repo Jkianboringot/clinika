@@ -191,23 +191,19 @@ export default function DentistDashboard({
 }
 
 function NextPatientBanner({ next, remaining }: { next: NextPatient | null; remaining: number }) {
+    if (!next) return null;
+
     return (
         <div className="flex items-center justify-between gap-4 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/40">
-            {next ? (
-                <>
-                    <div className="min-w-0">
-                        <p className="text-xs font-medium text-blue-700 dark:text-blue-300">Next patient</p>
-                        <p className="truncate text-lg font-bold">{next.patient}</p>
-                        <p className="truncate text-sm text-neutral-600 dark:text-neutral-400">{next.reason ?? 'No reason given'}</p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                        <p className="text-2xl font-bold tabular-nums">{next.time}</p>
-                        <p className="text-xs text-neutral-500">{remaining} left today</p>
-                    </div>
-                </>
-            ) : (
-                <p className="text-sm text-neutral-600 dark:text-neutral-400">No more patients scheduled for today. 🎉</p>
-            )}
+            <div className="min-w-0">
+                <p className="text-xs font-medium text-blue-700 dark:text-blue-300">Next patient</p>
+                <p className="truncate text-lg font-bold">{next.patient}</p>
+                <p className="truncate text-sm text-neutral-600 dark:text-neutral-400">{next.reason ?? 'No reason given'}</p>
+            </div>
+            <div className="shrink-0 text-right">
+                <p className="text-2xl font-bold tabular-nums">{next.time}</p>
+                <p className="text-xs text-neutral-500">{remaining} left today</p>
+            </div>
         </div>
     );
 }

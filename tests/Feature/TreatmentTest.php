@@ -56,7 +56,7 @@ function treatTestAppointment(Patient $patient, User $dentist, Procedure $proced
         'appointment_date' => now()->addDays(3)->format('Y-m-d'),
         'appointment_time' => '09:00:00',
         'status' => 'scheduled',
-        'is_approve' => 'approved',
+        'is_approve' => 'approve',
     ], $overrides));
 }
 
