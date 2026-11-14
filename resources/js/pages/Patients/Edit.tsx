@@ -53,7 +53,6 @@ interface Props {
 const GENDER_LABELS: Record<string, string> = {
     male: 'Male',
     female: 'Female',
-    other: 'Other',
 };
 
 export default function Edit({ patient }: Props) {

@@ -33,7 +33,6 @@ interface PatientForm {
 const GENDER_LABELS: Record<string, string> = {
     male: 'Male',
     female: 'Female',
-    other: 'Other',
 };
 
 export default function Create() {
