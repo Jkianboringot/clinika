@@ -28,6 +28,7 @@ class AppointmentController extends Controller
     {
         
           session()->forget('pending_questionnaire');
+          
         $appointments = Appointment::where('patient_id', auth('patient')->id())
             ->with(['procedure:id,name', 'dentist:id,name'])
             ->orderByDesc('appointment_date')
