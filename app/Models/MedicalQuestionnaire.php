@@ -9,6 +9,7 @@ class MedicalQuestionnaire extends Model
 {
     protected $fillable = [
         'patient_id',
+        'appointment_id',
         'answers',
         'conditions',
         'agreed',

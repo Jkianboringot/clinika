@@ -12,7 +12,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { ChevronLeft, ChevronRight, ClipboardList, Pencil, Plus, Search, Stethoscope, Trash2, X } from 'lucide-react';
-import { create, edit, index, destroy } from '@/routes/appointments';
+import { create, edit, index, destroy, questionnaire_show } from '@/routes/appointments';
 import { create as createTreatment } from '@/routes/treatments';
 import { useForm } from '@inertiajs/react';
 import { useCan } from '@/hooks/use-can';
@@ -290,7 +290,7 @@ export default function Index({ appointments, filters }: Props) {
                                             )}
                                             {appt.patient && (
                                                 <Link
-                                                    href={`/appointments/${appt.id}/questionnaire`}
+                                                    href={questionnaire_show(appt.id).url}
                                                     className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-blue-700"
                                                 >
                                                     <ClipboardList className="h-4 w-4" />

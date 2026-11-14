@@ -6,6 +6,7 @@ use App\Enums\IsActiveEnum;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
@@ -18,7 +19,7 @@ class Patient extends Authenticatable
 
     public $guarded = ['id'];
 
-    protected $hidden = ['password'];
+  protected $hidden = ['password', 'remember_token'];
 
     protected $guard_name = 'patient';
 
@@ -55,6 +56,8 @@ class Patient extends Authenticatable
         });
     }
 
+    
+
     protected function casts(): array
     {
         return [
@@ -74,4 +77,9 @@ class Patient extends Authenticatable
             $patient->assignRole('patient');
         });
     }
+
+    public function medicalQuestionnaires(): HasMany
+{
+    return $this->hasMany(MedicalQuestionnaire::class);
+}
 }

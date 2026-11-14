@@ -227,7 +227,7 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
             ->middleware('permission:appointments.create')->name('open_slots');
 
             Route::get('/{appointment}/questionnaire', [AppointmentController::class, 'showQuestionnaire'])
-    ->middleware('permission:appointments.view')->name('questionnaire.show');
+    ->middleware('permission:appointments.view')->name('questionnaire_show');
     });
 
     // ===== TREATMENTS =====

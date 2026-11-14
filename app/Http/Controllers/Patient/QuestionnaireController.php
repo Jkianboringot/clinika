@@ -56,4 +56,17 @@ class QuestionnaireController extends Controller
             ->route('patient.appointments.create')
             ->with('message', 'Medical questionnaire saved. You can now book an appointment.');
     }
+
+    public function pendingFill(): Response
+{
+    return Inertia::render('Patients/Appointment/Questionnaire', [
+        'sections' => MedicalQuestionnaire::sections(),
+        'isFemale' => true,
+        'appointment' => null,
+        'initial' => session('pending_questionnaire') ? [
+            'answers' => session('pending_questionnaire')['answers'],
+            'conditions' => session('pending_questionnaire')['conditions'],
+        ] : null,
+    ]);
+}
 }

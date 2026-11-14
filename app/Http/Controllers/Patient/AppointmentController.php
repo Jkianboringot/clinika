@@ -37,7 +37,7 @@ class AppointmentController extends Controller
         ]);
     }
 
-    /** New booking. Questionnaire first, every time, same as staff. */
+    /** New booking. The questionnaire is answered first, every time. */
     public function create(): Response|RedirectResponse
     {
         if (! session()->has('pending_questionnaire')) {
@@ -74,14 +74,14 @@ class AppointmentController extends Controller
         return redirect()->route('patient.appointments.create');
     }
 
-    /** Questionnaire for one appointment, prefilled with the patient's current answers. */
+    /** Questionnaire of one appointment, prefilled with that visit's answers. */
     public function editQuestionnaire(Appointment $appointment): Response|RedirectResponse
     {
         if ($message = $this->blockReason($appointment)) {
             return redirect()->route('patient.appointments.index')->with('error', $message);
         }
 
-        $existing = MedicalQuestionnaire::where('patient_id', $appointment->patient_id)->first();
+        $existing = $appointment->questionnaire;
 
         return Inertia::render('Patients/Appointment/Questionnaire', [
             'sections' => MedicalQuestionnaire::sections(),
@@ -94,7 +94,7 @@ class AppointmentController extends Controller
         ]);
     }
 
-    /** Saves the questionnaire to the patient's record. */
+    /** Saves the questionnaire to this appointment's record only. */
     public function updateQuestionnaire(Request $request, Appointment $appointment): RedirectResponse
     {
         if ($message = $this->blockReason($appointment)) {
@@ -104,8 +104,9 @@ class AppointmentController extends Controller
         $data = $request->validate($this->questionnaireRules());
 
         MedicalQuestionnaire::updateOrCreate(
-            ['patient_id' => $appointment->patient_id],
+            ['appointment_id' => $appointment->id],
             [
+                'patient_id' => $appointment->patient_id,
                 'answers' => $this->normalizeAnswers($data['answers']),
                 'conditions' => array_values(array_unique($data['conditions'] ?? [])),
                 'agreed' => true,
@@ -155,7 +156,7 @@ class AppointmentController extends Controller
         ]);
     }
 
-    /** Submit a new booking. Saves the questionnaire, then the appointment as pending. */
+    /** Submit a new booking. Creates the appointment as pending, with its own questionnaire record. */
     public function store(Request $request): RedirectResponse
     {
         $pending = session('pending_questionnaire');
@@ -183,16 +184,7 @@ class AppointmentController extends Controller
                     ]);
                 }
 
-                MedicalQuestionnaire::updateOrCreate(
-                    ['patient_id' => $patientId],
-                    [
-                        'answers' => $pending['answers'],
-                        'conditions' => $pending['conditions'],
-                        'agreed' => $pending['agreed'],
-                    ],
-                );
-
-                Appointment::create([
+                $appointment = Appointment::create([
                     'patient_id' => $patientId,
                     'procedure_id' => $data['procedure_id'],
                     'dentist_id' => $dentist->id,
@@ -201,6 +193,14 @@ class AppointmentController extends Controller
                     'description' => $data['description'] ?? null,
                     'status' => AppointmentStatusEnum::Scheduled->value,
                     'is_approve' => IsApproveEnum::Pending->value,
+                ]);
+
+                MedicalQuestionnaire::create([
+                    'patient_id' => $patientId,
+                    'appointment_id' => $appointment->id,
+                    'answers' => $pending['answers'],
+                    'conditions' => $pending['conditions'],
+                    'agreed' => $pending['agreed'],
                 ]);
 
                 session()->forget('pending_questionnaire');
@@ -297,44 +297,58 @@ class AppointmentController extends Controller
         }
     }
 
-    /** Cancel. The row is kept and its slot is freed. */
+    /**
+     * Cancel. The row is kept and its slot is freed.
+     * A request that was never approved is also rejected, so it leaves the approval queue.
+     * An approved booking keeps its approval.
+     */
     public function cancel(Appointment $appointment): RedirectResponse
     {
         if ($message = $this->blockReason($appointment)) {
             return redirect()->route('patient.appointments.index')->with('error', $message);
         }
 
-        $appointment->update(['status' => AppointmentStatusEnum::Cancelled->value]);
+        $updates = ['status' => AppointmentStatusEnum::Cancelled->value];
+
+        if (in_array($this->value($appointment->is_approve), [
+            IsApproveEnum::Pending->value,
+            IsApproveEnum::PendingReScheduled->value,
+        ], true)) {
+            $updates['is_approve'] = IsApproveEnum::Reject->value;
+        }
+
+        $appointment->update($updates);
 
         return redirect()
             ->route('patient.appointments.index')
             ->with('success', 'Appointment cancelled.');
     }
 
-   private function bookingPage(?array $appointment = null): Response
-{
-    return Inertia::render('Patients/Appointment/Create', [
-        'dentists' => $this->availability->dentists()
-            ->load('dentistDetail:id,user_id,specialization,available_schedule')
-            ->map(fn (User $d) => [
-                'id' => $d->id,
-                'name' => $d->name,
-                'dentist_detail' => $d->dentistDetail ? [
-                    'specialization' => $d->dentistDetail->specialization,
-                    'available_schedule' => $d->dentistDetail->available_schedule,
-                ] : null,
-            ])
-            ->values(),
-        'procedures' => Procedure::orderBy('name')->get(['id', 'name']),
-        'appointment' => $appointment,
-    ]);
-}
+    private function bookingPage(?array $appointment = null): Response
+    {
+        return Inertia::render('Patients/Appointment/Create', [
+            'dentists' => $this->availability->dentists()
+                ->load('dentistDetail:id,user_id,specialization,available_schedule')
+                ->map(fn (User $d) => [
+                    'id' => $d->id,
+                    'name' => $d->name,
+                    'dentist_detail' => $d->dentistDetail ? [
+                        'specialization' => $d->dentistDetail->specialization,
+                        'available_schedule' => $d->dentistDetail->available_schedule,
+                    ] : null,
+                ])
+                ->values(),
+            'procedures' => Procedure::orderBy('name')->get(['id', 'name']),
+            'appointment' => $appointment,
+        ]);
+    }
+
     private function patient(): Patient
     {
         return Patient::findOrFail(auth('patient')->id());
     }
 
-    /** Only the owner can change it, and not after a treatment or cancellation. */
+    /** Only the owner can change it, and not after a treatment, cancellation, or completion. */
     private function blockReason(Appointment $appointment): ?string
     {
         abort_unless((int) $appointment->patient_id === (int) auth('patient')->id(), 404);

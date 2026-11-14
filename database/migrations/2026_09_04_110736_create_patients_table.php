@@ -36,7 +36,7 @@ return new class extends Migration {
             // Account Information
             $table->string('email',150)->unique();
             $table->string('password');
-
+ $table->rememberToken();
             // $table->softDeletes();, 
             $table->timestamps();
         });

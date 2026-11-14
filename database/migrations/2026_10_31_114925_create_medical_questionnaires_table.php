@@ -11,7 +11,10 @@ return new class extends Migration {
             $table->id();
 
             // One questionnaire per patient (updated when their health changes).
-            $table->foreignId('patient_id')->unique()->constrained('patients')->cascadeOnDelete();
+            $table->foreignId('patient_id')->constrained('patients')->cascadeOnDelete();
+
+            //make it nullable so i dont have to change shit
+            $table->foreignId('appointment_id')->nullable()->constrained()->cascadeOnDelete();
 
             // {"pain_now": true, "nervous": false, ...}
             $table->json('answers');

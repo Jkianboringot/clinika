@@ -26,7 +26,7 @@ class DatabaseSeeder extends Seeder
             MedicationSeeder::class,
             // AppointmentSeeder::class,
             InventoryItemSeeder::class,
-            //   InventoryStockAdditionSeeder::class,
+              InventoryStockAdditionSeeder::class,
 //   TreatmentSeeder::class, 
             ]
         );
