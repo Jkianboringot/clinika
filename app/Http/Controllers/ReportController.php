@@ -14,6 +14,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportController extends Controller
 {
+    
     private const TYPES = [
         ['value' => 'patients',     'label' => 'Patient Records'],
         ['value' => 'appointments', 'label' => 'Appointments'],

@@ -65,6 +65,10 @@ use Inertia\Response;
 
 class MedicationController extends Controller
 {
+    public function __construct()
+{
+    $this->authorizeResource(Medication::class, 'medication');
+}
     public function index(SearchRequest $request): Response
     {
         // $this->authorize('medications.view');

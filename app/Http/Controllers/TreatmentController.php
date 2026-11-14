@@ -23,9 +23,10 @@ use Inertia\Inertia;
 
 class TreatmentController extends Controller
 {
-    public function __construct(protected TreatmentService $treatmentService)
-    {
-    }
+  public function __construct(protected TreatmentService $treatmentService)
+{
+    $this->authorizeResource(Treatment::class, 'treatment');
+}
 
     public function index(Request $request)
     {

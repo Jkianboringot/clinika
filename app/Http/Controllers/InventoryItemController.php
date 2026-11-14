@@ -80,6 +80,10 @@ use Illuminate\Http\RedirectResponse;
 class InventoryItemController extends Controller
 {
 
+    public function __construct()
+{
+    $this->authorizeResource(InventoryItem::class, 'inventoryItem');
+}
     public function index(Request $request)
     {
         $items = InventoryItem::withStockTotals()

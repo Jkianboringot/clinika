@@ -87,6 +87,20 @@ use Inertia\Response;
 
 class UserController extends Controller
 {
+
+    public function __construct()
+    {
+        $this->authorizeResource(User::class, 'user');
+    }
+
+    protected function resourceAbilityMap(): array
+    {
+        return array_merge(parent::resourceAbilityMap(), [
+            'activate' => 'activate',     // users.update
+            'deactivate' => 'deactivate',   // users.delete, and not yourself
+        ]);
+    }
+
     public function index(SearchRequest $request): Response
     {
         $this->authorize('users.view');

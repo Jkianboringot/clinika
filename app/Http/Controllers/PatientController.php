@@ -14,6 +14,24 @@ use Inertia\Response;
 
 class PatientController extends Controller
 {
+
+    public function __construct()
+{
+    $this->authorizeResource(Patient::class, 'patient');
+}
+
+protected function resourceAbilityMap(): array
+{
+    return array_merge(parent::resourceAbilityMap(), [
+        'deactivate' => 'deactivate',   // patients.delete
+        'activate'   => 'activate',     // patients.delete
+    ]);
+}
+
+protected function resourceMethodsWithoutModels(): array
+{
+    return parent::resourceMethodsWithoutModels(); // index, create, store
+}
     public function index(Request $request): Response
 {
     // TODO: add this later

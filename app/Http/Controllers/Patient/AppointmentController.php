@@ -22,7 +22,10 @@ use Inertia\Response;
 
 class AppointmentController extends Controller
 {
-    public function __construct(private DentistAvailability $availability) {}
+    public function __construct(private DentistAvailability $availability) {
+         $this->authorizeResource(Appointment::class, 'appointment');
+        
+    }
 
     public function index()
     {

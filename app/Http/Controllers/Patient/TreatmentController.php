@@ -8,6 +8,7 @@ use Inertia\Inertia;
 
 class TreatmentController extends Controller
 {
+    
     public function index()
     {
         $treatments = Treatment::whereHas('appointment', function ($query) {

@@ -120,6 +120,7 @@ class InventoryController extends Controller
 {
     public function __construct(protected InventoryService $inventoryService)
     {
+          $this->authorizeResource(Inventory::class, 'inventory');
     }
 
     public function index(Request $request): Response

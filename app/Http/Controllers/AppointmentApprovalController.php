@@ -17,6 +17,10 @@ use Inertia\Response;
  */
 class AppointmentApprovalController extends Controller
 {
+       public function __construct()
+    {
+        $this->authorizeResource(Appointment::class, 'appointment');
+    }
     /** Columns needed so Patient's full_name accessor can be built. */
     private const PATIENT_NAME_COLUMNS = ['id', 'first_name', 'middle_name', 'last_name'];
 

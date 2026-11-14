@@ -13,6 +13,10 @@ use Illuminate\Http\Request;
 
 class ProcedureController extends Controller
 {
+    public function __construct()
+{
+    $this->authorizeResource(Procedure::class, 'procedure');
+}
     public function index(Request $request): Response
     {
         // TODO: add this later

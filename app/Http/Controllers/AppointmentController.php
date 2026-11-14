@@ -55,7 +55,9 @@ class AppointmentController extends Controller
     /** Columns needed so Patient's full_name accessor can be built. */
     private const PATIENT_NAME_COLUMNS = ['id', 'first_name', 'middle_name', 'last_name'];
 
-    public function __construct(private DentistAvailability $availability) {}
+    public function __construct(private DentistAvailability $availability) {
+         $this->authorizeResource(Appointment::class, 'appointment');
+    }
 
     public function index(SearchRequest $request): Response
     {
