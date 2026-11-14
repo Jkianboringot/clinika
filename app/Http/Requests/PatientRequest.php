@@ -30,9 +30,10 @@ class PatientRequest extends FormRequest
             'first_name' => ['required', 'string', 'min:2', 'max:100'],
             'middle_name' => ['nullable', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'min:2', 'max:100'],
+
             'emergency_contact_number' => ['nullable', 'string', 'min:11'],
             'emergency_contact_name' => ['nullable', 'string', 'min:2', 'max:100'],
-            'contact_number' => ['nullable', 'string', 'min:11'],
+            'contact_number' => [$this->isMethod('post') ? 'required' : 'nullable', 'string', 'min:11'],
             'medical_history' => ['nullable', 'string', 'min:3', 'max:300'],
             'address' => ['nullable', 'string', 'min:3', 'max:300'],
             'allergies' => ['nullable', 'string', 'min:3', 'max:300'],
@@ -41,6 +42,7 @@ class PatientRequest extends FormRequest
             'email' => [
                 'required',
                 'string',
+                'email',
                 'min:3',
                 'max:150',
                 Rule::unique('patients', 'email')->ignore($this->route('patient')),

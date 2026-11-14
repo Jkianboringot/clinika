@@ -15,35 +15,23 @@ use Inertia\Response;
 class PatientController extends Controller
 {
     public function index(Request $request): Response
-    {
-        // TODO: add this later
-        // $this->authorize('patients.view');
+{
+    // TODO: add this later
+    // $this->authorize('patients.view');
 
-        $patients = Patient::query()
-            ->when(
-                $request->input('search'),
-                fn ($query, $search) => $query->where(function ($q) use ($search) {
-                    $q->where('first_name', 'like', "%{$search}%")
-                        ->orWhere('middle_name', 'like', "%{$search}%")
-                        ->orWhere('last_name', 'like', "%{$search}%")
-                        // lets "Juan Dela Cruz" match as one string
-                        ->orWhereRaw(
-                            "CONCAT_WS(' ', first_name, middle_name, last_name) like ?",
-                            ["%{$search}%"]
-                        );
-                })
-            )
-            ->orderBy('created_at')
-            ->paginate(15)
-            ->withQueryString();
+    $patients = Patient::query()
+        ->searchName($request->input('search'))
+        ->orderBy('created_at')
+        ->paginate(15)
+        ->withQueryString();
 
-        return Inertia::render('Patients/Index', [
-            'patients' => $patients,
-            'filters' => [
-                'search' => $request->input('search'),
-            ],
-        ]);
-    }
+    return Inertia::render('Patients/Index', [
+        'patients' => $patients,
+        'filters' => [
+            'search' => $request->input('search'),
+        ],
+    ]);
+
 
     public function create(): Response
     {

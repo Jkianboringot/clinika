@@ -28,6 +28,7 @@ function reportPatient(string $first, string $last, string $dob = '1990-01-01', 
 {
     return Patient::factory()->create(array_merge([
         'first_name' => $first,
+        'middle_name' => null,
         'last_name' => $last,
         'date_of_birth' => $dob,
         'is_active' => IsActiveEnum::ACTIVE->value,

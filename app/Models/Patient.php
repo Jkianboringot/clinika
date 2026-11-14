@@ -26,7 +26,7 @@ class Patient extends Authenticatable
 
     protected function fullName(): Attribute
     {
-        return Attribute::get(fn () => collect([
+        return Attribute::get(fn() => collect([
             $this->first_name,
             $this->middle_name,
             $this->last_name,
@@ -39,19 +39,27 @@ class Patient extends Authenticatable
      */
     public function scopeSearchName(Builder $query, ?string $term): Builder
     {
-        return $query->when($term, fn (Builder $q, string $v) => $q->where(function (Builder $q) use ($v) {
-            $q->where('first_name', 'like', "%{$v}%")
-              ->orWhere('middle_name', 'like', "%{$v}%")
-              ->orWhere('last_name', 'like', "%{$v}%")
-              ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) like ?", ["%{$v}%"]);
-        }));
+        return $query->when($term, function (Builder $q, string $v) {
+            $like = "%{$v}%";
+
+            $fullName = $this->getConnection()->getDriverName() === 'mysql'
+                ? "CONCAT_WS(' ', first_name, middle_name, last_name)"
+                : "(COALESCE(first_name, '') || ' ' || COALESCE(middle_name, '') || ' ' || COALESCE(last_name, ''))";
+
+            $q->where(function (Builder $q) use ($like, $fullName) {
+                $q->where('first_name', 'like', $like)
+                    ->orWhere('middle_name', 'like', $like)
+                    ->orWhere('last_name', 'like', $like)
+                    ->orWhereRaw("{$fullName} like ?", [$like]);
+            });
+        });
     }
 
     protected function casts(): array
     {
         return [
             'is_active' => IsActiveEnum::class,
-            'password'  => 'hashed',
+            'password' => 'hashed',
         ];
     }
 
