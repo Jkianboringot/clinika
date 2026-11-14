@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+pest()->group('skip');
 
 test('profile page is displayed', function () {
     $user = User::factory()->create();

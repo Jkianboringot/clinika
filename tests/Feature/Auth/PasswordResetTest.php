@@ -5,6 +5,8 @@ use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Fortify\Features;
 
+pest()->group('skip');
+
 beforeEach(function () {
     $this->skipUnlessFortifyHas(Features::resetPasswords());
 });

@@ -85,7 +85,10 @@ class InventoryItemController extends Controller
         $items = InventoryItem::withStockTotals()
             ->when($request->search, fn($q, $s) => $q->where('item_name', 'like', "%{$s}%"))
             // optional: ?status=low|critical|in_stock
-            ->when($request->status, fn($q, $s) => $q->whereStockStatus(StockStatusEnum::from($s)))
+           ->when(
+                StockStatusEnum::tryFrom((string) $request->status),
+                fn($q, $status) => $q->whereStockStatus($status)
+            )
             ->orderBy('item_name')
             ->paginate(15)
             ->withQueryString()

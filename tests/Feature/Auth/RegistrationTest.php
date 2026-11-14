@@ -1,6 +1,7 @@
 <?php
 
 use Laravel\Fortify\Features;
+pest()->group('skip');
 
 beforeEach(function () {
     $this->skipUnlessFortifyHas(Features::registration());

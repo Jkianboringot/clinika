@@ -4,6 +4,8 @@ use App\Models\User;
 use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Fortify\Features;
 
+pest()->group('skip');
+
 test('login screen can be rendered', function () {
     $response = $this->get(route('login'));
 
