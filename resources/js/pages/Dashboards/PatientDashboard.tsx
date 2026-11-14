@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { dashboard } from '@/routes';
 
 interface Stats {
@@ -85,21 +85,6 @@ export default function PatientDashboard({ stats, upcomingAppointment }: Patient
                                     <p className="text-xs text-neutral-500">Time</p>
                                     <p className="font-semibold">{upcomingAppointment.time}</p>
                                 </div>
-                            </div>
-
-                            <div className="mt-5 grid grid-cols-2 gap-3">
-                                <Link
-                                    href={`/appointments/${upcomingAppointment.id}`}
-                                    className="rounded-md bg-blue-600 px-4 py-2 text-center text-sm font-semibold text-white hover:bg-blue-700"
-                                >
-                                    View Details
-                                </Link>
-                                <Link
-                                    href={`/appointments/${upcomingAppointment.id}/edit`}
-                                    className="rounded-md border border-sidebar-border/70 bg-white px-4 py-2 text-center text-sm font-semibold hover:bg-neutral-100 dark:bg-neutral-900 dark:hover:bg-neutral-800"
-                                >
-                                    Reschedule
-                                </Link>
                             </div>
                         </div>
                     ) : (
