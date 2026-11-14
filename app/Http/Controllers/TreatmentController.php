@@ -27,59 +27,61 @@ class TreatmentController extends Controller
     {
     }
 
-    public function index(Request $request)
-    {
-        $search = $request->string('search')->toString();
+public function index(Request $request)
+{
+    $search = $request->string('search')->toString();
 
-        $treatments = Treatment::with('appointment.patient')
-            ->when($search, fn($q) => $q->whereHas(
-                'appointment.patient',
-                fn($p) => $p->where('full_name', 'like', "%{$search}%")
-            ))
-            ->latest()
-            ->paginate(10)
-            ->withQueryString()
-            ->through(fn($t) => [
-                'id' => $t->id,
-                'patient_name' => $t->appointment?->patient?->full_name,
-                'appointment_id' => $t->appointment_id,
-                'follow_up_schedule' => $t->follow_up_schedule,
-                'duration_minutes' => $t->duration_minutes,
-                'summary' => $t->summary,
-                'created_at' => $t->created_at?->format('M d, Y'),
-            ]);
-
-        return Inertia::render('Treatments/Index', [
-            'treatments' => $treatments,
-            'filters' => ['search' => $search],
+    $treatments = Treatment::with('appointment.patient')
+        ->when($search, fn ($q) => $q->whereHas(
+            'appointment.patient',
+            fn ($p) => $p->searchName($search)
+        ))
+        ->latest()
+        ->paginate(10)
+        ->withQueryString()
+        ->through(fn ($t) => [
+            'id' => $t->id,
+            'patient_name' => $t->appointment?->patient?->full_name,
+            'appointment_id' => $t->appointment_id,
+            'follow_up_schedule' => $t->follow_up_schedule,
+            'duration_minutes' => $t->duration_minutes,
+            'summary' => $t->summary,
+            'created_at' => $t->created_at?->format('M d, Y'),
         ]);
+
+    return Inertia::render('Treatments/Index', [
+        'treatments' => $treatments,
+        'filters' => ['search' => $search],
+    ]);
+}
+
+public function create(Appointment $appointment)
+{
+    try {
+        $this->treatmentService->assertOwnership($appointment, auth()->id());
+        $this->treatmentService->assertOpenForTreatment($appointment);
+    } catch (\RuntimeException $e) {
+        return redirect()->route('appointments.index')->with('error', $e->getMessage());
     }
 
-    public function create(Appointment $appointment)
-    {
-        $questionnaire = MedicalQuestionnaire::where('patient_id', $appointment->patient_id)->first();
+    $questionnaire = MedicalQuestionnaire::where('patient_id', $appointment->patient_id)->first();
 
-        return Inertia::render('Treatments/Create', [
-            'appointment' => $appointment->load('patient'),
-            'items' => InventoryItem::selectRaw('id, item_name as name')->orderBy('item_name')->get(),
-            'procedures' => Procedure::all(),
-            'medications' => Medication::all()->map(fn($m) => [
-                'id' => $m->id,
-                'name' => $m->name ?? $m->medication_name ?? $m->generic_name ?? "Medication #{$m->id}",
-            ]),
-            'followUpEnum' => collect(EnumsAppointmentStatusEnum::cases())->map(fn($a) => [
-                'value' => $a->value,
-                'label' => $a->value,
-            ]),
-            'questionnaire' => $questionnaire ? [
-                'answers' => $questionnaire->answers,
-                'conditions' => $questionnaire->conditions,
-                'updated_at' => $questionnaire->updated_at?->format('M j, Y g:i A'),
-            ] : null,
-            'questionnaireSections' => MedicalQuestionnaire::sections(),
-        ]);
-    }
-
+    return Inertia::render('Treatments/Create', [
+        'appointment' => $appointment->load('patient'),
+        'items' => InventoryItem::selectRaw('id, item_name as name')->orderBy('item_name')->get(),
+        'procedures' => Procedure::all(),
+        'medications' => Medication::all()->map(fn ($m) => [
+            'id' => $m->id,
+            'name' => $m->name,
+        ]),
+        'questionnaire' => $questionnaire ? [
+            'answers' => $questionnaire->answers,
+            'conditions' => $questionnaire->conditions,
+            'updated_at' => $questionnaire->updated_at?->format('M j, Y g:i A'),
+        ] : null,
+        'questionnaireSections' => MedicalQuestionnaire::sections(),
+    ]);
+}
     // Route::post('{appointment}/create')
     public function store(Appointment $appointment, TreatmentRequest $request)
     {
