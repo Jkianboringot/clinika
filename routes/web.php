@@ -186,7 +186,7 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
         Route::put('/{patient}/deactivate', [PatientController::class, 'deactivate'])->middleware('permission:patients.delete')->name('deactivate');
         Route::put('/{patient}', [PatientController::class, 'update'])->middleware('permission:patients.update')->name('update');
         Route::get('/{patient}', [PatientController::class, 'show'])->middleware('permission:patients.view')->name('show');
-        Route::put('/{patient}/activate', [PatientController::class, 'activate'])->name('activate');
+        Route::put('/{patient}/activate', [PatientController::class, 'activate'])->middleware('permission:patients.delete')->name('activate');
 
         // ===== MEDICAL QUESTIONNAIRE (staff read-only view) =====
         Route::get('/{patient}/questionnaire', [QuestionnaireController::class, 'show'])
