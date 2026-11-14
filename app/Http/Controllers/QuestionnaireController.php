@@ -36,6 +36,9 @@ class QuestionnaireController extends Controller
     /** Questionnaire shown before a patient is chosen. */
     public function pendingFill(): Response
     {
+//NOTE:tem fix
+
+          session()->forget('pending_questionnaire');
         return Inertia::render('Patient/Questionnaire', [
             'sections' => MedicalQuestionnaire::sections(),
             // Patient not chosen yet, so show the women's section as optional.

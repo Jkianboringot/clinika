@@ -26,6 +26,8 @@ class AppointmentController extends Controller
 
     public function index()
     {
+        
+          session()->forget('pending_questionnaire');
         $appointments = Appointment::where('patient_id', auth('patient')->id())
             ->with(['procedure:id,name', 'dentist:id,name'])
             ->orderByDesc('appointment_date')
@@ -298,19 +300,30 @@ class AppointmentController extends Controller
     }
 
     /** Cancel. The row is kept and its slot is freed. */
-    public function cancel(Appointment $appointment): RedirectResponse
-    {
-        if ($message = $this->blockReason($appointment)) {
-            return redirect()->route('patient.appointments.index')->with('error', $message);
-        }
-
-        $appointment->update(['status' => AppointmentStatusEnum::Cancelled->value]);
-
-        return redirect()
-            ->route('patient.appointments.index')
-            ->with('success', 'Appointment cancelled.');
+  public function cancel(Appointment $appointment): RedirectResponse
+{
+    if ($message = $this->blockReason($appointment)) {
+        return redirect()->route('patient.appointments.index')->with('error', $message);
     }
 
+    $approve = $appointment->is_approve instanceof \BackedEnum
+        ? $appointment->is_approve->value
+        : $appointment->is_approve;
+
+    $changes = ['status' => AppointmentStatusEnum::Cancelled->value];
+
+    // A cancelled request must leave the staff approval queue.
+    // Only pending requests change; approved bookings stay approved.
+    if ($approve === IsApproveEnum::Pending->value) {
+        $changes['is_approve'] = IsApproveEnum::Reject->value;
+    }
+
+    $appointment->update($changes);
+
+    return redirect()
+        ->route('patient.appointments.index')
+        ->with('success', 'Appointment cancelled.');
+}
    private function bookingPage(?array $appointment = null): Response
 {
     return Inertia::render('Patients/Appointment/Create', [

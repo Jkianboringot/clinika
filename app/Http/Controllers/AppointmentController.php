@@ -60,6 +60,8 @@ class AppointmentController extends Controller
     public function index(SearchRequest $request): Response
     {
         // $this->authorize('viewAny', Appointment::class);
+//NOTE:tem fix
+          session()->forget('pending_questionnaire');
 
         $request->validated();
 

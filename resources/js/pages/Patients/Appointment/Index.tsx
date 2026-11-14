@@ -149,12 +149,12 @@ export default function Index({ appointments }: Props) {
                         <p className="mt-1 text-sm text-subtle">Your upcoming and past visits</p>
                     </div>
 
-                    <Link href="/patient/appointments/create">
+                    {/* <Link href="/patient/appointments/create">
                         <Button className="bg-blue-600 font-bold text-white hover:bg-blue-700">
                             <Plus className="h-4 w-4" />
                             Book Appointment
                         </Button>
-                    </Link>
+                    </Link> */}
                 </div>
 
                 <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">

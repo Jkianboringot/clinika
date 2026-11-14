@@ -1,8 +1,8 @@
 <?php
 
 use App\Enums\GenderEnum;
-use App\Enums\IsApproveEnum;
 use App\Enums\IsActiveEnum;
+use App\Enums\IsApproveEnum;
 use App\Models\Appointment;
 use App\Models\DentistDetail;
 use App\Models\MedicalQuestionnaire;
@@ -53,26 +53,22 @@ function apptTestDentist(int $limit = 5): User
     return $dentist;
 }
 
-/** A patient who is not on the female questionnaire path, so the general questions are enough. */
+/** An active male patient with the `patient` role (same as the seeder), so only the general questions apply. */
 function apptTestPatient(string $email = 'juan.appt@example.com'): Patient
 {
     $patient = Patient::create([
         'first_name' => 'Juan',
         'last_name' => 'Cruz',
-        'gender' => GenderEnum::cases()[0]->value,
+        'gender' => GenderEnum::MALE->value,
         'date_of_birth' => '1980-01-01',
         'email' => $email,
         'contact_number' => '09171234567',
+        'address' => 'Naga City, Camarines Sur',
+        'is_active' => IsActiveEnum::ACTIVE->value,
         'password' => 'MyPassword123',
     ]);
 
-    foreach (GenderEnum::cases() as $gender) {
-        if (! MedicalQuestionnaire::showsWomenSection($patient)) {
-            break;
-        }
-        $patient->update(['gender' => $gender->value]);
-        $patient->refresh();
-    }
+    $patient->assignRole('patient');
 
     return $patient;
 }
@@ -122,6 +118,17 @@ function apptTestStaffPayload(array $overrides = []): array
     ], $overrides);
 }
 
+/** A valid patient booking payload. */
+function apptTestPatientPayload(array $overrides = []): array
+{
+    return array_merge([
+        'procedure_id' => test()->procedure->id,
+        'dentist_id' => test()->dentist->id,
+        'appointment_date' => test()->date,
+        'appointment_time' => '09:00',
+    ], $overrides);
+}
+
 // ---------------------------------------------------------------------------
 // the questionnaire comes first
 // ---------------------------------------------------------------------------
@@ -161,6 +168,13 @@ it('skipping the questionnaire as staff stores every answer as no', function () 
     });
 });
 
+it('opening the questionnaire page clears answers left over from an interrupted booking', function () {
+    $response = $this->withSession(['pending_questionnaire' => apptTestPending($this->patient)])
+        ->get(route('appointments.questionnaire'));
+
+    $response->assertSessionMissing('pending_questionnaire');
+});
+
 it('does not let a patient skip the questionnaire', function () {
     $this->actingAs($this->patient, 'patient');
 
@@ -192,6 +206,7 @@ it('books for staff as approved and scheduled, then clears the questionnaire fro
         ->post(route('appointments.store'), apptTestStaffPayload());
 
     $response->assertRedirect(route('appointments.index'));
+    $response->assertSessionMissing('pending_questionnaire');
     $this->assertDatabaseHas('appointments', [
         'patient_id' => $this->patient->id,
         'dentist_id' => $this->dentist->id,
@@ -204,12 +219,7 @@ it('books for a patient as pending, waiting for staff approval', function () {
     $this->actingAs($this->patient, 'patient');
 
     $this->withSession(['pending_questionnaire' => apptTestPending($this->patient)])
-        ->post(route('patient.appointments.store'), [
-            'procedure_id' => $this->procedure->id,
-            'dentist_id' => $this->dentist->id,
-            'appointment_date' => $this->date,
-            'appointment_time' => '09:00',
-        ]);
+        ->post(route('patient.appointments.store'), apptTestPatientPayload());
 
     $this->assertDatabaseHas('appointments', [
         'patient_id' => $this->patient->id,
@@ -387,12 +397,9 @@ it('a patient reschedule of a date or time sets rescheduled and waits for clinic
     $appointment = apptTestAppointment(['is_approve' => IsApproveEnum::Approve->value]);
     $this->actingAs($this->patient, 'patient');
 
-    $this->put(route('patient.appointments.update', $appointment), [
-        'procedure_id' => $this->procedure->id,
-        'dentist_id' => $this->dentist->id,
-        'appointment_date' => $this->date,
+    $this->put(route('patient.appointments.update', $appointment), apptTestPatientPayload([
         'appointment_time' => '10:00',
-    ]);
+    ]));
 
     $appointment->refresh();
     expect($appointment->status)->toBe('rescheduled');
@@ -403,12 +410,9 @@ it('a patient edit that does not move the booking keeps it awaiting confirmation
     $appointment = apptTestAppointment(['is_approve' => IsApproveEnum::Pending->value]);
     $this->actingAs($this->patient, 'patient');
 
-    $this->put(route('patient.appointments.update', $appointment), [
-        'procedure_id' => $this->procedure->id,
-        'dentist_id' => $this->dentist->id,
-        'appointment_date' => $this->date,
+    $this->put(route('patient.appointments.update', $appointment), apptTestPatientPayload([
         'appointment_time' => '09:00',
-    ]);
+    ]));
 
     $appointment->refresh();
     expect($appointment->status)->toBe('scheduled');
@@ -488,12 +492,7 @@ it('sends a patient to the questionnaire when they open create without answering
 it('does not book for a patient without a questionnaire in the session, and creates nothing', function () {
     $this->actingAs($this->patient, 'patient');
 
-    $response = $this->post(route('patient.appointments.store'), [
-        'procedure_id' => $this->procedure->id,
-        'dentist_id' => $this->dentist->id,
-        'appointment_date' => $this->date,
-        'appointment_time' => '09:00',
-    ]);
+    $response = $this->post(route('patient.appointments.store'), apptTestPatientPayload());
 
     $response->assertRedirect(route('patient.appointments.questionnaire'));
     $this->assertDatabaseCount('appointments', 0);
@@ -503,19 +502,11 @@ it('needs a new questionnaire for each booking, so a second patient booking is r
     $this->actingAs($this->patient, 'patient');
 
     $this->withSession(['pending_questionnaire' => apptTestPending($this->patient)])
-        ->post(route('patient.appointments.store'), [
-            'procedure_id' => $this->procedure->id,
-            'dentist_id' => $this->dentist->id,
-            'appointment_date' => $this->date,
-            'appointment_time' => '09:00',
-        ]);
+        ->post(route('patient.appointments.store'), apptTestPatientPayload());
 
-    $response = $this->post(route('patient.appointments.store'), [
-        'procedure_id' => $this->procedure->id,
-        'dentist_id' => $this->dentist->id,
-        'appointment_date' => $this->date,
+    $response = $this->post(route('patient.appointments.store'), apptTestPatientPayload([
         'appointment_time' => '10:00',
-    ]);
+    ]));
 
     $response->assertRedirect(route('patient.appointments.questionnaire'));
     $this->assertDatabaseCount('appointments', 1);
