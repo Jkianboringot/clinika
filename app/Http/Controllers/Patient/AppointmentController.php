@@ -15,23 +15,26 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class AppointmentController extends Controller
 {
-    public function __construct(private DentistAvailability $availability) {
-         $this->authorizeResource(Appointment::class, 'appointment');
-        
+    public function __construct(private DentistAvailability $availability)
+    {
+        $this->authorizeResource(Appointment::class, 'appointment');
+
     }
 
     public function index()
     {
-        
-          session()->forget('pending_questionnaire');
-          
+
+        session()->forget('pending_questionnaire');
+
         $appointments = Appointment::where('patient_id', auth('patient')->id())
             ->with(['procedure:id,name', 'dentist:id,name'])
             ->orderByDesc('appointment_date')
@@ -46,7 +49,7 @@ class AppointmentController extends Controller
     /** New booking. Questionnaire first, every time, same as staff. */
     public function create(): Response|RedirectResponse
     {
-        if (! session()->has('pending_questionnaire')) {
+        if (!session()->has('pending_questionnaire')) {
             return redirect()->route('patient.appointments.questionnaire');
         }
 
@@ -58,7 +61,7 @@ class AppointmentController extends Controller
     {
         return Inertia::render('Patients/Appointment/Questionnaire', [
             'sections' => MedicalQuestionnaire::sections(),
-            'isFemale' => MedicalQuestionnaire::showsWomenSection($this->patient()),
+            'isFemale' => true,
             'appointment' => null,
             'initial' => null,
         ]);
@@ -91,7 +94,7 @@ class AppointmentController extends Controller
 
         return Inertia::render('Patients/Appointment/Questionnaire', [
             'sections' => MedicalQuestionnaire::sections(),
-            'isFemale' => MedicalQuestionnaire::showsWomenSection($this->patient()),
+            'isFemale' => true,
             'appointment' => ['id' => $appointment->id],
             'initial' => $existing ? [
                 'answers' => $existing->answers,
@@ -166,7 +169,7 @@ class AppointmentController extends Controller
     {
         $pending = session('pending_questionnaire');
 
-        if (! $pending) {
+        if (!$pending) {
             return redirect()->route('patient.appointments.questionnaire');
         }
 
@@ -304,48 +307,48 @@ class AppointmentController extends Controller
     }
 
     /** Cancel. The row is kept and its slot is freed. */
-  public function cancel(Appointment $appointment): RedirectResponse
-{
-    if ($message = $this->blockReason($appointment)) {
-        return redirect()->route('patient.appointments.index')->with('error', $message);
+    public function cancel(Appointment $appointment): RedirectResponse
+    {
+        if ($message = $this->blockReason($appointment)) {
+            return redirect()->route('patient.appointments.index')->with('error', $message);
+        }
+
+        $approve = $appointment->is_approve instanceof \BackedEnum
+            ? $appointment->is_approve->value
+            : $appointment->is_approve;
+
+        $changes = ['status' => AppointmentStatusEnum::Cancelled->value];
+
+        // A cancelled request must leave the staff approval queue.
+        // Only pending requests change; approved bookings stay approved.
+        if ($approve === IsApproveEnum::Pending->value) {
+            $changes['is_approve'] = IsApproveEnum::Reject->value;
+        }
+
+        $appointment->update($changes);
+
+        return redirect()
+            ->route('patient.appointments.index')
+            ->with('success', 'Appointment cancelled.');
     }
-
-    $approve = $appointment->is_approve instanceof \BackedEnum
-        ? $appointment->is_approve->value
-        : $appointment->is_approve;
-
-    $changes = ['status' => AppointmentStatusEnum::Cancelled->value];
-
-    // A cancelled request must leave the staff approval queue.
-    // Only pending requests change; approved bookings stay approved.
-    if ($approve === IsApproveEnum::Pending->value) {
-        $changes['is_approve'] = IsApproveEnum::Reject->value;
+    private function bookingPage(?array $appointment = null): Response
+    {
+        return Inertia::render('Patients/Appointment/Create', [
+            'dentists' => $this->availability->dentists()
+                ->load('dentistDetail:id,user_id,specialization,available_schedule')
+                ->map(fn(User $d) => [
+                    'id' => $d->id,
+                    'name' => $d->name,
+                    'dentist_detail' => $d->dentistDetail ? [
+                        'specialization' => $d->dentistDetail->specialization,
+                        'available_schedule' => $d->dentistDetail->available_schedule,
+                    ] : null,
+                ])
+                ->values(),
+            'procedures' => Procedure::orderBy('name')->get(['id', 'name']),
+            'appointment' => $appointment,
+        ]);
     }
-
-    $appointment->update($changes);
-
-    return redirect()
-        ->route('patient.appointments.index')
-        ->with('success', 'Appointment cancelled.');
-}
-   private function bookingPage(?array $appointment = null): Response
-{
-    return Inertia::render('Patients/Appointment/Create', [
-        'dentists' => $this->availability->dentists()
-            ->load('dentistDetail:id,user_id,specialization,available_schedule')
-            ->map(fn (User $d) => [
-                'id' => $d->id,
-                'name' => $d->name,
-                'dentist_detail' => $d->dentistDetail ? [
-                    'specialization' => $d->dentistDetail->specialization,
-                    'available_schedule' => $d->dentistDetail->available_schedule,
-                ] : null,
-            ])
-            ->values(),
-        'procedures' => Procedure::orderBy('name')->get(['id', 'name']),
-        'appointment' => $appointment,
-    ]);
-}
     private function patient(): Patient
     {
         return Patient::findOrFail(auth('patient')->id());
@@ -396,12 +399,6 @@ class AppointmentController extends Controller
     private function questionnaireRules(): array
     {
         $sections = MedicalQuestionnaire::sections();
-        $isFemale = MedicalQuestionnaire::showsWomenSection($this->patient());
-
-        $keys = collect($sections['general'])->pluck('key');
-        if ($isFemale) {
-            $keys = $keys->merge(collect($sections['women'])->pluck('key'));
-        }
 
         $rules = [
             'answers' => ['required', 'array'],
@@ -410,8 +407,13 @@ class AppointmentController extends Controller
             'agreed' => ['accepted'],
         ];
 
-        foreach ($keys as $key) {
+        foreach (collect($sections['general'])->pluck('key') as $key) {
             $rules["answers.{$key}"] = ['required', 'boolean'];
+        }
+
+        // CHANGED: Women answers are optional here, same as staff.
+        foreach (collect($sections['women'])->pluck('key') as $key) {
+            $rules["answers.{$key}"] = ['nullable', 'boolean'];
         }
 
         return $rules;
@@ -420,9 +422,10 @@ class AppointmentController extends Controller
     private function normalizeAnswers(array $answers): array
     {
         return collect($answers)
-            ->map(fn ($v) => filter_var($v, FILTER_VALIDATE_BOOLEAN))
+            ->map(fn($v) => filter_var($v, FILTER_VALIDATE_BOOLEAN))
             ->all();
     }
+
 
     /** Works whether or not the model casts the column to an enum. */
     private function value(mixed $v): ?string

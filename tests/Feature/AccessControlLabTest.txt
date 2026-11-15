@@ -1,0 +1,854 @@
+<?php
+
+/*
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ACCESS CONTROL LAB: learn broken access control by testing it           ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+HOW TO READ THIS FILE (top to bottom)
+-------------------------------------
+PART A  The idea behind every test (read this first, 1 minute)
+PART B  The fake app we attack (setup code, skim it, you don't need to study it)
+PART C  The 7 attacks. Each one has:
+          - a plain explanation (what / why / where / defense / pros / cons)
+          - tests with a comment above each saying what it does
+
+RUN IT
+------
+  php artisan test --filter=AccessControlLab
+
+It uses made-up data (a pet clinic). It does NOT touch your real routes,
+tables, seeders or policies. It creates and drops its own demo_* tables.
+
+
+════════════════════════════════════════════════════════════════════════════
+PART A: THE IDEA
+════════════════════════════════════════════════════════════════════════════
+
+Broken access control = someone can do something they shouldn't be allowed to.
+Hiding a button in the UI is NOT security. The server must say no, because an
+attacker doesn't use your UI: they send requests directly.
+
+EVERY test in this file follows the same 4 steps:
+
+  1. BE THE WRONG PERSON      log in as someone who shouldn't be allowed
+  2. SEND THE FORBIDDEN THING send the request directly (skip the UI)
+  3. CHECK THE APP SAID NO    401, 403, 404 or 405
+  4. CHECK THE DATABASE       the data must NOT have changed
+
+  Step 4 matters most: an app can show an error and still have done the action.
+
+THREE KINDS OF TEST YOU WILL SEE
+  secure test      the attack is blocked (this is what you want in real life)
+  "still works"    the legitimate user is NOT blocked (a defense that blocks
+                   everyone is useless, so we test that too)
+  ATTACK LANDS     we switch the defense OFF and the same attack succeeds.
+                   This proves two things: the attack is real, and our secure
+                   test is able to fail (a test that can never fail proves nothing).
+
+STATUS CODES CHEAT SHEET
+  401  you are not logged in (or not in this login world)
+  403  you are logged in, but not allowed
+  404  not found (also used to hide that someone else's record exists)
+  405  wrong HTTP verb (e.g. GET on a PUT-only route)
+
+HOW TO LEARN FROM IT (don't just run it)
+  1. Run it. Everything should pass.
+  2. Pick one attack. Compare its secure test with its ATTACK LANDS test.
+  3. Break a defense by hand: in labOwnerBooking() (Part B) delete the
+     abort_unless(...) line. The IDOR secure tests should now FAIL.
+     That is how you learn a test is real.
+  4. Invent your own scenario (e.g. owners downloading a receipt) and write its
+     test before looking for a solution.
+*/
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
+
+/*
+════════════════════════════════════════════════════════════════════════════
+PART B: THE FAKE APP (setup, skim only)
+════════════════════════════════════════════════════════════════════════════
+
+The pet clinic:
+  guard "owner"   pet owners:  Alice, Bob
+  guard "staff"   employees:   Ada (admin), Sam (staff), Dee (dentist)
+  bookings        belong to an owner. They can be treated or cancelled.
+                  "answers" is a medical questionnaire (private data).
+
+labApp() builds the routes. Pass the names of defenses to switch OFF:
+  labApp()                    all defenses ON  (secure)
+  labApp(['idor'])            IDOR defense OFF
+  labApp(['mass'])            mass assignment defense OFF
+  labApp(['state'])           state defense OFF
+  labApp(['escalation'])      escalation defense OFF
+  labApp(['guard'])           guard defense OFF
+  labApp(['method'])          method defense OFF
+  labApp(['guest'])           guest defense OFF
+*/
+
+class DemoStaff extends Authenticatable
+{
+    protected $table = 'demo_staff';
+    protected $guarded = [];
+}
+
+class DemoOwner extends Authenticatable
+{
+    protected $table = 'demo_owners';
+    protected $guarded = [];
+}
+
+class DemoBooking extends Model
+{
+    protected $table = 'demo_bookings';
+    protected $guarded = []; // wide open on purpose: the route code must be the defense
+}
+
+function labTables(): void
+{
+    foreach (['demo_staff', 'demo_owners', 'demo_bookings', 'demo_treatments'] as $t) {
+        Schema::dropIfExists($t);
+    }
+
+    Schema::create('demo_staff', function ($t) {
+        $t->id();
+        $t->string('name');
+        $t->string('role')->default('staff'); // admin | staff | dentist
+        $t->timestamps();
+    });
+    Schema::create('demo_owners', function ($t) {
+        $t->id();
+        $t->string('name');
+        $t->timestamps();
+    });
+    Schema::create('demo_bookings', function ($t) {
+        $t->id();
+        $t->unsignedBigInteger('owner_id');
+        $t->unsignedBigInteger('staff_id')->nullable();
+        $t->string('date');
+        $t->string('status')->default('scheduled'); // scheduled | cancelled
+        $t->boolean('approved')->default(false);
+        $t->text('answers')->nullable();            // the private "medical questionnaire"
+        $t->timestamps();
+    });
+    Schema::create('demo_treatments', function ($t) {
+        $t->id();
+        $t->unsignedBigInteger('booking_id');
+    });
+}
+
+beforeEach(fn () => labTables());
+afterEach(function () {
+    foreach (['demo_staff', 'demo_owners', 'demo_bookings', 'demo_treatments'] as $t) {
+        Schema::dropIfExists($t);
+    }
+});
+
+/** Is this defense switched OFF in the current test? */
+function labVuln(string $name): bool
+{
+    return in_array($name, config('demo.vulnerable', []), true);
+}
+
+/** Staff-side role check: must be logged in on the staff guard AND have one of these roles. */
+function labNeedRole(array $roles): void
+{
+    $user = auth('staff')->user();
+    abort_unless($user && in_array($user->role, $roles, true), 403);
+}
+
+/** DEFENSE for IDOR: the booking must belong to the logged-in owner. */
+function labOwnerBooking($id): DemoBooking
+{
+    $booking = DemoBooking::findOrFail($id);
+
+    if (! labVuln('idor')) {
+        abort_unless((int) $booking->owner_id === (int) auth('owner')->id(), 404);
+    }
+
+    return $booking;
+}
+
+/** DEFENSE for state bypass: treated or cancelled bookings are locked. */
+function labUnlockedBooking($id): DemoBooking
+{
+    $booking = DemoBooking::findOrFail($id);
+    $locked = $booking->status === 'cancelled'
+        || DB::table('demo_treatments')->where('booking_id', $booking->id)->exists();
+
+    if (! labVuln('state')) {
+        abort_if($locked, 403);
+    }
+
+    return $booking;
+}
+
+function labApp(array $vulnerable = []): void
+{
+    config([
+        'demo.vulnerable' => $vulnerable,
+        'auth.providers.demo_staff' => ['driver' => 'eloquent', 'model' => DemoStaff::class],
+        'auth.providers.demo_owners' => ['driver' => 'eloquent', 'model' => DemoOwner::class],
+        'auth.guards.staff' => ['driver' => 'session', 'provider' => 'demo_staff'],
+        'auth.guards.owner' => ['driver' => 'session', 'provider' => 'demo_owners'],
+    ]);
+
+    // ---- owner portal (login type: owner) ----
+    Route::middleware('auth:owner')->group(function () {
+        Route::get('demo/owner/bookings/{id}/questionnaire', fn ($id) => response()->json(
+            labOwnerBooking($id)->only(['id', 'answers'])
+        ));
+
+        Route::put('demo/owner/bookings/{id}/questionnaire', function (Request $r, $id) {
+            labOwnerBooking($id)->update(['answers' => $r->input('answers')]);
+
+            return response()->json(['saved' => true]);
+        });
+
+        // DEFENSE for mass assignment: take ONLY the fields the form really has.
+        Route::post('demo/owner/bookings', function (Request $r) {
+            $data = labVuln('mass') ? $r->all() : $r->only('date');
+            $booking = DemoBooking::create(array_merge(['owner_id' => auth('owner')->id()], $data));
+
+            return response()->json($booking->fresh(), 201);
+        });
+    });
+
+    // ---- staff JSON helper route: staff role only (not dentists, not owners) ----
+    Route::middleware(labVuln('guard') ? 'auth:staff,owner' : 'auth:staff')
+        ->get('demo/staff/day-statuses', function () {
+            if (! labVuln('guard')) {
+                labNeedRole(['staff']);
+            }
+
+            return response()->json(['days' => ['2030-01-01' => 'available']]);
+        });
+
+    // ---- staff write routes ----
+    Route::middleware('auth:staff')->group(function () {
+        Route::put('demo/staff/bookings/{id}', function (Request $r, $id) {
+            labNeedRole(['staff']);
+            $booking = labUnlockedBooking($id);
+            $booking->update(['date' => $r->input('date', $booking->date)]);
+
+            return response()->json(['updated' => true]);
+        });
+
+        Route::delete('demo/staff/bookings/{id}', function ($id) {
+            labNeedRole(['staff']);
+            labUnlockedBooking($id)->update(['status' => 'cancelled']);
+
+            return response()->json(['cancelled' => true]);
+        });
+
+        // DEFENSE for privilege escalation: only admins change roles.
+        Route::put('demo/staff/users/{id}/role', function (Request $r, $id) {
+            labNeedRole(['admin', 'staff']);
+
+            if (! labVuln('escalation')) {
+                abort_unless(auth('staff')->user()->role === 'admin', 403);
+            }
+
+            DemoStaff::findOrFail($id)->update(['role' => $r->input('role')]);
+
+            return response()->json(['ok' => true]);
+        });
+    });
+
+    // ---- approve: PUT only (method tampering) and login required (guests) ----
+    $approve = function ($id) {
+        if (! labVuln('guest')) {
+            labNeedRole(['staff']);
+        }
+
+        $booking = DemoBooking::findOrFail($id);
+
+        if (! labVuln('state')) {
+            abort_if($booking->status === 'cancelled', 403);
+        }
+
+        $booking->update(['approved' => true]);
+
+        return response()->json(['approved' => true]);
+    };
+
+    Route::middleware(labVuln('guest') ? [] : ['auth:staff'])->group(function () use ($approve) {
+        labVuln('method')
+            ? Route::any('demo/staff/bookings/{id}/approve', $approve)
+            : Route::put('demo/staff/bookings/{id}/approve', $approve);
+    });
+}
+
+/**
+ * Made-up people and bookings:
+ *   booking   a normal booking owned by Alice
+ *   treated   Alice's booking that already has a treatment (locked)
+ *   cancelled Alice's booking that is cancelled (locked)
+ */
+function labSeed(): array
+{
+    $d = [
+        'admin' => DemoStaff::create(['name' => 'Ada', 'role' => 'admin']),
+        'staff' => DemoStaff::create(['name' => 'Sam', 'role' => 'staff']),
+        'dentist' => DemoStaff::create(['name' => 'Dee', 'role' => 'dentist']),
+        'alice' => DemoOwner::create(['name' => 'Alice']),
+        'bob' => DemoOwner::create(['name' => 'Bob']),
+    ];
+
+    $make = fn (array $extra = []) => DemoBooking::create(array_merge([
+        'owner_id' => $d['alice']->id,
+        'date' => '2030-01-01',
+        'answers' => 'allergic to penicillin',
+    ], $extra));
+
+    $d['booking'] = $make();
+    $d['treated'] = $make();
+    DB::table('demo_treatments')->insert(['booking_id' => $d['treated']->id]);
+    $d['cancelled'] = $make(['status' => 'cancelled']);
+
+    return $d;
+}
+
+/*
+════════════════════════════════════════════════════════════════════════════
+PART C: THE 7 ATTACKS
+════════════════════════════════════════════════════════════════════════════
+*/
+
+/*
+┌──────────────────────────────────────────────────────────────────────────┐
+│ 1. IDOR  (Insecure Direct Object Reference)                              │
+└──────────────────────────────────────────────────────────────────────────┘
+
+WHAT
+  The URL contains an ID, like /bookings/15/questionnaire. The app checks
+  "are you logged in?" but forgets "is booking 15 YOURS?". Bob changes 15 to
+  16 in the URL and reads or edits Alice's record.
+
+WHY IT MATTERS
+  It leaks or corrupts other people's data (here: medical answers), and it
+  needs zero hacking skill. Just editing a number.
+
+WHERE
+  Any route with {id}, {appointment}, {patient}; file downloads; API
+  endpoints like GET /things/{id}. Everything that is "owned" by someone.
+
+DEFENSE (see labOwnerBooking in Part B)
+  abort_unless($booking->owner_id === auth('owner')->id(), 404);
+  (404 instead of 403 also hides that the record exists.)
+
+PROS of testing it
+  - Catches the most common real-world data leak.
+  - Cheap: two users and one request.
+  - The "owner still works" test catches a defense that over-blocks.
+
+CONS / BLIND SPOTS
+  - You must test every owned route. One forgotten route is a hole.
+  - It only proves the routes you listed.
+  - Doesn't catch IDs leaking in other places (like list pages).
+*/
+
+// Bob (owner of nothing here) tries to READ Alice's questionnaire. Must be 404.
+it('IDOR: Bob cannot read Alice\'s questionnaire', function () {
+    labApp();
+    $d = labSeed();
+
+    $this->actingAs($d['bob'], 'owner')
+        ->json('GET', "/demo/owner/bookings/{$d['booking']->id}/questionnaire")
+        ->assertNotFound();
+});
+
+// Bob tries to OVERWRITE Alice's answers. Must be 404 AND her data must be untouched.
+it('IDOR: Bob cannot overwrite Alice\'s questionnaire, and her data is unchanged', function () {
+    labApp();
+    $d = labSeed();
+
+    $this->actingAs($d['bob'], 'owner')
+        ->json('PUT', "/demo/owner/bookings/{$d['booking']->id}/questionnaire", ['answers' => 'HACKED'])
+        ->assertNotFound();
+
+    expect($d['booking']->fresh()->answers)->toBe('allergic to penicillin'); // step 4: DB check
+});
+
+// The REAL owner must still get in. Otherwise the defense just blocks everyone.
+it('IDOR: Alice can still read her own (a defense must not block the real owner)', function () {
+    labApp();
+    $d = labSeed();
+
+    $this->actingAs($d['alice'], 'owner')
+        ->json('GET', "/demo/owner/bookings/{$d['booking']->id}/questionnaire")
+        ->assertOk()
+        ->assertJsonPath('answers', 'allergic to penicillin');
+});
+
+// Defense OFF: the exact same attack now works. This proves the attack is real.
+it('ATTACK LANDS (idor defense off): Bob reads and overwrites Alice\'s data', function () {
+    labApp(['idor']);
+    $d = labSeed();
+
+    $this->actingAs($d['bob'], 'owner')
+        ->json('GET', "/demo/owner/bookings/{$d['booking']->id}/questionnaire")
+        ->assertOk()
+        ->assertJsonPath('answers', 'allergic to penicillin');
+
+    $this->actingAs($d['bob'], 'owner')
+        ->json('PUT', "/demo/owner/bookings/{$d['booking']->id}/questionnaire", ['answers' => 'HACKED'])
+        ->assertOk();
+
+    expect($d['booking']->fresh()->answers)->toBe('HACKED');
+});
+
+/*
+┌──────────────────────────────────────────────────────────────────────────┐
+│ 2. MASS ASSIGNMENT                                                       │
+└──────────────────────────────────────────────────────────────────────────┘
+
+WHAT
+  Your form only shows "date". An attacker adds extra fields to the request
+  (browser dev tools, Postman): status=completed, approved=1, owner_id=<Bob>.
+  If the server saves everything it receives, those fields get written.
+
+WHY IT MATTERS
+  Users can approve themselves, impersonate others, or set internal fields
+  they should never control.
+
+WHERE
+  Any create/update that does Model::create($request->all()),
+  ->fill($request->all()), or a model with $guarded = [].
+
+DEFENSE
+  Accept only the fields the form really has, and let the SERVER decide the
+  sensitive ones:
+    $data = $request->only('date');
+    Booking::create(['owner_id' => auth()->id()] + $data);
+
+PROS of testing it
+  - Proves the server (not the form) decides what gets saved.
+  - Catches dangerous fields added to the table later.
+  - Also checks the allowed field still saves.
+
+CONS / BLIND SPOTS
+  - You have to guess which hidden fields are dangerous.
+  - Nested/array input needs its own cases.
+  - A harmless-looking field can be dangerous only in context.
+*/
+
+// Alice sends the allowed field ("date") plus 4 forbidden ones. Only "date" may be saved.
+it('mass assignment: protected fields sent by an owner are ignored', function () {
+    labApp();
+    $d = labSeed();
+
+    $this->actingAs($d['alice'], 'owner')->json('POST', '/demo/owner/bookings', [
+        'date' => '2031-05-05',
+        'status' => 'completed',          // not hers to set
+        'approved' => 1,                  // she can't approve herself
+        'staff_id' => $d['admin']->id,    // she can't pick the staff
+        'owner_id' => $d['bob']->id,      // she can't book as Bob
+    ])->assertCreated();
+
+    $booking = DemoBooking::latest('id')->first();
+
+    expect($booking->date)->toBe('2031-05-05')                  // allowed field WAS saved
+        ->and((int) $booking->owner_id)->toBe($d['alice']->id)  // forced to the real user
+        ->and($booking->status)->toBe('scheduled')              // forbidden fields were ignored
+        ->and((int) $booking->approved)->toBe(0)
+        ->and($booking->staff_id)->toBeNull();
+});
+
+// Defense OFF: Alice approves herself and books as Bob.
+it('ATTACK LANDS (mass defense off): Alice approves herself and books as Bob', function () {
+    labApp(['mass']);
+    $d = labSeed();
+
+    $this->actingAs($d['alice'], 'owner')->json('POST', '/demo/owner/bookings', [
+        'date' => '2031-05-05', 'status' => 'completed', 'approved' => 1, 'owner_id' => $d['bob']->id,
+    ])->assertCreated();
+
+    $booking = DemoBooking::latest('id')->first();
+
+    expect((int) $booking->owner_id)->toBe($d['bob']->id)
+        ->and($booking->status)->toBe('completed')
+        ->and((int) $booking->approved)->toBe(1);
+});
+
+/*
+┌──────────────────────────────────────────────────────────────────────────┐
+│ 3. STATE BYPASS                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+
+WHAT
+  Some actions are only valid in some states. A treated booking is proof that
+  a service was delivered (money), so it must be frozen. The UI hides the
+  Cancel button, but hiding a button is not security: the request can still
+  be sent by hand.
+
+WHY IT MATTERS
+  Protects history and money (editing or deleting delivered work) and
+  workflow rules (approving something already cancelled).
+
+WHERE
+  Edit/delete/approve on anything with a status or lock: paid invoices,
+  closed periods, submitted forms, cancelled orders.
+
+DEFENSE (see labUnlockedBooking in Part B)
+  abort_if($booking->status === 'cancelled' || $booking->treatments()->exists(), 403);
+
+PROS of testing it
+  - Protects business rules, not just roles.
+  - Catches the "UI hides it" false sense of security.
+  - The "normal one still editable" test avoids over-blocking.
+
+CONS / BLIND SPOTS
+  - You must build each locked state inside the test.
+  - Two requests at the same time (race conditions) need separate tests.
+  - Rules live in code, so tests must change when the rules change.
+*/
+
+// PUT (edit) and DELETE (cancel) on a TREATED booking. Both must be 403 and the row unchanged.
+it('state bypass: staff cannot edit or cancel a treated booking', function (string $method) {
+    labApp();
+    $d = labSeed();
+
+    $this->actingAs($d['staff'], 'staff')
+        ->json($method, "/demo/staff/bookings/{$d['treated']->id}", ['date' => '2099-12-31'])
+        ->assertForbidden();
+
+    $fresh = $d['treated']->fresh();
+    expect($fresh->date)->toBe('2030-01-01')->and($fresh->status)->toBe('scheduled');
+})->with(['PUT', 'DELETE']);
+
+// A CANCELLED booking is locked for editing too.
+it('state bypass: staff cannot edit a cancelled booking', function () {
+    labApp();
+    $d = labSeed();
+
+    $this->actingAs($d['staff'], 'staff')
+        ->json('PUT', "/demo/staff/bookings/{$d['cancelled']->id}", ['date' => '2099-12-31'])
+        ->assertForbidden();
+
+    expect($d['cancelled']->fresh()->date)->toBe('2030-01-01');
+});
+
+// You can't approve something that was already cancelled.
+it('state bypass: staff cannot approve a cancelled booking', function () {
+    labApp();
+    $d = labSeed();
+
+    $this->actingAs($d['staff'], 'staff')
+        ->json('PUT', "/demo/staff/bookings/{$d['cancelled']->id}/approve")
+        ->assertForbidden();
+
+    expect((int) $d['cancelled']->fresh()->approved)->toBe(0);
+});
+
+// A normal booking must still be editable, or the lock is over-blocking.
+it('state bypass: a normal booking is still editable (defense must not over-block)', function () {
+    labApp();
+    $d = labSeed();
+
+    $this->actingAs($d['staff'], 'staff')
+        ->json('PUT', "/demo/staff/bookings/{$d['booking']->id}", ['date' => '2040-02-02'])
+        ->assertOk();
+
+    expect($d['booking']->fresh()->date)->toBe('2040-02-02');
+});
+
+// Defense OFF: the treated booking gets cancelled.
+it('ATTACK LANDS (state defense off): the treated booking gets changed', function () {
+    labApp(['state']);
+    $d = labSeed();
+
+    $this->actingAs($d['staff'], 'staff')
+        ->json('DELETE', "/demo/staff/bookings/{$d['treated']->id}")
+        ->assertOk();
+
+    expect($d['treated']->fresh()->status)->toBe('cancelled');
+});
+
+/*
+┌──────────────────────────────────────────────────────────────────────────┐
+│ 4. PRIVILEGE ESCALATION                                                  │
+└──────────────────────────────────────────────────────────────────────────┘
+
+WHAT
+  Gaining more power than you were given.
+    vertical    staff makes themselves admin
+    horizontal  acting as another user at the same level
+
+WHY IT MATTERS
+  One escalation switches off every other protection.
+
+WHERE
+  Anything that writes a role or permission: user edit, role assignment,
+  invites, profile pages, "impersonate" features.
+
+DEFENSE
+  Only admins may change roles:
+    abort_unless(auth('staff')->user()->role === 'admin', 403);
+
+PROS of testing it
+  - Tests the highest-impact failure directly.
+  - Easy: one attacker, one target.
+  - The "admin can" test proves the feature still works.
+
+CONS / BLIND SPOTS
+  - Roles can be assigned through many paths (API, seeder, profile page).
+    Each needs its own test.
+  - Cached permissions can make a test pass for the wrong reason.
+  - Doesn't cover indirect chains of escalation.
+*/
+
+// Sam (staff) tries to make himself admin, then tries to make Dee admin. Both 403.
+it('escalation: staff cannot make themselves or someone else admin', function (string $who) {
+    labApp();
+    $d = labSeed();
+
+    $this->actingAs($d['staff'], 'staff')
+        ->json('PUT', "/demo/staff/users/{$d[$who]->id}/role", ['role' => 'admin'])
+        ->assertForbidden();
+
+    expect($d[$who]->fresh()->role)->not->toBe('admin');
+})->with(['staff', 'dentist']);
+
+// A real admin must still be able to change roles.
+it('escalation: a real admin CAN change roles (defense must not over-block)', function () {
+    labApp();
+    $d = labSeed();
+
+    $this->actingAs($d['admin'], 'staff')
+        ->json('PUT', "/demo/staff/users/{$d['dentist']->id}/role", ['role' => 'staff'])
+        ->assertOk();
+
+    expect($d['dentist']->fresh()->role)->toBe('staff');
+});
+
+// Defense OFF: Sam promotes himself to admin.
+it('ATTACK LANDS (escalation defense off): staff promotes themselves to admin', function () {
+    labApp(['escalation']);
+    $d = labSeed();
+
+    $this->actingAs($d['staff'], 'staff')
+        ->json('PUT', "/demo/staff/users/{$d['staff']->id}/role", ['role' => 'admin'])
+        ->assertOk();
+
+    expect($d['staff']->fresh()->role)->toBe('admin');
+});
+
+/*
+┌──────────────────────────────────────────────────────────────────────────┐
+│ 5. GUARD MIXING                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+
+WHAT
+  The app has separate login "worlds" (here: owner and staff; in your real
+  project: web and patient). A session from one world must not work in the
+  other. And inside the staff world, a role (dentist) is not the same as
+  another role (staff).
+
+WHY IT MATTERS
+  An owner/patient account is easy to get. It must never become a key to
+  staff data.
+
+WHERE
+  Multi-guard apps, admin panels next to customer portals, and especially
+  small JSON/AJAX helper routes. They're often forgotten because they have
+  no page.
+
+DEFENSE
+  auth:staff on the route (authentication: "who are you?") plus a role check
+  (authorization: "are you allowed?").
+    wrong login world  -> 401  (not authenticated here at all)
+    right world, wrong role -> 403  (known, but not allowed)
+
+PROS of testing it
+  - Finds forgotten helper/JSON routes.
+  - Checks the 401 vs 403 difference.
+  - Cheap to loop over many routes.
+
+CONS / BLIND SPOTS
+  - Config mistakes (wrong default guard) only show if the test names the guard.
+  - Two accounts sharing the same email across worlds need their own test.
+  - Route lists must be kept up to date.
+*/
+
+// Wrong login world, both directions: owner on a staff route, staff on an owner route.
+it('guard mixing: an owner is not authenticated on the staff side, and the reverse', function () {
+    labApp();
+    $d = labSeed();
+
+    $this->actingAs($d['alice'], 'owner')->json('GET', '/demo/staff/day-statuses')->assertUnauthorized();
+
+    $this->actingAs($d['staff'], 'staff')
+        ->json('GET', "/demo/owner/bookings/{$d['booking']->id}/questionnaire")
+        ->assertUnauthorized();
+});
+
+// Right world (staff), wrong role (dentist): logged in but not allowed.
+it('guard mixing: a dentist is logged in but still not allowed on a staff-only route', function () {
+    labApp();
+    $d = labSeed();
+
+    $this->actingAs($d['dentist'], 'staff')->json('GET', '/demo/staff/day-statuses')->assertForbidden();
+});
+
+// The right person still gets in.
+it('guard mixing: staff reach their own JSON route (defense must not over-block)', function () {
+    labApp();
+    $d = labSeed();
+
+    $this->actingAs($d['staff'], 'staff')->json('GET', '/demo/staff/day-statuses')->assertOk();
+});
+
+// Defense OFF: an owner reads staff data.
+it('ATTACK LANDS (guard defense off): an owner reads the staff JSON', function () {
+    labApp(['guard']);
+    $d = labSeed();
+
+    $this->actingAs($d['alice'], 'owner')->json('GET', '/demo/staff/day-statuses')->assertOk();
+});
+
+/*
+┌──────────────────────────────────────────────────────────────────────────┐
+│ 6. METHOD TAMPERING                                                      │
+└──────────────────────────────────────────────────────────────────────────┘
+
+WHAT
+  A URL is tied to HTTP verbs. "PUT /bookings/5/approve" approves. A plain GET
+  on that same URL should return 405 Method Not Allowed and do nothing.
+
+WHY IT MATTERS
+  If a write works on GET, any link, image tag or prefetch on another web page
+  can trigger it for a logged-in user. Browsers and crawlers follow GETs freely.
+
+WHERE
+  Routes declared with Route::any(), Route::match(['get','put']), or a
+  controller that never checks the verb.
+
+DEFENSE
+  Declare the exact verb: Route::put(...), Route::delete(...).
+
+PROS of testing it
+  - Very cheap, catches Route::any mistakes.
+  - Good regression test when someone refactors routes.
+  - Protects against "click a link and something changes".
+
+CONS / BLIND SPOTS
+  - Laravel already returns 405, so this mostly guards against future edits.
+  - Doesn't test the _method override trick.
+  - Only list URLs that have NO GET twin. A URL that also has a real GET
+    route returns 200, and that is correct, not a bug.
+*/
+
+// GET on PUT-only / PUT+DELETE-only URLs: must be 405 and nothing may run.
+it('method tampering: GET on write routes gives 405 and changes nothing', function (string $url) {
+    labApp();
+    $d = labSeed();
+
+    $this->actingAs($d['staff'], 'staff')
+        ->json('GET', str_replace('{id}', $d['booking']->id, $url))
+        ->assertStatus(405);
+
+    $fresh = $d['booking']->fresh();
+    expect((int) $fresh->approved)->toBe(0)->and($fresh->status)->toBe('scheduled');
+})->with([
+    '/demo/staff/bookings/{id}/approve',   // PUT only
+    '/demo/staff/bookings/{id}',           // PUT / DELETE only
+]);
+
+// Defense OFF (route uses Route::any): just opening the link approves it.
+it('ATTACK LANDS (method defense off): opening a link approves the booking', function () {
+    labApp(['method']);
+    $d = labSeed();
+
+    $this->actingAs($d['staff'], 'staff')
+        ->json('GET', "/demo/staff/bookings/{$d['booking']->id}/approve")
+        ->assertOk();
+
+    expect((int) $d['booking']->fresh()->approved)->toBe(1);
+});
+
+/*
+┌──────────────────────────────────────────────────────────────────────────┐
+│ 7. GUESTS (nobody logged in)                                             │
+└──────────────────────────────────────────────────────────────────────────┘
+
+WHAT
+  Someone with no session at all tries a protected write route. They must be
+  stopped before any controller code runs.
+
+WHY IT MATTERS
+  This is the front door. One route missing its auth middleware is an open door.
+
+WHERE
+  Every protected route, especially ones added late or placed in a different
+  route group by mistake.
+
+DEFENSE
+  auth:staff / auth:owner middleware. Browsers get a redirect to the login
+  page; API/JSON requests get 401. (This file sends JSON, so it expects 401.)
+
+PROS of testing it
+  - Easy to loop over many routes with a dataset.
+  - Catches a forgotten middleware immediately.
+  - Fast.
+
+CONS / BLIND SPOTS
+  - Says nothing about logged-in-but-wrong users (that's attacks 1 to 5).
+  - A route you forgot to list is never checked.
+  - Public routes must be excluded on purpose.
+*/
+
+// One test, run against 6 write routes. Each must answer 401 and change nothing.
+it('guests: every write route answers 401 and changes nothing', function (string $method, string $url) {
+    labApp();
+    $d = labSeed();
+
+    $this->json($method, str_replace('{id}', $d['booking']->id, $url), ['answers' => 'HACKED', 'role' => 'admin'])
+        ->assertUnauthorized();
+
+    $fresh = $d['booking']->fresh();
+    expect($fresh->answers)->toBe('allergic to penicillin')
+        ->and((int) $fresh->approved)->toBe(0)
+        ->and($fresh->status)->toBe('scheduled');
+})->with([
+    ['PUT', '/demo/owner/bookings/{id}/questionnaire'],
+    ['POST', '/demo/owner/bookings'],
+    ['PUT', '/demo/staff/bookings/{id}'],
+    ['DELETE', '/demo/staff/bookings/{id}'],
+    ['PUT', '/demo/staff/bookings/{id}/approve'],
+    ['PUT', '/demo/staff/users/{id}/role'],
+]);
+
+// Defense OFF (approve route has no auth middleware): a total stranger approves a booking.
+it('ATTACK LANDS (guest defense off): a guest approves a booking', function () {
+    labApp(['guest']);
+    $d = labSeed();
+
+    $this->json('PUT', "/demo/staff/bookings/{$d['booking']->id}/approve")->assertOk();
+
+    expect((int) $d['booking']->fresh()->approved)->toBe(1);
+});
+
+/*
+════════════════════════════════════════════════════════════════════════════
+QUICK CHEAT SHEET
+════════════════════════════════════════════════════════════════════════════
+
+  Attack            Attacker                  Expect            Then check DB
+  ----------------  ------------------------  ----------------  --------------------------
+  IDOR              other owner               404               their data unchanged
+  Mass assignment   owner + extra fields      201, but ignored  forbidden fields not set
+  State bypass      staff on a locked row     403               row unchanged
+  Escalation        staff -> admin            403               role unchanged
+  Guard mixing      wrong login / wrong role  401 / 403         n/a
+  Method tampering  right user, wrong verb    405               nothing ran
+  Guest             nobody                    401               nothing changed
+
+  Pest proves YOUR rules. Scanners like OWASP ZAP / Burp probe for things you
+  didn't think to write a test for. They complement each other.
+*/
