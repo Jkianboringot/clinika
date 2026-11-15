@@ -165,7 +165,7 @@ export default function Index({ appointments }: Props) {
                     <Table>
                         <TableHeader>
                             <TableRow className="border-b border-gray-200 hover:bg-transparent">
-                                <TableHead className="font-bold tracking-wide text-blue-700">Date</TableHead>
+                                <TableHead className="font-bold tracking-wide text-blue-700">Date of Appointment</TableHead>
                                 <TableHead className="font-bold tracking-wide text-blue-700">Time</TableHead>
                                 <TableHead className="font-bold tracking-wide text-blue-700">Reason</TableHead>
                                 <TableHead className="font-bold tracking-wide text-blue-700">Dentist</TableHead>

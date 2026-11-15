@@ -246,7 +246,7 @@ class ReportController extends Controller
             ->get();
 
         $columns = [
-            ['key' => 'date',      'label' => 'Date'],
+            ['key' => 'date',      'label' => 'Date of Appointment'],
             ['key' => 'time',      'label' => 'Time'],
             ['key' => 'patient',   'label' => 'Patient'],
             ['key' => 'procedure', 'label' => 'Procedure'],
