@@ -273,7 +273,6 @@ export default function Profile({ showAvatar }: ProfileProps) {
                 </Form>
             </div>
 
-            <DeleteUser />
         </>
     );
 }

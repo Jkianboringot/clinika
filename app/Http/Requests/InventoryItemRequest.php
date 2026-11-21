@@ -13,6 +13,7 @@ class InventoryItemRequest extends FormRequest
 
     public function rules(): array
     {
+
         return [
             'item_name' => ['required', 'string', 'min:2', 'max:75'],
             'minimum_stock' => ['nullable', 'numeric', 'max:99999','min:1'],

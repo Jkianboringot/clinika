@@ -117,7 +117,7 @@ export default function Create({ items }: Props) {
                                         value={row.item_id}
                                         onValueChange={(value) => updateItem(i, 'item_id', value)}
                                     >
-                                        <SelectTrigger className="border-[#e0d0c0]">
+                                        <SelectTrigger className="w-full border-[#e0d0c0]">
                                             <SelectValue placeholder="Select item" />
                                         </SelectTrigger>
                                         <SelectContent>
